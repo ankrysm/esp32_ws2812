@@ -75,6 +75,8 @@ void led_strip_hsv2rgb(uint32_t h, uint32_t s, uint32_t v, uint32_t *r, uint32_t
     }
 }
 
+
+
 int strip_initialized() {
 	return gVstrip ? 1 : 0;
 }
@@ -157,6 +159,9 @@ void strip_show() {
 	ESP_ERROR_CHECK(gVstrip->refresh(gVstrip, 100));
 }
 
+void strip_rotate(int32_t dir)  {
+	ESP_ERROR_CHECK(gVstrip->rotate(gVstrip, dir));
+}
 
 
 void led_strip_main(void)

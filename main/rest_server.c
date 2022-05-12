@@ -265,8 +265,21 @@ static int process_commands(char *buf) {
 			strip_set_color(pos, pos, red, green, blue);
 			//ESP_LOGI(TAG, "cmd '%s' (%d,%d,%d,%d)", p1, pos,red,green,blue);
 
+		} else if ( !strcasecmp(p1,"r")) {
+			// rotate
+			// r,n  -n < 0 oder > 0 die Richtung und stepweite
+			if ( !initialized) {
+				ESP_LOGE(TAG, "cmd '%s' not initialized",p1);
+				return -1;
+			}
+			do {
+				if ( !(p2=strtok_r(NULL,", ", &ll))) break;
+			} while(0);
+			int32_t dir = p2 ? atoi(p2) : 0;
+			strip_rotate(dir);
+
 		} else {
-			ESP_LOGI(TAG, "ignored line => '%s'", t);
+			ESP_LOGI(TAG, "ignored cmd => '%s'", p1);
 		}
 	}
  	strip_show();
@@ -339,6 +352,45 @@ static esp_err_t get_handler_strip_setup(httpd_req_t *req)
     } else {
     	strip_setup(numleds);
         snprintf(resp_str, sizeof(resp_str),"done. numleds=%d\n", numleds);
+    }
+
+    // Response-String
+    httpd_resp_send(req, resp_str, HTTPD_RESP_USE_STRLEN);
+
+    return ESP_OK;
+}
+static esp_err_t get_handler_strip_rotate(httpd_req_t *req)
+{
+    char*  buf;
+    size_t buf_len;
+
+
+    // Read URL query string length and allocate memory for length + 1,
+    //  extra byte for null termination */
+    int32_t dir=0;
+
+    buf_len = httpd_req_get_url_query_len(req) + 1;
+    if (buf_len > 1) {
+        buf = malloc(buf_len);
+        if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK) {
+            ESP_LOGI(TAG, "Found URL query => %s", buf);
+            char param[32];
+            /* Get value of expected key from query string */
+            if (httpd_query_key_value(buf, "d", param, sizeof(param)) == ESP_OK) {
+                 ESP_LOGI(TAG, "Found URL query parameter => d=%s", param);
+                 dir = atoi(param);
+             }
+        }
+        free(buf);
+    }
+
+    char resp_str[64];
+    if ( !strip_initialized()) {
+        snprintf(resp_str, sizeof(resp_str),"NOT INITIALIZED\n");
+    } else {
+    	strip_rotate(dir);
+    	strip_show();
+        snprintf(resp_str, sizeof(resp_str),"done: %d\n", dir);
     }
 
     // Response-String
@@ -494,6 +546,14 @@ esp_err_t start_rest_server(const char *base_path)
         .user_ctx  = rest_context
     };
     httpd_register_uri_handler(server, &strip_setcolor);
+
+    httpd_uri_t strip_rotate = {
+        .uri       = "/api/v1/rotate",
+        .method    = HTTP_GET,
+        .handler   = get_handler_strip_rotate,
+        .user_ctx  = rest_context
+    };
+    httpd_register_uri_handler(server, &strip_rotate);
 
     httpd_uri_t strip_file = {
         .uri       = "/api/v1/file",
