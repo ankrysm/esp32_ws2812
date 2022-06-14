@@ -12,16 +12,17 @@
 #include "esp_log.h"
 #include "driver/rmt.h"
 #include "led_strip.h"
-
-static const char *TAG = "ledstrip";
+#include "config.h"
 
 #define RMT_TX_CHANNEL RMT_CHANNEL_0
 #define LED_STRIP_PIN 13
 
-//#define EXAMPLE_CHASE_SPEED_MS (200)
+#define EXAMPLE_CHASE_SPEED_MS (200)
 
 //static int gVnumleds = 0;
 static led_strip_t *gVstrip = NULL;
+
+extern T_CONFIG gConfig;
 
 /**
  * @brief Simple helper function, converting HSV color space to RGB color space
@@ -77,9 +78,9 @@ void led_strip_hsv2rgb(uint32_t h, uint32_t s, uint32_t v, uint32_t *r, uint32_t
 
 
 
-//int strip_initialized() {
-//	return gVstrip ? 1 : 0;
-//}
+static int strip_initialized() {
+	return gVstrip ? 1 : 0;
+}
 
 //int strip_numleds() {
 //	return gVnumleds;
@@ -90,7 +91,7 @@ void led_strip_hsv2rgb(uint32_t h, uint32_t s, uint32_t v, uint32_t *r, uint32_t
  */
 esp_err_t strip_init(int numleds) {
 	if (numleds <1 || numleds>1000) {
-		ESP_LOGE(TAG, "%s: numleds %d out of range", __func__, numleds);
+		ESP_LOGE(__func__, "%s: numleds %d out of range", __func__, numleds);
 		return ESP_FAIL;
 	}
 
@@ -106,47 +107,66 @@ esp_err_t strip_init(int numleds) {
 	led_strip_config_t strip_config = LED_STRIP_DEFAULT_CONFIG(numleds, (led_strip_dev_t) config.channel);
 	gVstrip = led_strip_new_rmt_ws2812(&strip_config);
 	if (!gVstrip) {
-		ESP_LOGE(TAG, "%s: install WS2812 driver failed", __func__);
+		ESP_LOGE(__func__, "install WS2812 driver failed");
 		return ESP_FAIL;
 	}
 	// Clear LED strip (turn off all LEDs)
 	ESP_ERROR_CHECK(gVstrip->clear(gVstrip, 100));
-    ESP_LOGI(TAG, "%s: init done with numleds %d", __func__, numleds );
+    ESP_LOGI(__func__, "init done with numleds %d",numleds );
 
     return ESP_OK;
 
 }
 
+esp_err_t strip_resize(int numleds) {
+	if (numleds <1 || numleds>1000) {
+		ESP_LOGE(__func__, "numleds %d out of range", numleds);
+		return ESP_FAIL;
+	}
+	gVstrip = led_strip_resize_rmt_ws2812(gVstrip, numleds);
+	if (!gVstrip) {
+		ESP_LOGE(__func__, "resize WS2812 LED strip failed");
+		return ESP_FAIL;
+	}
+    ESP_LOGI(__func__, "resize done with numleds %d",numleds );
+
+    return ESP_OK;
+}
+
 /**
- * change numleds
+ * setup or change numleds
  */
-void strip_setup(int numleds) {
-	// TODO later, no init only
-	if ( numleds == gVnumleds) {
-	    ESP_LOGI(TAG, "%s: new numleds equals old numleds %d", __func__, numleds );
-	    return;
+esp_err_t strip_setup(int numleds) {
+	esp_err_t ret;
+	if ( numleds == gConfig.numleds) {
+		ESP_LOGI(__func__, "new numleds equals old numleds %d", numleds );
+		return ESP_OK;
 	}
 
 	if ( ! gVstrip) {
-		strip_init(numleds);
-	    ESP_LOGI(TAG, "%s: setup done with numleds %d", __func__, gVnumleds );
+		// Init needed
+		ret = strip_init(numleds);
+		ESP_LOGI(__func__, "setup done with numleds %d", numleds );
 	} else {
-	    ESP_LOGE(TAG, "%s: NYI setup with numleds %d", __func__, numleds );
+		// resize strip
+		ret = strip_resize(numleds);
+		ESP_LOGI(__func__, "resize done with numleds %d", numleds );
 	}
+	return ret;
 }
 
 void strip_set_color(uint32_t start_idx, uint32_t end_idx, uint32_t red, uint32_t green, uint32_t blue) {
 	if (!strip_initialized()) {
-		ESP_LOGE(TAG, "%s: not initalized", __func__);
+		ESP_LOGE(__func__, "%s: not initalized", __func__);
 		return;
 	}
-	if ( start_idx >= gVnumleds || end_idx < start_idx || end_idx >= gVnumleds) {
-		ESP_LOGE(TAG, "%s: idx %d - %d out of range", __func__, start_idx, end_idx);
+	if ( start_idx >= gConfig.numleds || end_idx < start_idx || end_idx >= gConfig.numleds) {
+		ESP_LOGE(__func__, "%s: idx %d - %d out of range", __func__, start_idx, end_idx);
 		return;
 	}
 	for(int i = start_idx; i <= end_idx; i++) {
 		ESP_ERROR_CHECK(gVstrip->set_pixel(gVstrip, i, red, green, blue));
-	    //ESP_LOGI(TAG, "%s: set pixel @%d %d/%d/%d", __func__, i,red,green,blue );
+	    //ESP_LOGI(__func__, "%s: set pixel @%d %d/%d/%d", __func__, i,red,green,blue );
 	}
 }
 
@@ -156,7 +176,7 @@ void strip_clear()  {
 
 void strip_show() {
 	if (!strip_initialized()) {
-		ESP_LOGE(TAG, "%s: not initalized", __func__);
+		ESP_LOGE(__func__, "%s: not initalized", __func__);
 		return;
 	}
 	ESP_ERROR_CHECK(gVstrip->refresh(gVstrip, 100));
@@ -193,13 +213,13 @@ void led_strip_main(void)
 	//    		, (led_strip_dev_t)config.channel);
 	//    led_strip_t *strip = led_strip_new_rmt_ws2812(&strip_config);
 	//    if (!strip) {
-	//        ESP_LOGE(TAG, "install WS2812 driver failed");
+	//        ESP_LOGE(__func__, "install WS2812 driver failed");
 	//    }
 	//    // Clear LED strip (turn off all LEDs)
 	//    ESP_ERROR_CHECK(strip->clear(strip, 100));
 	// Show simple rainbow chasing pattern
 
-	ESP_LOGI(TAG, "LED Rainbow Chase Start");
+	ESP_LOGI(__func__, "LED Rainbow Chase Start");
 	int base=0;
 	while (true) {
 		for (int j = 0; j < numleds; j++) {

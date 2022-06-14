@@ -213,3 +213,19 @@ esp_err_t init_storage() {
 	*/
 }
 
+char *config2txt(char *txt, size_t sz) {
+	snprintf(txt, sz,
+			"config:\n" \
+			"numleds=%d\n" \
+			"scenefile=%s\n" \
+			"autostart=%s\n" \
+			"repeat=%s\n" \
+			"cycle=%d\n",
+			gConfig.numleds,
+			gConfig.scenefile,
+			(gConfig.flags & CFG_AUTOPLAY ? "true" : "false"),
+			(gConfig.flags & CFG_REPEAT ? "true" : "false"),
+			gConfig.cycle
+	);
+	return txt;
+}

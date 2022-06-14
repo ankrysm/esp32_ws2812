@@ -28,6 +28,6 @@ typedef struct {
 // prototypes
 esp_err_t store_config();
 esp_err_t init_storage();
-
+char *config2txt(char *txt, size_t sz);
 
 #endif /* CONFIG_H_ */

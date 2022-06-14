@@ -32,6 +32,7 @@
 #endif
 #include "esp_chip_info.h"
 #include "local.h"
+#include "config.h"
 
 esp_err_t init_fs(void);
 
@@ -67,6 +68,14 @@ static esp_err_t set_content_type_from_file(httpd_req_t *req, const char *filepa
     return httpd_resp_set_type(req, type);
 }
 
+
+static uint32_t trufal(char *txt) {
+	if ( !strcmp(txt,"1") || !strcasecmp(txt,"true") || !strcasecmp(txt,"t")) {
+		return 1;
+	} else {
+		return 0;
+	}
+}
 /* Send HTTP response with the contents of the requested file */
 /*
 static esp_err_t rest_common_get_handler(httpd_req_t *req)
@@ -82,7 +91,7 @@ static esp_err_t rest_common_get_handler(httpd_req_t *req)
     }
     int fd = open(filepath, O_RDONLY, 0);
     if (fd == -1) {
-        ESP_LOGE(REST_TAG, "Failed to open file : %s", filepath);
+        ESP_LOGE(__func__, "Failed to open file : %s", filepath);
         // Respond with 500 Internal Server Error
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to read existing file");
         return ESP_FAIL;
@@ -96,12 +105,12 @@ static esp_err_t rest_common_get_handler(httpd_req_t *req)
         // Read file in chunks into the scratch buffer
         read_bytes = read(fd, chunk, SCRATCH_BUFSIZE);
         if (read_bytes == -1) {
-            ESP_LOGE(REST_TAG, "Failed to read file : %s", filepath);
+            ESP_LOGE(__func__, "Failed to read file : %s", filepath);
         } else if (read_bytes > 0) {
             // Send the buffer contents as HTTP response chunk
             if (httpd_resp_send_chunk(req, chunk, read_bytes) != ESP_OK) {
                 close(fd);
-                ESP_LOGE(REST_TAG, "File sending failed!");
+                ESP_LOGE(__func__, "File sending failed!");
                 // Abort sending file
                 httpd_resp_sendstr_chunk(req, NULL);
                 // Respond with 500 Internal Server Error
@@ -112,7 +121,7 @@ static esp_err_t rest_common_get_handler(httpd_req_t *req)
     } while (read_bytes > 0);
     // Close file after sending complete
     close(fd);
-    ESP_LOGI(REST_TAG, "File sending complete");
+    ESP_LOGI(__func__, "File sending complete");
     // Respond with an empty chunk to signal HTTP response completion
     httpd_resp_send_chunk(req, NULL, 0);
     return ESP_OK;
@@ -147,7 +156,7 @@ static esp_err_t light_brightness_post_handler(httpd_req_t *req)
     int red = cJSON_GetObjectItem(root, "red")->valueint;
     int green = cJSON_GetObjectItem(root, "green")->valueint;
     int blue = cJSON_GetObjectItem(root, "blue")->valueint;
-    ESP_LOGI(REST_TAG, "Light control: red = %d, green = %d, blue = %d", red, green, blue);
+    ESP_LOGI(__func__, "Light control: red = %d, green = %d, blue = %d", red, green, blue);
     cJSON_Delete(root);
     httpd_resp_sendstr(req, "Post control value successfully");
     return ESP_OK;
@@ -184,6 +193,7 @@ static esp_err_t temperature_data_get_handler(httpd_req_t *req)
 }
 */
 
+/*
 static int process_commands(char *buf) {
 	char *l,*t, *p1, *p2, *p3, *p4, *p5, *ll;
 	const char *tr=";\r\n";
@@ -272,7 +282,9 @@ static int process_commands(char *buf) {
  	strip_show();
  	return 0;
 }
+*/
 
+/*
 static esp_err_t post_handler_strip_file(httpd_req_t *req)
 {
     int total_len = req->content_len;
@@ -304,9 +316,12 @@ static esp_err_t post_handler_strip_file(httpd_req_t *req)
     }
     return ESP_OK;
 }
+*/
+
 
 /* An HTTP GET handler */
 
+/*
 static esp_err_t get_handler_strip_setup(httpd_req_t *req)
 {
     char*  buf;
@@ -314,7 +329,7 @@ static esp_err_t get_handler_strip_setup(httpd_req_t *req)
 
 
     // Read URL query string length and allocate memory for length + 1,
-    //  extra byte for null termination */
+    //  extra byte for null termination
     int numleds=0;
 
     buf_len = httpd_req_get_url_query_len(req) + 1;
@@ -323,7 +338,7 @@ static esp_err_t get_handler_strip_setup(httpd_req_t *req)
         if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK) {
             ESP_LOGI(__func__, "Found URL query => %s", buf);
             char param[32];
-            /* Get value of expected key from query string */
+            // Get value of expected key from query string
             if (httpd_query_key_value(buf, "n", param, sizeof(param)) == ESP_OK) {
                  ESP_LOGI(__func__, "Found URL query parameter => n=%s", param);
                  numleds = atoi(param);
@@ -346,6 +361,9 @@ static esp_err_t get_handler_strip_setup(httpd_req_t *req)
 
     return ESP_OK;
 }
+*/
+
+/*
 static esp_err_t get_handler_strip_rotate(httpd_req_t *req)
 {
     char*  buf;
@@ -353,7 +371,7 @@ static esp_err_t get_handler_strip_rotate(httpd_req_t *req)
 
 
     // Read URL query string length and allocate memory for length + 1,
-    //  extra byte for null termination */
+    //  extra byte for null termination
     int32_t dir=0;
 
     buf_len = httpd_req_get_url_query_len(req) + 1;
@@ -362,7 +380,7 @@ static esp_err_t get_handler_strip_rotate(httpd_req_t *req)
         if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK) {
             ESP_LOGI(__func__, "Found URL query => %s", buf);
             char param[32];
-            /* Get value of expected key from query string */
+            // Get value of expected key from query string
             if (httpd_query_key_value(buf, "d", param, sizeof(param)) == ESP_OK) {
                  ESP_LOGI(__func__, "Found URL query parameter => d=%s", param);
                  dir = atoi(param);
@@ -385,18 +403,20 @@ static esp_err_t get_handler_strip_rotate(httpd_req_t *req)
 
     return ESP_OK;
 }
+*/
 
+/*
 static esp_err_t get_handler_strip_setcolor(httpd_req_t *req)
 {
     char*  buf;
     size_t buf_len;
 
-    /* Get header value string length and allocate memory for length + 1,
-     * extra byte for null termination */
+    // Get header value string length and allocate memory for length + 1,
+    // extra byte for null termination
 //    buf_len = httpd_req_get_hdr_value_len(req, "Host") + 1;
 //    if (buf_len > 1) {
 //        buf = malloc(buf_len);
-//        /* Copy null terminated value string into buffer */
+//        // Copy null terminated value string into buffer
 //        if (httpd_req_get_hdr_value_str(req, "Host", buf, buf_len) == ESP_OK) {
 //            ESP_LOGI(__func__, "Found header => Host: %s", buf);
 //        }
@@ -421,84 +441,13 @@ static esp_err_t get_handler_strip_setcolor(httpd_req_t *req)
 //        free(buf);
 //    }
 
-    /* Read URL query string length and allocate memory for length + 1,
-     * extra byte for null termination */
+    // Read URL query string length and allocate memory for length + 1,
+    // extra byte for null termination
     int red=0;
     int green=0;
     int blue=0;
     int start_idx=0;
     int end_idx=strip_numleds()-1;
-
-    buf_len = httpd_req_get_url_query_len(req) + 1;
-    if (buf_len > 1) {
-        buf = malloc(buf_len);
-        if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK) {
-            ESP_LOGI(__func__, "Found URL query => %s", buf);
-            char param[32];
-            /* Get value of expected key from query string */
-            if (httpd_query_key_value(buf, "s", param, sizeof(param)) == ESP_OK) {
-                 ESP_LOGI(__func__, "Found URL query parameter => s=%s", param);
-                 start_idx = atoi(param);
-             }
-            if (httpd_query_key_value(buf, "e", param, sizeof(param)) == ESP_OK) {
-                 ESP_LOGI(__func__, "Found URL query parameter => e=%s", param);
-                 end_idx = atoi(param);
-             }
-            if (httpd_query_key_value(buf, "r", param, sizeof(param)) == ESP_OK) {
-                ESP_LOGI(__func__, "Found URL query parameter => r=%s", param);
-                red = atoi(param) & 0xFF;
-            }
-            if (httpd_query_key_value(buf, "g", param, sizeof(param)) == ESP_OK) {
-                ESP_LOGI(__func__, "Found URL query parameter => g=%s", param);
-                green = atoi(param) & 0xFF;
-            }
-            if (httpd_query_key_value(buf, "b", param, sizeof(param)) == ESP_OK) {
-                ESP_LOGI(__func__, "Found URL query parameter => b=%s", param);
-                blue = atoi(param) & 0xFF;
-            }
-        }
-        free(buf);
-    }
-
-    // TODO do_led1();
-    char resp_str[64];
-    if ( !strip_initialized()) {
-        snprintf(resp_str, sizeof(resp_str),"NOT INITIALIZED\n");
-    } else {
-    	strip_set_color(start_idx, end_idx, red, green, blue);
-    	strip_show();
-        snprintf(resp_str, sizeof(resp_str),"done: %d-%d rgb=%d/%d/%d\n", start_idx, end_idx, red,green,blue);
-    }
-
-    /* Set some custom headers */
-    //httpd_resp_set_hdr(req, "Custom-Header-1", "Custom-Value-1");
-    //httpd_resp_set_hdr(req, "Custom-Header-2", "Custom-Value-2");
-
-    /* Send response with custom headers and body set as the
-     * string passed in user context*/
-    //const char* resp_str = (const char*) "done\n";
-    httpd_resp_send(req, resp_str, HTTPD_RESP_USE_STRLEN);
-
-    /* After sending the HTTP response the old HTTP request
-     * headers are lost. Check if HTTP request headers can be read now. */
-    if (httpd_req_get_hdr_value_len(req, "Host") == 0) {
-        ESP_LOGI(__func__, "Request headers lost");
-    }
-
-    return ESP_OK;
-}
-
-/// ##########################################################################
-// new handler
-static esp_err_t get_handler_strip_config(httpd_req_t *req)
-{
-    char*  buf;
-    size_t buf_len;
-
-    extern T_CONFIG gConfig;
-
-    // Read URL query string length and allocate memory for length + 1,
-    // extra byte for null termination */
 
     buf_len = httpd_req_get_url_query_len(req) + 1;
     if (buf_len > 1) {
@@ -541,22 +490,101 @@ static esp_err_t get_handler_strip_config(httpd_req_t *req)
         snprintf(resp_str, sizeof(resp_str),"done: %d-%d rgb=%d/%d/%d\n", start_idx, end_idx, red,green,blue);
     }
 
-    /* Set some custom headers */
+    // Set some custom headers
     //httpd_resp_set_hdr(req, "Custom-Header-1", "Custom-Value-1");
     //httpd_resp_set_hdr(req, "Custom-Header-2", "Custom-Value-2");
 
-    /* Send response with custom headers and body set as the
-     * string passed in user context*/
+    // Send response with custom headers and body set as the
+    // string passed in user context
     //const char* resp_str = (const char*) "done\n";
     httpd_resp_send(req, resp_str, HTTPD_RESP_USE_STRLEN);
 
-    /* After sending the HTTP response the old HTTP request
-     * headers are lost. Check if HTTP request headers can be read now. */
+    // After sending the HTTP response the old HTTP request
+    // headers are lost. Check if HTTP request headers can be read now.
     if (httpd_req_get_hdr_value_len(req, "Host") == 0) {
         ESP_LOGI(__func__, "Request headers lost");
     }
 
     return ESP_OK;
+}
+*/
+
+/// ##########################################################################
+// new handler
+static esp_err_t get_handler_strip_config(httpd_req_t *req)
+{
+	char*  buf;
+	size_t buf_len;
+
+	extern T_CONFIG gConfig;
+
+	// Read URL query string length and allocate memory for length + 1,
+	// extra byte for null termination
+
+	buf_len = httpd_req_get_url_query_len(req) + 1;
+	if (buf_len > 1) {
+		buf = malloc(buf_len);
+		if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK) {
+			ESP_LOGI(__func__, "Found URL query => %s", buf);
+			char param[32];
+			// Get value of expected key from query string
+			if (httpd_query_key_value(buf, "autoplay", param, sizeof(param)) == ESP_OK) {
+				ESP_LOGI(__func__, "query parameter: autoplay=%s", param);
+				gConfig.flags &= !CFG_AUTOPLAY;
+				gConfig.flags |= trufal(param);
+			}
+			if (httpd_query_key_value(buf, "scenefile", param, sizeof(param)) == ESP_OK) {
+				ESP_LOGI(__func__, "query parameter: scenefile=%s", param);
+				snprintf(gConfig.scenefile, sizeof(gConfig.scenefile), "%s", param);
+			}
+			if (httpd_query_key_value(buf, "repeat", param, sizeof(param)) == ESP_OK) {
+				ESP_LOGI(__func__, "query parameter: repeat=%s", param);
+				gConfig.flags &= !CFG_REPEAT;
+				gConfig.flags |= trufal(param);
+			}
+			if (httpd_query_key_value(buf, "numleds", param, sizeof(param)) == ESP_OK) {
+				ESP_LOGI(__func__, "query parameter: numleds=%s", param);
+				gConfig.numleds = atoi(param);
+				strip_setup(gConfig.numleds);
+			}
+			if (httpd_query_key_value(buf, "cycle", param, sizeof(param)) == ESP_OK) {
+				ESP_LOGI(__func__, "query parameter: cycle=%s", param);
+				gConfig.cycle = atoi(param);
+			}
+		}
+		free(buf);
+	}
+
+	// TODO do_led1();
+	char resp_str[255];
+
+
+//	if ( !strip_initialized()) {
+//		snprintf(resp_str, sizeof(resp_str),"NOT INITIALIZED\n");
+//	} else {
+//		strip_set_color(start_idx, end_idx, red, green, blue);
+//		strip_show();
+//		snprintf(resp_str, sizeof(resp_str),"done: %d-%d rgb=%d/%d/%d\n", start_idx, end_idx, red,green,blue);
+//	}
+
+	// Set some custom headers
+	//httpd_resp_set_hdr(req, "Custom-Header-1", "Custom-Value-1");
+	//httpd_resp_set_hdr(req, "Custom-Header-2", "Custom-Value-2");
+
+	// Send response with custom headers and body set as the
+	// string passed in user context
+	//const char* resp_str = (const char*) "done\n";
+
+	config2txt(resp_str, sizeof(resp_str));
+	httpd_resp_send(req, resp_str, HTTPD_RESP_USE_STRLEN);
+
+	// After sending the HTTP response the old HTTP request
+	// headers are lost. Check if HTTP request headers can be read now.
+//	if (httpd_req_get_hdr_value_len(req, "Host") == 0) {
+//		ESP_LOGI(__func__, "Request headers lost");
+//	}
+
+	return ESP_OK;
 }
 
 
@@ -588,7 +616,7 @@ esp_err_t start_rest_server(const char *base_path)
 
     ESP_LOGI(__func__, "Starting HTTP Server");
     //REST_CHECK
-    if ( (httpd_start(&server, &config) != ESP_OK ) {
+    if ( httpd_start(&server, &config) != ESP_OK ) {
     	ESP_LOGE(__func__, "Start server failed");
         free(rest_context);
         return ESP_FAIL;
@@ -608,11 +636,12 @@ esp_err_t start_rest_server(const char *base_path)
     httpd_uri_t strip_setup = {
         .uri       = "/api/v1/config",
         .method    = HTTP_GET,
-        .handler   = get_handler_strip_config // get_handler_strip_setup,
+        .handler   = get_handler_strip_config, // get_handler_strip_setup,
         .user_ctx  = rest_context
     };
     httpd_register_uri_handler(server, &strip_setup);
 
+    /*
     httpd_uri_t strip_setcolor = {
         .uri       = "/api/v1/setcolor",
         .method    = HTTP_GET,
@@ -636,7 +665,7 @@ esp_err_t start_rest_server(const char *base_path)
         .user_ctx  = rest_context
     };
     httpd_register_uri_handler(server, &strip_file);
-
+*/
     return ESP_OK;
 //err_start:
 //    free(rest_context);
@@ -648,7 +677,7 @@ void server_stop() {
 	   if (server) {
 	        /* Stop the httpd server */
 	        httpd_stop(server);
-	        ESP_LOGI(REST_TAG, "HTTP Server STOPP");
+	        ESP_LOGI(__func__, "HTTP Server STOPP");
 	        server=NULL;
 	    }
 
@@ -679,6 +708,6 @@ void init_restservice() {
 	ESP_ERROR_CHECK(example_connect());
 	ESP_ERROR_CHECK(init_fs());
 	ESP_ERROR_CHECK(start_rest_server(CONFIG_EXAMPLE_WEB_MOUNT_POINT));
-	//ESP_LOGI(REST_TAG, "ohne HTTP Server start");
+	//ESP_LOGI(__func__, "ohne HTTP Server start");
 
 }

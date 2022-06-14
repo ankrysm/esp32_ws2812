@@ -160,6 +160,29 @@ static esp_err_t ws2812_rotate(led_strip_t *strip, int32_t direction)
     return ret;
 }
 
+led_strip_t *led_strip_resize_rmt_ws2812(led_strip_t *strip, uint32_t new_numleds)
+{
+    led_strip_t *ret = NULL;
+    ws2812_t *ws2812 = __containerof(strip, ws2812_t, parent);
+    if ( new_numleds == ws2812->strip_len ) {
+    	// new = old, nothing todo
+    	return strip;
+    }
+
+    // 24 bits per led
+    uint32_t new_ws2812_size = sizeof(ws2812_t) + new_numleds * 3;
+    ws2812_t *new_ws2812 = realloc(ws2812, new_ws2812_size);
+    STRIP_CHECK(new_ws2812, "realloc for ws2812 failed", err, NULL);
+
+    ws2812->strip_len = new_numleds;
+
+    // Write zero to turn off all leds
+    memset(ws2812->buffer, 0, ws2812->strip_len * 3);
+    return &ws2812->parent;
+err:
+    return NULL;
+}
+
 led_strip_t *led_strip_new_rmt_ws2812(const led_strip_config_t *config)
 {
     led_strip_t *ret = NULL;
@@ -197,6 +220,9 @@ err:
     return ret;
 }
 
+
+
+/*
 led_strip_t * led_strip_init(uint8_t channel, uint8_t gpio, uint16_t led_num)
 {
     static led_strip_t *pStrip;
@@ -223,12 +249,14 @@ led_strip_t * led_strip_init(uint8_t channel, uint8_t gpio, uint16_t led_num)
 
     return pStrip;
 }
+*/
 
+/*
 esp_err_t led_strip_denit(led_strip_t *strip)
 {
     ws2812_t *ws2812 = __containerof(strip, ws2812_t, parent);
     ESP_ERROR_CHECK(rmt_driver_uninstall(ws2812->rmt_channel));
     return strip->del(strip);
 }
-
+*/
 
