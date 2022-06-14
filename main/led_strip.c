@@ -18,9 +18,9 @@ static const char *TAG = "ledstrip";
 #define RMT_TX_CHANNEL RMT_CHANNEL_0
 #define LED_STRIP_PIN 13
 
-#define EXAMPLE_CHASE_SPEED_MS (200)
+//#define EXAMPLE_CHASE_SPEED_MS (200)
 
-static int gVnumleds = 0;
+//static int gVnumleds = 0;
 static led_strip_t *gVstrip = NULL;
 
 /**
@@ -77,21 +77,21 @@ void led_strip_hsv2rgb(uint32_t h, uint32_t s, uint32_t v, uint32_t *r, uint32_t
 
 
 
-int strip_initialized() {
-	return gVstrip ? 1 : 0;
-}
+//int strip_initialized() {
+//	return gVstrip ? 1 : 0;
+//}
 
-int strip_numleds() {
-	return gVnumleds;
-}
+//int strip_numleds() {
+//	return gVnumleds;
+//}
 
 /**
  * initial init
  */
-void strip_init(int numleds) {
+esp_err_t strip_init(int numleds) {
 	if (numleds <1 || numleds>1000) {
 		ESP_LOGE(TAG, "%s: numleds %d out of range", __func__, numleds);
-
+		return ESP_FAIL;
 	}
 
 	rmt_config_t config = RMT_DEFAULT_CONFIG_TX(LED_STRIP_PIN, RMT_TX_CHANNEL);
@@ -101,16 +101,19 @@ void strip_init(int numleds) {
 	ESP_ERROR_CHECK(rmt_config(&config));
 	ESP_ERROR_CHECK(rmt_driver_install(config.channel, 0, 0));
 
-	gVnumleds = numleds; // initial value
+	//gVnumleds = numleds; // initial value
 	// install ws2812 driver
-	led_strip_config_t strip_config = LED_STRIP_DEFAULT_CONFIG(gVnumleds, (led_strip_dev_t) config.channel);
+	led_strip_config_t strip_config = LED_STRIP_DEFAULT_CONFIG(numleds, (led_strip_dev_t) config.channel);
 	gVstrip = led_strip_new_rmt_ws2812(&strip_config);
 	if (!gVstrip) {
 		ESP_LOGE(TAG, "%s: install WS2812 driver failed", __func__);
+		return ESP_FAIL;
 	}
 	// Clear LED strip (turn off all LEDs)
 	ESP_ERROR_CHECK(gVstrip->clear(gVstrip, 100));
-    ESP_LOGI(TAG, "%s: init done with numleds %d", __func__, gVnumleds );
+    ESP_LOGI(TAG, "%s: init done with numleds %d", __func__, numleds );
+
+    return ESP_OK;
 
 }
 

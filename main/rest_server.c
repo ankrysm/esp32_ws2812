@@ -37,19 +37,6 @@ esp_err_t init_fs(void);
 
 #define MDNS_INSTANCE "esp home web server"
 
-static const char *REST_TAG = "esp-rest";
-static const char *TAG = "esp-rest";
-
-#define REST_CHECK(a, str, goto_tag, ...)                                              \
-    do                                                                                 \
-    {                                                                                  \
-        if (!(a))                                                                      \
-        {                                                                              \
-            ESP_LOGE(REST_TAG, "%s(%d): " str, __FUNCTION__, __LINE__, ##__VA_ARGS__); \
-            goto goto_tag;                                                             \
-        }                                                                              \
-    } while (0)
-
 #define FILE_PATH_MAX (ESP_VFS_PATH_MAX + 128)
 #define SCRATCH_BUFSIZE (10240)
 
@@ -208,11 +195,11 @@ static int process_commands(char *buf) {
 		p1=strtok_r(t,", ", &ll);
 		if ( !strcasecmp(p1,"c")) {
 			if ( !initialized) {
-				ESP_LOGE(TAG, "cmd '%s' not initialized",p1);
+				ESP_LOGE(__func__, "cmd '%s' not initialized",p1);
 				return -1;
 			}
 			strip_clear();
-			ESP_LOGI(TAG, "cmd '%s' (clear)", p1);
+			ESP_LOGI(__func__, "cmd '%s' (clear)", p1);
 
 		} else if ( !strcasecmp(p1,"i")) {
 			// init i,numleds;
@@ -220,12 +207,12 @@ static int process_commands(char *buf) {
 			int numleds = atoi(p2);
 	    	strip_setup(numleds);
 
-			ESP_LOGI(TAG, "cmd '%s' (init %d)", p1, numleds);
+			ESP_LOGI(__func__, "cmd '%s' (init %d)", p1, numleds);
 
 		} else if ( !strcasecmp(p1,"p")) {
 			// p,pos,r,g,b
 			if ( !initialized) {
-				ESP_LOGE(TAG, "cmd '%s' not initialized",p1);
+				ESP_LOGE(__func__, "cmd '%s' not initialized",p1);
 				return -1;
 			}
 			do {
@@ -239,12 +226,12 @@ static int process_commands(char *buf) {
 			int green = p4 ? atoi(p4) : 0;
 			int blue = p5 ? atoi(p5) : 0;
 			strip_set_color(pos, pos, red, green, blue);
-			ESP_LOGI(TAG, "cmd '%s' (%d,%d,%d,%d)", p1, pos,red,green,blue);
+			ESP_LOGI(__func__, "cmd '%s' (%d,%d,%d,%d)", p1, pos,red,green,blue);
 
 		} else if ( !strcasecmp(p1,"h")) {
 			// p,pos,h,s,v
 			if ( !initialized) {
-				ESP_LOGE(TAG, "cmd '%s' not initialized",p1);
+				ESP_LOGE(__func__, "cmd '%s' not initialized",p1);
 				return -1;
 			}
 			do {
@@ -263,13 +250,13 @@ static int process_commands(char *buf) {
 			led_strip_hsv2rgb(hue, sat, val, &red, &green, &blue);
 
 			strip_set_color(pos, pos, red, green, blue);
-			//ESP_LOGI(TAG, "cmd '%s' (%d,%d,%d,%d)", p1, pos,red,green,blue);
+			//ESP_LOGI(__func__, "cmd '%s' (%d,%d,%d,%d)", p1, pos,red,green,blue);
 
 		} else if ( !strcasecmp(p1,"r")) {
 			// rotate
 			// r,n  -n < 0 oder > 0 die Richtung und stepweite
 			if ( !initialized) {
-				ESP_LOGE(TAG, "cmd '%s' not initialized",p1);
+				ESP_LOGE(__func__, "cmd '%s' not initialized",p1);
 				return -1;
 			}
 			do {
@@ -279,7 +266,7 @@ static int process_commands(char *buf) {
 			strip_rotate(dir);
 
 		} else {
-			ESP_LOGI(TAG, "ignored cmd => '%s'", p1);
+			ESP_LOGI(__func__, "ignored cmd => '%s'", p1);
 		}
 	}
  	strip_show();
@@ -306,7 +293,7 @@ static esp_err_t post_handler_strip_file(httpd_req_t *req)
         }
         cur_len += received;
     }
-    //ESP_LOGI(TAG, "%s: received %d total %d bytes", __func__, cur_len, total_len);
+    //ESP_LOGI(__func__, "%s: received %d total %d bytes", __func__, cur_len, total_len);
 
     buf[total_len] = '\0';
     int res = process_commands(buf);
@@ -334,11 +321,11 @@ static esp_err_t get_handler_strip_setup(httpd_req_t *req)
     if (buf_len > 1) {
         buf = malloc(buf_len);
         if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK) {
-            ESP_LOGI(TAG, "Found URL query => %s", buf);
+            ESP_LOGI(__func__, "Found URL query => %s", buf);
             char param[32];
             /* Get value of expected key from query string */
             if (httpd_query_key_value(buf, "n", param, sizeof(param)) == ESP_OK) {
-                 ESP_LOGI(TAG, "Found URL query parameter => n=%s", param);
+                 ESP_LOGI(__func__, "Found URL query parameter => n=%s", param);
                  numleds = atoi(param);
              }
         }
@@ -373,11 +360,11 @@ static esp_err_t get_handler_strip_rotate(httpd_req_t *req)
     if (buf_len > 1) {
         buf = malloc(buf_len);
         if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK) {
-            ESP_LOGI(TAG, "Found URL query => %s", buf);
+            ESP_LOGI(__func__, "Found URL query => %s", buf);
             char param[32];
             /* Get value of expected key from query string */
             if (httpd_query_key_value(buf, "d", param, sizeof(param)) == ESP_OK) {
-                 ESP_LOGI(TAG, "Found URL query parameter => d=%s", param);
+                 ESP_LOGI(__func__, "Found URL query parameter => d=%s", param);
                  dir = atoi(param);
              }
         }
@@ -411,7 +398,7 @@ static esp_err_t get_handler_strip_setcolor(httpd_req_t *req)
 //        buf = malloc(buf_len);
 //        /* Copy null terminated value string into buffer */
 //        if (httpd_req_get_hdr_value_str(req, "Host", buf, buf_len) == ESP_OK) {
-//            ESP_LOGI(TAG, "Found header => Host: %s", buf);
+//            ESP_LOGI(__func__, "Found header => Host: %s", buf);
 //        }
 //        free(buf);
 //    }
@@ -420,7 +407,7 @@ static esp_err_t get_handler_strip_setcolor(httpd_req_t *req)
 //    if (buf_len > 1) {
 //        buf = malloc(buf_len);
 //        if (httpd_req_get_hdr_value_str(req, "Test-Header-2", buf, buf_len) == ESP_OK) {
-//            ESP_LOGI(TAG, "Found header => Test-Header-2: %s", buf);
+//            ESP_LOGI(__func__, "Found header => Test-Header-2: %s", buf);
 //        }
 //        free(buf);
 //    }
@@ -429,7 +416,7 @@ static esp_err_t get_handler_strip_setcolor(httpd_req_t *req)
 //    if (buf_len > 1) {
 //        buf = malloc(buf_len);
 //        if (httpd_req_get_hdr_value_str(req, "Test-Header-1", buf, buf_len) == ESP_OK) {
-//            ESP_LOGI(TAG, "Found header => Test-Header-1: %s", buf);
+//            ESP_LOGI(__func__, "Found header => Test-Header-1: %s", buf);
 //        }
 //        free(buf);
 //    }
@@ -446,27 +433,27 @@ static esp_err_t get_handler_strip_setcolor(httpd_req_t *req)
     if (buf_len > 1) {
         buf = malloc(buf_len);
         if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK) {
-            ESP_LOGI(TAG, "Found URL query => %s", buf);
+            ESP_LOGI(__func__, "Found URL query => %s", buf);
             char param[32];
             /* Get value of expected key from query string */
             if (httpd_query_key_value(buf, "s", param, sizeof(param)) == ESP_OK) {
-                 ESP_LOGI(TAG, "Found URL query parameter => s=%s", param);
+                 ESP_LOGI(__func__, "Found URL query parameter => s=%s", param);
                  start_idx = atoi(param);
              }
             if (httpd_query_key_value(buf, "e", param, sizeof(param)) == ESP_OK) {
-                 ESP_LOGI(TAG, "Found URL query parameter => e=%s", param);
+                 ESP_LOGI(__func__, "Found URL query parameter => e=%s", param);
                  end_idx = atoi(param);
              }
             if (httpd_query_key_value(buf, "r", param, sizeof(param)) == ESP_OK) {
-                ESP_LOGI(TAG, "Found URL query parameter => r=%s", param);
+                ESP_LOGI(__func__, "Found URL query parameter => r=%s", param);
                 red = atoi(param) & 0xFF;
             }
             if (httpd_query_key_value(buf, "g", param, sizeof(param)) == ESP_OK) {
-                ESP_LOGI(TAG, "Found URL query parameter => g=%s", param);
+                ESP_LOGI(__func__, "Found URL query parameter => g=%s", param);
                 green = atoi(param) & 0xFF;
             }
             if (httpd_query_key_value(buf, "b", param, sizeof(param)) == ESP_OK) {
-                ESP_LOGI(TAG, "Found URL query parameter => b=%s", param);
+                ESP_LOGI(__func__, "Found URL query parameter => b=%s", param);
                 blue = atoi(param) & 0xFF;
             }
         }
@@ -495,34 +482,120 @@ static esp_err_t get_handler_strip_setcolor(httpd_req_t *req)
     /* After sending the HTTP response the old HTTP request
      * headers are lost. Check if HTTP request headers can be read now. */
     if (httpd_req_get_hdr_value_len(req, "Host") == 0) {
-        ESP_LOGI(TAG, "Request headers lost");
+        ESP_LOGI(__func__, "Request headers lost");
     }
 
     return ESP_OK;
 }
 
+/// ##########################################################################
+// new handler
+static esp_err_t get_handler_strip_config(httpd_req_t *req)
+{
+    char*  buf;
+    size_t buf_len;
+
+    extern T_CONFIG gConfig;
+
+    // Read URL query string length and allocate memory for length + 1,
+    // extra byte for null termination */
+
+    buf_len = httpd_req_get_url_query_len(req) + 1;
+    if (buf_len > 1) {
+        buf = malloc(buf_len);
+        if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK) {
+            ESP_LOGI(__func__, "Found URL query => %s", buf);
+            char param[32];
+            // Get value of expected key from query string
+            if (httpd_query_key_value(buf, "s", param, sizeof(param)) == ESP_OK) {
+                 ESP_LOGI(__func__, "Found URL query parameter => s=%s", param);
+                 start_idx = atoi(param);
+             }
+            if (httpd_query_key_value(buf, "e", param, sizeof(param)) == ESP_OK) {
+                 ESP_LOGI(__func__, "Found URL query parameter => e=%s", param);
+                 end_idx = atoi(param);
+             }
+            if (httpd_query_key_value(buf, "r", param, sizeof(param)) == ESP_OK) {
+                ESP_LOGI(__func__, "Found URL query parameter => r=%s", param);
+                red = atoi(param) & 0xFF;
+            }
+            if (httpd_query_key_value(buf, "g", param, sizeof(param)) == ESP_OK) {
+                ESP_LOGI(__func__, "Found URL query parameter => g=%s", param);
+                green = atoi(param) & 0xFF;
+            }
+            if (httpd_query_key_value(buf, "b", param, sizeof(param)) == ESP_OK) {
+                ESP_LOGI(__func__, "Found URL query parameter => b=%s", param);
+                blue = atoi(param) & 0xFF;
+            }
+        }
+        free(buf);
+    }
+
+    // TODO do_led1();
+    char resp_str[64];
+    if ( !strip_initialized()) {
+        snprintf(resp_str, sizeof(resp_str),"NOT INITIALIZED\n");
+    } else {
+    	strip_set_color(start_idx, end_idx, red, green, blue);
+    	strip_show();
+        snprintf(resp_str, sizeof(resp_str),"done: %d-%d rgb=%d/%d/%d\n", start_idx, end_idx, red,green,blue);
+    }
+
+    /* Set some custom headers */
+    //httpd_resp_set_hdr(req, "Custom-Header-1", "Custom-Value-1");
+    //httpd_resp_set_hdr(req, "Custom-Header-2", "Custom-Value-2");
+
+    /* Send response with custom headers and body set as the
+     * string passed in user context*/
+    //const char* resp_str = (const char*) "done\n";
+    httpd_resp_send(req, resp_str, HTTPD_RESP_USE_STRLEN);
+
+    /* After sending the HTTP response the old HTTP request
+     * headers are lost. Check if HTTP request headers can be read now. */
+    if (httpd_req_get_hdr_value_len(req, "Host") == 0) {
+        ESP_LOGI(__func__, "Request headers lost");
+    }
+
+    return ESP_OK;
+}
+
+
 static httpd_handle_t server = NULL;
 
 esp_err_t start_rest_server(const char *base_path)
 {
-    REST_CHECK(base_path, "wrong base path", err);
-    rest_server_context_t *rest_context = (rest_server_context_t*) calloc(1, sizeof(rest_server_context_t));
-    REST_CHECK(rest_context, "No memory for rest context", err);
+	if ( !base_path ) {
+		ESP_LOGE(__func__, "base_path missing");
+		return ESP_FAIL;
+	}
+
+    //REST_CHECK(base_path, "wrong base path", err);
+
+	rest_server_context_t *rest_context = (rest_server_context_t*) calloc(1, sizeof(rest_server_context_t));
+    //REST_CHECK(rest_context, "No memory for rest context", err);
+	if ( !rest_context) {
+		ESP_LOGE(__func__, "No memory for rest context" );
+		return ESP_FAIL;
+	}
     strlcpy(rest_context->base_path, base_path, sizeof(rest_context->base_path));
 
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     int p = config.task_priority;
     config.task_priority =0;
-    ESP_LOGI(REST_TAG, "config HTTP Server prio %d ->%d", p, config.task_priority);
-
+    ESP_LOGI(__func__, "config HTTP Server prio %d -> %d", p, config.task_priority);
 
     config.uri_match_fn = httpd_uri_match_wildcard;
 
-    ESP_LOGI(REST_TAG, "Starting HTTP Server");
-    REST_CHECK(httpd_start(&server, &config) == ESP_OK, "Start server failed", err_start);
+    ESP_LOGI(__func__, "Starting HTTP Server");
+    //REST_CHECK
+    if ( (httpd_start(&server, &config) != ESP_OK ) {
+    	ESP_LOGE(__func__, "Start server failed");
+        free(rest_context);
+        return ESP_FAIL;
+    }
 
-
-    /* URI handler for fetching system info */
+    // Install URI Handler
+    // URI handler for fetching system info
     httpd_uri_t system_info_get_uri = {
         .uri = "/api/v1/system/info",
         .method = HTTP_GET,
@@ -531,10 +604,11 @@ esp_err_t start_rest_server(const char *base_path)
     };
     httpd_register_uri_handler(server, &system_info_get_uri);
 
+    // vconfig
     httpd_uri_t strip_setup = {
-        .uri       = "/api/v1/setup",
+        .uri       = "/api/v1/config",
         .method    = HTTP_GET,
-        .handler   = get_handler_strip_setup,
+        .handler   = get_handler_strip_config // get_handler_strip_setup,
         .user_ctx  = rest_context
     };
     httpd_register_uri_handler(server, &strip_setup);
@@ -564,10 +638,10 @@ esp_err_t start_rest_server(const char *base_path)
     httpd_register_uri_handler(server, &strip_file);
 
     return ESP_OK;
-err_start:
-    free(rest_context);
-err:
-    return ESP_FAIL;
+//err_start:
+//    free(rest_context);
+//err:
+//    return ESP_FAIL;
 }
 
 void server_stop() {
@@ -598,13 +672,13 @@ void initialise_mdns(void)
 
 
 void init_restservice() {
-	   initialise_mdns();
-	    netbiosns_init();
-	    netbiosns_set_name(CONFIG_EXAMPLE_MDNS_HOST_NAME);
+	initialise_mdns();
+	netbiosns_init();
+	netbiosns_set_name(CONFIG_EXAMPLE_MDNS_HOST_NAME);
 
-	    ESP_ERROR_CHECK(example_connect());
-	    ESP_ERROR_CHECK(init_fs());
-	    ESP_ERROR_CHECK(start_rest_server(CONFIG_EXAMPLE_WEB_MOUNT_POINT));
-        //ESP_LOGI(REST_TAG, "ohne HTTP Server start");
+	ESP_ERROR_CHECK(example_connect());
+	ESP_ERROR_CHECK(init_fs());
+	ESP_ERROR_CHECK(start_rest_server(CONFIG_EXAMPLE_WEB_MOUNT_POINT));
+	//ESP_LOGI(REST_TAG, "ohne HTTP Server start");
 
 }

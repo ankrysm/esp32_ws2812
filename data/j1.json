@@ -1,0 +1,5 @@
+{
+  "start":1.5,"duration":3.5,"pos":0,"len":50,"type":"sparkle",
+  "bg_color":{"rgb":[255,0,0]},"colors":[{"rgb":[0,255,0]},{"hsv":[34,55,100]}],"ttime":0.25,"ctime":1.0
+}
+
