@@ -29,6 +29,11 @@
 
 extern T_CONFIG gConfig;
 
+void firstled(int red, int green, int blue) {
+	int pos = 0;
+	strip_set_color(pos, pos, red, green, blue);
+}
+
 void app_main() {
 
 	//xx();
@@ -38,6 +43,8 @@ void app_main() {
 	ESP_ERROR_CHECK(init_storage());
 
 	// init led-strip
+	ESP_ERROR_CHECK(strip_setup(gConfig.numleds));
+	firstled(255,255,255);
 
 	ESP_ERROR_CHECK(esp_netif_init());
 	ESP_ERROR_CHECK(esp_event_loop_create_default());
@@ -46,6 +53,10 @@ void app_main() {
 	// init_fastled_application();
 
 	init_restservice();
+
+	// green
+	firstled(0,255,0);
+
 
 	//led_strip_main();
 
