@@ -21,9 +21,10 @@
 #include "driver/sdmmc_host.h"
 #endif
 
+## NOT USED
 
 static const char *TAG = "handle_fs";
-
+/*
 
 #if CONFIG_EXAMPLE_WEB_DEPLOY_SEMIHOST
 esp_err_t init_fs(void)
@@ -65,7 +66,7 @@ esp_err_t init_fs(void)
         }
         return ESP_FAIL;
     }
-    /* print card info if mount successfully */
+    // print card info if mount successfully
     sdmmc_card_print_info(stdout, card);
     return ESP_OK;
 }
@@ -104,3 +105,4 @@ esp_err_t init_fs(void)
 }
 #endif
 
+*/

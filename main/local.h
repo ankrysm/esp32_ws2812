@@ -11,6 +11,10 @@
 // #include "fastled_application.h"
 void init_restservice();
 void server_stop();
+void initialise_mdns(void);
+void initialise_netbios();
+esp_err_t initialise_wifi();
+
 
 esp_err_t strip_init(int numleds);
 esp_err_t strip_setup(int numleds);

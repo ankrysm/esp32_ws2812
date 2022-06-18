@@ -26,17 +26,16 @@
 #include "esp_log.h"
 #include "mdns.h"
 #include "lwip/apps/netbiosns.h"
-#include "protocol_examples_common.h"
-#if CONFIG_EXAMPLE_WEB_DEPLOY_SD
-#include "driver/sdmmc_host.h"
-#endif
+//#include "protocol_examples_common.h"
+//#if CONFIG_EXAMPLE_WEB_DEPLOY_SD
+//#include "driver/sdmmc_host.h"
+//#endif
 #include "esp_chip_info.h"
 #include "local.h"
 #include "config.h"
 
-esp_err_t init_fs(void);
-
 #define MDNS_INSTANCE "esp home web server"
+
 
 #define FILE_PATH_MAX (ESP_VFS_PATH_MAX + 128)
 #define SCRATCH_BUFSIZE (10240)
@@ -684,6 +683,15 @@ void server_stop() {
 }
 
 
+
+void init_restservice() {
+
+//	ESP_ERROR_CHECK(example_connect());
+	ESP_ERROR_CHECK(start_rest_server(CONFIG_EXAMPLE_WEB_MOUNT_POINT));
+	//ESP_LOGI(__func__, "ohne HTTP Server start");
+
+}
+
 void initialise_mdns(void)
 {
     mdns_init();
@@ -699,15 +707,7 @@ void initialise_mdns(void)
                                      sizeof(serviceTxtData) / sizeof(serviceTxtData[0])));
 }
 
-
-void init_restservice() {
-	initialise_mdns();
+void initialise_netbios() {
 	netbiosns_init();
 	netbiosns_set_name(CONFIG_EXAMPLE_MDNS_HOST_NAME);
-
-	ESP_ERROR_CHECK(example_connect());
-	ESP_ERROR_CHECK(init_fs());
-	ESP_ERROR_CHECK(start_rest_server(CONFIG_EXAMPLE_WEB_MOUNT_POINT));
-	//ESP_LOGI(__func__, "ohne HTTP Server start");
-
 }

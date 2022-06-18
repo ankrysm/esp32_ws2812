@@ -138,10 +138,6 @@ esp_err_t strip_resize(int numleds) {
  */
 esp_err_t strip_setup(int numleds) {
 	esp_err_t ret;
-	if ( numleds == gConfig.numleds) {
-		ESP_LOGI(__func__, "new numleds equals old numleds %d", numleds );
-		return ESP_OK;
-	}
 
 	if ( ! gVstrip) {
 		// Init needed
@@ -149,6 +145,10 @@ esp_err_t strip_setup(int numleds) {
 		ESP_LOGI(__func__, "setup done with numleds %d", numleds );
 	} else {
 		// resize strip
+		if ( numleds == gConfig.numleds) {
+			ESP_LOGI(__func__, "new numleds equals old numleds %d", numleds );
+			return ESP_OK;
+		}
 		ret = strip_resize(numleds);
 		ESP_LOGI(__func__, "resize done with numleds %d", numleds );
 	}
