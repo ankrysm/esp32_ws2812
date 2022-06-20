@@ -10,8 +10,6 @@
 
 #define STORAGE_NAMESPACE "storage"
 #define STORAGE_KEY_CONFIG "config"
-#define STORAGE_KEY_WIFI_CONFIG_SSID "wifi_ssid"
-#define STORAGE_KEY_WIFI_CONFIG_PW "wifi_pw"
 
 
 // flag values
@@ -27,10 +25,6 @@ typedef struct {
 	char scenefile[LEN_SCENEFILE];
 } T_CONFIG;
 
-typedef struct {
-	char *ssid;
-	char *pw;
-} T_WIFI_CONFIG;
 
 // prototypes
 esp_err_t store_config();

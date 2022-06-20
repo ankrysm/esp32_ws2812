@@ -30,7 +30,6 @@
 //static const char *TAG = "config";
 
 T_CONFIG gConfig;
-T_WIFI_CONFIG gWifiConfig;
 
 /**
  * store the gConfig blob into storage
@@ -64,47 +63,6 @@ esp_err_t store_config() {
 	return ESP_OK;
 }
 
-esp_err_t store_wifi_config(char *ssid, char *pw) {
-	nvs_handle_t my_handle;
-
-	free(gWifiConfig.ssid);
-	gWifiConfig.ssid = strdup(ssid && strlen(ssid) ? ssid : "");
-
-	free(gWifiConfig.pw);
-	gWifiConfig.pw = strdup(pw && strlen(pw) ? pw : "");
-
-
-	esp_err_t ret = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &my_handle);
-	if (ret != ESP_OK) {
-		ESP_LOGE(__func__, "nvs_open() failed (%s)", esp_err_to_name(ret));
-		return ret;
-	}
-
-	ret = nvs_set_str(my_handle, STORAGE_KEY_WIFI_CONFIG_SSID , gWifiConfig.ssid);
-	if (ret != ESP_OK) {
-		ESP_LOGE(__func__, "nvs_set_str(%s) failed (%s)", STORAGE_KEY_WIFI_CONFIG_SSID, esp_err_to_name(ret));
-		return ret;
-	}
-
-	ret = nvs_set_str(my_handle, STORAGE_KEY_WIFI_CONFIG_PW , gWifiConfig.pw);
-	if (ret != ESP_OK) {
-		ESP_LOGE(__func__, "nvs_set_str(%s) failed (%s)", STORAGE_KEY_WIFI_CONFIG_PW, esp_err_to_name(ret));
-		return ret;
-	}
-
-	ret = nvs_commit(my_handle);
-	if (ret != ESP_OK) {
-		ESP_LOGE(__func__, "nvs_commit() failed (%s)", esp_err_to_name(ret));
-		return ret;
-	}
-
-	nvs_close(my_handle);
-
-    ESP_LOGI(__func__, "done.");
-
-	return ESP_OK;
-
-}
 
 /**
  * Init Filesystem and permanent storage, initialize gConfig if necessary
@@ -172,7 +130,6 @@ esp_err_t init_storage() {
     }
 
     // ** init Config ***
-    memset(&gWifiConfig, 0, sizeof(gWifiConfig));
     memset(&gConfig, 0, sizeof(gConfig));
 
     size_t size;
@@ -184,38 +141,38 @@ esp_err_t init_storage() {
     	return ret;
     }
 
-    // get WIFI config
-    char *keyname=STORAGE_KEY_WIFI_CONFIG_SSID;
-    ret = nvs_get_str(my_handle, keyname, NULL, &size);
-    if ( ret == ESP_OK ) {
-    	// known
-    	gWifiConfig.ssid = malloc(size);
-    	nvs_get_str(my_handle, keyname, gWifiConfig.ssid, &size);
-        ESP_LOGI(__func__, "getting '%s' successful",keyname);
-
-    } else if (ret == ESP_ERR_NVS_NOT_FOUND) {
-    	// nothing stored
-        ESP_LOGI(__func__, "nothing stored for '%s'", keyname);
-        size = 2;
-        gWifiConfig.ssid = calloc(size, sizeof(char));
-        snprintf(gWifiConfig.ssid, size, "%s", "");
-    }
-
-    keyname=STORAGE_KEY_WIFI_CONFIG_PW;
-    ret = nvs_get_str(my_handle, keyname, NULL, &size);
-     if ( ret == ESP_OK ) {
-     	// known
-     	gWifiConfig.ssid = malloc(size);
-     	nvs_get_str(my_handle, keyname, gWifiConfig.pw, &size);
-        ESP_LOGI(__func__, "getting '%s' successful",keyname);
-
-     } else if (ret == ESP_ERR_NVS_NOT_FOUND) {
-     	// nothing stored, store an emtpy string
-         ESP_LOGI(__func__, "nothing stored for '%s'", keyname);
-         size = 2;
-         gWifiConfig.pw = calloc(size, sizeof(char));
-         snprintf(gWifiConfig.pw, size, "%s", "");
-     }
+//    // get WIFI config
+//    char *keyname=STORAGE_KEY_WIFI_CONFIG_SSID;
+//    size = 64;
+//    ret = nvs_get_str(my_handle, keyname, NULL, &size);
+//    if ( ret == ESP_OK ) {
+//    	// known
+//    	gWifiConfig.ssid = malloc(size);
+//    	nvs_get_str(my_handle, keyname, gWifiConfig.ssid, &size);
+//        ESP_LOGI(__func__, "getting '%s' successful sz=%d: '%s'",keyname, size,gWifiConfig.ssid );
+//
+//    } else if (ret == ESP_ERR_NVS_NOT_FOUND) {
+//    	// nothing stored
+//        ESP_LOGI(__func__, "nothing stored for '%s'", keyname);
+//        gWifiConfig.ssid = strdup("");
+//    }
+//
+//    keyname=STORAGE_KEY_WIFI_CONFIG_PW;
+//    size = 64;
+//    ret = nvs_get_str(my_handle, keyname, NULL, &size);
+//     if ( ret == ESP_OK ) {
+//     	// known
+//     	gWifiConfig.pw = malloc(size);
+//     	nvs_get_str(my_handle, keyname, gWifiConfig.pw, &size);
+//        ESP_LOGI(__func__, "getting '%s' successful sz=%d: '%s'",keyname, size,gWifiConfig.pw );
+//
+//     } else if (ret == ESP_ERR_NVS_NOT_FOUND) {
+//     	// nothing stored, store an emtpy string
+//         ESP_LOGI(__func__, "nothing stored for '%s'", keyname);
+//         gWifiConfig.pw = strdup("");
+//     }
+//
+//     ESP_LOGI(__func__, "stored Wifi-Connection '%s', '%s'",(gWifiConfig.ssid?gWifiConfig.ssid:"<null>"),(gWifiConfig.pw?gWifiConfig.pw:"<null>") );
 
     size = sizeof(gConfig);
     ret = nvs_get_blob(my_handle, STORAGE_KEY_CONFIG, &gConfig, &size);

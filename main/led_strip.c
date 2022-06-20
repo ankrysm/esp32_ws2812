@@ -186,6 +186,11 @@ void strip_rotate(int32_t dir)  {
 	ESP_ERROR_CHECK(gVstrip->rotate(gVstrip, dir));
 }
 
+void firstled(int red, int green, int blue) {
+	int pos = 0;
+	strip_set_color(pos, pos, red, green, blue);
+	strip_show();
+}
 
 void led_strip_main(void)
 {

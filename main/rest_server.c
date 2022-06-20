@@ -586,6 +586,86 @@ static esp_err_t get_handler_strip_config(httpd_req_t *req)
 	return ESP_OK;
 }
 
+static esp_err_t get_handler_reset(httpd_req_t *req)
+{
+	char*  buf;
+	size_t buf_len;
+
+//	extern T_CONFIG gConfig;
+
+	// Read URL query string length and allocate memory for length + 1,
+	// extra byte for null termination
+
+//	buf_len = httpd_req_get_url_query_len(req) + 1;
+//	if (buf_len > 1) {
+//		buf = malloc(buf_len);
+//		if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK) {
+//			ESP_LOGI(__func__, "Found URL query => %s", buf);
+//			char param[32];
+//			// Get value of expected key from query string
+//			if (httpd_query_key_value(buf, "autoplay", param, sizeof(param)) == ESP_OK) {
+//				ESP_LOGI(__func__, "query parameter: autoplay=%s", param);
+//				gConfig.flags &= !CFG_AUTOPLAY;
+//				gConfig.flags |= trufal(param);
+//			}
+//			if (httpd_query_key_value(buf, "scenefile", param, sizeof(param)) == ESP_OK) {
+//				ESP_LOGI(__func__, "query parameter: scenefile=%s", param);
+//				snprintf(gConfig.scenefile, sizeof(gConfig.scenefile), "%s", param);
+//			}
+//			if (httpd_query_key_value(buf, "repeat", param, sizeof(param)) == ESP_OK) {
+//				ESP_LOGI(__func__, "query parameter: repeat=%s", param);
+//				gConfig.flags &= !CFG_REPEAT;
+//				gConfig.flags |= trufal(param);
+//			}
+//			if (httpd_query_key_value(buf, "numleds", param, sizeof(param)) == ESP_OK) {
+//				ESP_LOGI(__func__, "query parameter: numleds=%s", param);
+//				gConfig.numleds = atoi(param);
+//				strip_setup(gConfig.numleds);
+//			}
+//			if (httpd_query_key_value(buf, "cycle", param, sizeof(param)) == ESP_OK) {
+//				ESP_LOGI(__func__, "query parameter: cycle=%s", param);
+//				gConfig.cycle = atoi(param);
+//			}
+//		}
+//		free(buf);
+//	}
+
+	// clear nvs
+	nvs_flash_erase();
+
+
+	char resp_str[255];
+	snprintf(resp_str, sizeof(resp_str),"RESET done\n");
+
+
+//	if ( !strip_initialized()) {
+//		snprintf(resp_str, sizeof(resp_str),"NOT INITIALIZED\n");
+//	} else {
+//		strip_set_color(start_idx, end_idx, red, green, blue);
+//		strip_show();
+//		snprintf(resp_str, sizeof(resp_str),"done: %d-%d rgb=%d/%d/%d\n", start_idx, end_idx, red,green,blue);
+//	}
+
+	// Set some custom headers
+	//httpd_resp_set_hdr(req, "Custom-Header-1", "Custom-Value-1");
+	//httpd_resp_set_hdr(req, "Custom-Header-2", "Custom-Value-2");
+
+	// Send response with custom headers and body set as the
+	// string passed in user context
+	//const char* resp_str = (const char*) "done\n";
+
+	//config2txt(resp_str, sizeof(resp_str));
+	httpd_resp_send(req, resp_str, HTTPD_RESP_USE_STRLEN);
+
+	// After sending the HTTP response the old HTTP request
+	// headers are lost. Check if HTTP request headers can be read now.
+//	if (httpd_req_get_hdr_value_len(req, "Host") == 0) {
+//		ESP_LOGI(__func__, "Request headers lost");
+//	}
+
+	return ESP_OK;
+}
+
 
 static httpd_handle_t server = NULL;
 
@@ -640,6 +720,13 @@ esp_err_t start_rest_server(const char *base_path)
     };
     httpd_register_uri_handler(server, &strip_setup);
 
+    httpd_uri_t rest_uri = {
+        .uri       = "/api/v1/reset",
+        .method    = HTTP_GET,
+        .handler   = get_handler_reset, // get_handler_strip_setup,
+        .user_ctx  = rest_context
+    };
+    httpd_register_uri_handler(server, &rest_uri);
     /*
     httpd_uri_t strip_setcolor = {
         .uri       = "/api/v1/setcolor",

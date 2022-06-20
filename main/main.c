@@ -31,12 +31,7 @@ esp_err_t init_fs(void);
 
 extern T_CONFIG gConfig;
 
-void firstled(int red, int green, int blue) {
-	int pos = 0;
-	strip_set_color(pos, pos, red, green, blue);
-	strip_show();
-
-}
+void firstled(int red, int green, int blue) ;
 
 void app_main() {
 
@@ -61,14 +56,14 @@ void app_main() {
 		init_restservice();
 
 		// green
-		firstled(0,32,0);
+		//firstled(0,32,0);
 		ESP_LOGI(__func__, "with WIFI");
 
 
 	} else {
 
 		// red
-		firstled(32,0,0);
+		//firstled(32,0,0);
 		ESP_LOGI(__func__, "without WIFI");
 	}
 
