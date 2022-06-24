@@ -22,13 +22,10 @@
 #include "esp_smartconfig.h"
 #include "mdns.h"
 #include "lwip/apps/netbiosns.h"
-//#include "config.h"
+#include "wifi_config.h"
 
-void firstled(int red, int green, int blue);
+//void firstled(int red, int green, int blue);
 
-#define STORAGE_WIFI_NAMESPACE "wifi"
-#define STORAGE_KEY_WIFI_CONFIG_SSID "wifi_ssid"
-#define STORAGE_KEY_WIFI_CONFIG_PW "wifi_pw"
 
 
 /* FreeRTOS event group to signal when we are connected & ready to make a request */
@@ -37,19 +34,33 @@ static EventGroupHandle_t s_wifi_event_group;
 /* The event group allows multiple bits for each event,
    but we only care about one event - are we connected
    to the AP with an IP? */
-static const int WIFI_CONNECTED_BIT = BIT0; // connection successfully
-static const int ESPTOUCH_DONE_BIT = BIT1; // end of smart config
-static const int WIFI_FAIL_BIT = BIT2; // connection to configured access point failed
-static const int WIFI_SMART_CONFIG_RUNNING = BIT3;
-static const int WIFI_NO_CONNECTION_STORED = BIT4;
+// status bits for connect process
+static const int WIFI_BIT_CONNECT_WITH_KNOWN_CREDETIALS = BIT0;
+static const int WIFI_BIT_CONNECT_WITH_SMART_CONFIG = BIT1;
+static const int WIFI_BIT_CONNECTED = BIT2;
+static const int WIFI_BIT_CONNECT_FAILED = BIT3;
 
-static const int ALL_WIFI_BITS = WIFI_CONNECTED_BIT | ESPTOUCH_DONE_BIT | WIFI_FAIL_BIT | WIFI_SMART_CONFIG_RUNNING |WIFI_NO_CONNECTION_STORED;
+// bits for configuration of connect process
+static const int WIFI_BIT_NO_CONNECTION_STORED = BIT4;
+static const int WIFI_BIT_SMART_CONFIG_RUNNING = BIT5;
+
+static volatile wifi_status_type s_wifi_connect_status = WIFI_IDLE;
+
+static const int WIFI_BITS_ALL = WIFI_BIT_CONNECT_WITH_KNOWN_CREDETIALS | \
+		WIFI_BIT_CONNECT_WITH_SMART_CONFIG | \
+		WIFI_BIT_CONNECTED | \
+		WIFI_BIT_CONNECT_FAILED | \
+		WIFI_BIT_NO_CONNECTION_STORED | \
+		WIFI_BIT_SMART_CONFIG_RUNNING;
+
+static const int WIFI_BIT_DONE = WIFI_BIT_CONNECTED | WIFI_BIT_CONNECT_FAILED;
 
 static int s_retry_num = 0;
-static int s_max_retry_num = 10;
+static int s_max_retry_num = 5;
 
-
-
+/**
+ * store the wifi config in the nvs
+ */
 static esp_err_t store_wifi_config(char *ssid, char *pw) {
 	nvs_handle_t my_handle;
 
@@ -61,15 +72,15 @@ static esp_err_t store_wifi_config(char *ssid, char *pw) {
 		return ret;
 	}
 
-	ret = nvs_set_str(my_handle, STORAGE_KEY_WIFI_CONFIG_SSID , ssid ? ssid : "");
+	ret = nvs_set_str(my_handle, STORAGE_WIFI_KEY_SSID , ssid ? ssid : "");
 	if (ret != ESP_OK) {
-		ESP_LOGE(__func__, "nvs_set_str(%s) failed (%s)", STORAGE_KEY_WIFI_CONFIG_SSID, esp_err_to_name(ret));
+		ESP_LOGE(__func__, "nvs_set_str(%s) failed (%s)", STORAGE_WIFI_KEY_SSID, esp_err_to_name(ret));
 		return ret;
 	}
 
-	ret = nvs_set_str(my_handle, STORAGE_KEY_WIFI_CONFIG_PW , pw ? pw : "");
+	ret = nvs_set_str(my_handle, STORAGE_WIFI_KEY_PW , pw ? pw : "");
 	if (ret != ESP_OK) {
-		ESP_LOGE(__func__, "nvs_set_str(%s) failed (%s)", STORAGE_KEY_WIFI_CONFIG_PW, esp_err_to_name(ret));
+		ESP_LOGE(__func__, "nvs_set_str(%s) failed (%s)", STORAGE_WIFI_KEY_PW, esp_err_to_name(ret));
 		return ret;
 	}
 
@@ -87,6 +98,9 @@ static esp_err_t store_wifi_config(char *ssid, char *pw) {
 
 }
 
+/**
+ * retrieve the wifi config from nvs
+ */
 static esp_err_t get_wifi_config(char *ssid, size_t sz_ssid, char *pw, size_t sz_pw) {
 
 	esp_err_t ret;
@@ -102,7 +116,7 @@ static esp_err_t get_wifi_config(char *ssid, size_t sz_ssid, char *pw, size_t sz
 	}
 
 	// get WIFI config
-	char *keyname=STORAGE_KEY_WIFI_CONFIG_SSID;
+	char *keyname=STORAGE_WIFI_KEY_SSID;
 	size_t size = sz_ssid;
 	ret = nvs_get_str(my_handle, keyname, NULL, &size);
 	if ( ret == ESP_OK ) {
@@ -116,7 +130,7 @@ static esp_err_t get_wifi_config(char *ssid, size_t sz_ssid, char *pw, size_t sz
 		ssid = strdup("");
 	}
 
-	keyname=STORAGE_KEY_WIFI_CONFIG_PW;
+	keyname=STORAGE_WIFI_KEY_PW;
 	size = sz_pw;
 	ret = nvs_get_str(my_handle, keyname, NULL, &size);
 	if ( ret == ESP_OK ) {
@@ -146,66 +160,78 @@ static esp_err_t get_wifi_config(char *ssid, size_t sz_ssid, char *pw, size_t sz
  */
 
 
-// Background task for smart config, waiting for connection
+// Background task for connect process
 static void smartconfig_task(void * parm)
 {
 	ESP_LOGI(__func__, "started.");
 	EventBits_t uxBits;
 	while (1) {
-		uxBits = xEventGroupWaitBits(s_wifi_event_group, ALL_WIFI_BITS, true, false, portMAX_DELAY);
+		uxBits = xEventGroupWaitBits(s_wifi_event_group, WIFI_BITS_ALL, true, false, portMAX_DELAY);
 		ESP_LOGI(__func__, "uxBits = 0x%x", uxBits);
 
-		if(uxBits & WIFI_CONNECTED_BIT) {
+		if(uxBits & WIFI_BIT_CONNECTED) {
 			ESP_LOGI(__func__, "WiFi Connected to ap");
+			s_wifi_connect_status = WIFI_CONNECTED;
 		}
-		if(uxBits & WIFI_FAIL_BIT) {
+		if(uxBits & WIFI_BIT_CONNECT_FAILED) {
 			ESP_LOGE(__func__, "WiFi Connect to ap failed");
+			s_wifi_connect_status = WIFI_CONNECTION_FAILED;
 		}
-		if(uxBits & ESPTOUCH_DONE_BIT) {
-			ESP_LOGI(__func__, "smartconfig over");
+		if(uxBits & WIFI_BIT_DONE) {
+			ESP_LOGI(__func__, "wifi init done");
 			esp_smartconfig_stop();
 			vTaskDelete(NULL);
 		}
 	}
 }
 
-static void smartconfig_event_handler(void* arg, esp_event_base_t event_base,
-                                int32_t event_id, void* event_data)
+// event handler for connect process
+static void smartconfig_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data)
 {
 	EventBits_t uxBits = xEventGroupGetBits(s_wifi_event_group);
-	int smartconfig_running = uxBits & WIFI_SMART_CONFIG_RUNNING;
+	int smartconfig_running = uxBits & WIFI_BIT_SMART_CONFIG_RUNNING;
 
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
-
         xTaskCreate(smartconfig_task, "smartconfig_task", 4096, NULL, 3, NULL);
+    	s_retry_num = 0;
+    	s_wifi_connect_status = WIFI_TRY_CONNECT;
 
-        if (uxBits & WIFI_NO_CONNECTION_STORED ) {
-			firstled(16,16,0); // yellow
-			xEventGroupSetBits(s_wifi_event_group, WIFI_SMART_CONFIG_RUNNING);
+        if (uxBits & WIFI_BIT_NO_CONNECTION_STORED ) {
+        	// no credentials stored, start with smartconfig
+			xEventGroupSetBits(s_wifi_event_group, WIFI_BIT_SMART_CONFIG_RUNNING);
+			s_wifi_connect_status = WIFI_TRY_SMART_CONFIG;
+	    	//xEventGroupClearBits(s_wifi_event_group, WIFI_TRY_TO_CONNECT_BIT);
 
         	ESP_LOGI(__func__,"[0x%03X] start smart config",uxBits);
+
         	ESP_ERROR_CHECK( esp_smartconfig_set_type(SC_TYPE_ESPTOUCH) );
         	smartconfig_start_config_t cfg = SMARTCONFIG_START_CONFIG_DEFAULT();
         	ESP_ERROR_CHECK( esp_smartconfig_start(&cfg) );
+
         } else {
+        	// try to connect with known credentials
+        	//xEventGroupSetBits(s_wifi_event_group, WIFI_TRY_TO_CONNECT_BIT);
         	ESP_LOGI(__func__,"[0x%03X] start connect with stored data", uxBits);
             esp_wifi_connect();
         }
+
     } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
 
-    	xEventGroupClearBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
+    	xEventGroupClearBits(s_wifi_event_group, WIFI_BIT_CONNECTED);
+
     	if (s_retry_num < s_max_retry_num) {
-    		// connect while smart config or real config
+    		// connect failed while smart config or with known credentials doesn't matter
     		esp_wifi_connect();
     		s_retry_num++;
     		ESP_LOGI(__func__, "[0x%03X] retry %d/%d to connect to the AP",uxBits, s_retry_num,s_max_retry_num);
-    	} else {
-    		// if connecion failed: Start smart config
-    		if ( ! smartconfig_running) {
-    			xEventGroupSetBits(s_wifi_event_group, WIFI_SMART_CONFIG_RUNNING);
-    			firstled(0,0,16); // blue
 
-    			ESP_LOGI(__func__,"[0x%03X] connect to the AP fail, start smart config",uxBits);
+    	} else {
+    		// if connecion failed: Start smart config if not running
+    		if ( ! smartconfig_running) {
+    			xEventGroupSetBits(s_wifi_event_group, WIFI_BIT_CONNECT_WITH_SMART_CONFIG);
+    			s_wifi_connect_status = WIFI_TRY_SMART_CONFIG;
+    			ESP_LOGI(__func__,"[0x%03X] connect to the AP fail, start smart config", uxBits);
+
     			esp_wifi_disconnect();
     			esp_smartconfig_stop();
 
@@ -216,21 +242,14 @@ static void smartconfig_event_handler(void* arg, esp_event_base_t event_base,
     			ESP_ERROR_CHECK( esp_smartconfig_start(&cfg) );
 
     		} else {
-    			xEventGroupSetBits(s_wifi_event_group, WIFI_FAIL_BIT);
+    			// too many tries, give up
+    			xEventGroupSetBits(s_wifi_event_group, WIFI_BIT_CONNECT_FAILED);
     			ESP_LOGI(__func__,"[0x%03X] connect to the AP fail",uxBits);
-    			firstled(16,0,0); // red
     		}
     	}
 
-
-
     } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
-    	int bits = WIFI_CONNECTED_BIT;
-        if ( smartconfig_running) {
-        	bits |=ESPTOUCH_DONE_BIT;
-        }
-        xEventGroupSetBits(s_wifi_event_group, bits);
-		firstled(0,16,0); // green
+        xEventGroupSetBits(s_wifi_event_group, WIFI_BIT_CONNECTED);
 
     } else if (event_base == SC_EVENT && event_id == SC_EVENT_SCAN_DONE) {
         ESP_LOGI(__func__, "[0x%03X] Scan done", uxBits);
@@ -280,145 +299,101 @@ static void smartconfig_event_handler(void* arg, esp_event_base_t event_base,
         esp_wifi_connect();
 
     } else if (event_base == SC_EVENT && event_id == SC_EVENT_SEND_ACK_DONE) {
-        xEventGroupSetBits(s_wifi_event_group, ESPTOUCH_DONE_BIT);
+        xEventGroupSetBits(s_wifi_event_group, WIFI_BIT_CONNECT_FAILED);
     }
 }
 
 // ----------------------------------------
 
 /**
- * ###############################
- * normal wifi connect functions
- * ###############################
+ * waits until a final state: connected or not
  */
-/*
-static void event_handler(void* arg, esp_event_base_t event_base,
-                                int32_t event_id, void* event_data)
-{
-    if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
-        esp_wifi_connect();
-
-    } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
-        if (s_retry_num < s_max_retry_num) {
-            esp_wifi_connect();
-            s_retry_num++;
-            ESP_LOGI(__func__, "retry to connect to the AP");
-        } else {
-            xEventGroupSetBits(s_wifi_event_group, WIFI_FAIL_BIT);
-        }
-        ESP_LOGI(__func__,"connect to the AP fail");
-
-    } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
-        ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
-        ESP_LOGI(__func__, "got ip:" IPSTR, IP2STR(&event->ip_info.ip));
-        s_retry_num = 0;
-        xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
-    }
-}
-*/
-
-
-static esp_err_t waitforConnect() {
+esp_err_t waitforConnect() {
 	EventBits_t uxBits;
 	ESP_LOGI(__func__, "started.");
     while (1) {
-        uxBits = xEventGroupWaitBits(s_wifi_event_group, WIFI_CONNECTED_BIT | WIFI_FAIL_BIT, true, false, portMAX_DELAY);
+        uxBits = xEventGroupWaitBits(s_wifi_event_group, WIFI_BIT_DONE, false, false, portMAX_DELAY);
     	ESP_LOGI(__func__, "xEventGroupWaitBits return %d", uxBits);
-       if(uxBits & WIFI_CONNECTED_BIT) {
+       if(uxBits & WIFI_BIT_CONNECTED) {
             ESP_LOGI(__func__, "WiFi Connected to known ap");
             return ESP_OK;
         }
-        if(uxBits & WIFI_FAIL_BIT) {
-            ESP_LOGI(__func__, "connection failed over");
+        if(uxBits & WIFI_BIT_CONNECT_FAILED) {
+            ESP_LOGI(__func__, "connection failed");
             return ESP_FAIL;
         }
     }
 
     // not reached
-	return ESP_FAIL; //isConnected ? ESP_OK : ESP_FAIL;
+	return ESP_FAIL;
 }
 
+/**
+ * check status of connect
+ */
+wifi_status_type wifi_connect_status() {
 
-/*
-static esp_err_t initialise_know_wifi() {
+	return s_wifi_connect_status;
 
-	char ssid[64];
-	char pw[64];
-	get_wifi_config(ssid, sizeof(ssid), pw, sizeof(pw));
+//	EventBits_t uxBits = xEventGroupGetBits(s_wifi_event_group);
+//    ESP_LOGI(__func__, "connection status 0x%02X", uxBits);
+//
+//     if ( uxBits & WIFI_BIT_CONNECT_WITH_KNOWN_CREDETIALS) {
+//    	return WIFI_TRY_CONNECT;
+//    }
+//    if ( uxBits & WIFI_BIT_CONNECT_WITH_SMART_CONFIG) {
+//    	return WIFI_TRY_SMART_CONFIG;
+//    }
+//	if ( uxBits & WIFI_BIT_CONNECTED) {
+//		return WIFI_CONNECTED;
+//	}
+//	if ( uxBits & WIFI_BIT_CONNECT_FAILED) {
+//		return WIFI_CONNECTED;
+//	}
+//	return WIFI_IDLE;
+}
 
-	if ( !strlen((char *)ssid)) {
-	    ESP_LOGI(__func__, "no stored Wifi-Connection.");
-		return ESP_ERR_NOT_FOUND;
+char *wifi_connect_status2text(wifi_status_type status)  {
+	switch (status) {
+	case WIFI_IDLE: return "IDLE";
+	case WIFI_TRY_CONNECT: return "TRY_CONNECT";
+	case WIFI_TRY_SMART_CONFIG: return "TRY SMART CONFIG";
+	case WIFI_CONNECTED: return "CONNECTED";
+	case WIFI_CONNECTION_FAILED: return "FAILED";
+	default: return "???";
 	}
-
-    xEventGroupClearBits(s_wifi_event_group, WIFI_CONNECTED_BIT | WIFI_FAIL_BIT | ESPTOUCH_DONE_BIT);
-
-    esp_event_handler_instance_t instance_any_id;
-    esp_event_handler_instance_t instance_got_ip;
-    ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID,    &event_handler, NULL, &instance_any_id));
-    ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT,   IP_EVENT_STA_GOT_IP, &event_handler, NULL, &instance_got_ip));
-
-//    wifi_config_t wifi_config = {
-//        .sta = {
-//            .ssid = gWifiConfig.ssid, // TODO  from storage
-//            .password = gWifiConfig.pw, // TODO from storage
-//            // Setting a password implies station will connect to all security modes including WEP/WPA.
-//            // However these modes are deprecated and not advisable to be used. Incase your Access point
-//            // doesn't support WPA2, these mode can be enabled by commenting below line
-//			.threshold.authmode = ESP_WIFI_SCAN_AUTH_MODE_THRESHOLD,
-//        },
-//    };
-
-    ESP_LOGI(__func__, "stored Wifi-Connection '%s', '%s'",(ssid?ssid:"<null>"),(pw?pw:"<null>") );
-
-    wifi_config_t wifi_config;
-    bzero(&wifi_config, sizeof(wifi_config_t));
-    memcpy(wifi_config.sta.ssid, gWifiConfig.ssid, sizeof(wifi_config.sta.ssid));
-    if (gWifiConfig.pw) {
-    	memcpy(wifi_config.sta.password, gWifiConfig.pw, sizeof(wifi_config.sta.password));
-    }
-
-
-    // Setting a password implies station will connect to all security modes including WEP/WPA.
-    // However these modes are deprecated and not advisable to be used. Incase your Access point
-    // doesn't support WPA2, these mode can be enabled by commenting below line
-    wifi_config.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
-
-
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA) );
-    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config) );
-    ESP_ERROR_CHECK(esp_wifi_start() );
-
-    ESP_LOGI(__func__, "started.");
-
-    return waitforConnect();
 }
-*/
 
 
-static esp_err_t initialise_smartconfig_wifi() {
-	firstled(16,16,16);
+void initialise_wifi()
+{
 	ESP_LOGI(__func__, "started.");
-	char ssid[64];
-	char pw[64];
-	get_wifi_config(ssid, sizeof(ssid), pw, sizeof(pw));
-    ESP_LOGI(__func__, "stored Wifi-Connection '%s', '%s'", ssid, pw);
 
+	ESP_ERROR_CHECK(esp_netif_init());
+	s_wifi_event_group = xEventGroupCreate();
 
+	esp_netif_t *sta_netif = esp_netif_create_default_wifi_sta();
+	assert(sta_netif);
 
-	xEventGroupClearBits(s_wifi_event_group, ALL_WIFI_BITS);
+	wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+	ESP_ERROR_CHECK( esp_wifi_init(&cfg) );
+
+	xEventGroupClearBits(s_wifi_event_group, WIFI_BITS_ALL);
 
     ESP_ERROR_CHECK( esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &smartconfig_event_handler, NULL) );
     ESP_ERROR_CHECK( esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &smartconfig_event_handler, NULL) );
     ESP_ERROR_CHECK( esp_event_handler_register(SC_EVENT, ESP_EVENT_ANY_ID, &smartconfig_event_handler, NULL) );
 
-
-
     ESP_ERROR_CHECK( esp_wifi_set_mode(WIFI_MODE_STA) );
 
-    if ( strlen((char *)ssid)) {
-    	ESP_LOGI(__func__, "activate stored Wifi-Connection.");
+	char ssid[64];
+	char pw[64];
+	get_wifi_config(ssid, sizeof(ssid), pw, sizeof(pw));
 
+	ESP_LOGI(__func__, "stored Wifi-Connection '%s', '%s'", ssid, pw);
+
+    if ( strlen((char *)ssid)) {
+    	// try stored connection
     	wifi_config_t wifi_config;
     	bzero(&wifi_config, sizeof(wifi_config_t));
     	memcpy(wifi_config.sta.ssid, ssid, sizeof(wifi_config.sta.ssid));
@@ -429,61 +404,14 @@ static esp_err_t initialise_smartconfig_wifi() {
     	wifi_config.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
 
     	ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config) );
+
     } else {
-        xEventGroupSetBits(s_wifi_event_group, WIFI_NO_CONNECTION_STORED);
+    	// nothing stored, set a marker to start smart config
+        xEventGroupSetBits(s_wifi_event_group, WIFI_BIT_NO_CONNECTION_STORED);
     }
 
     ESP_ERROR_CHECK( esp_wifi_start() );
 
-    return waitforConnect();
-
-}
-
-
-esp_err_t initialise_wifi()
-{
-	ESP_LOGI(__func__, "started.");
-
-	ESP_ERROR_CHECK(esp_netif_init());
-	s_wifi_event_group = xEventGroupCreate();
-	//ESP_ERROR_CHECK(esp_event_loop_create_default());
-	esp_netif_t *sta_netif = esp_netif_create_default_wifi_sta();
-	assert(sta_netif);
-
-	wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-	ESP_ERROR_CHECK( esp_wifi_init(&cfg) );
-
-	// try to connect to known WLAN
-	// if it failes, start smart config
-
-	esp_err_t res; // = initialise_know_wifi();
-//	if (res == ESP_OK) {
-//		ESP_LOGI(__func__, "connected to known Wifi.");
-//		return res;
-//	}
-//
-//	if ( res == ESP_FAIL ) {
-//		// not able to connect with stored data
-//		ESP_LOGI(__func__, "wifi stop");
-//		esp_wifi_stop();
-//	}
-
-	ESP_LOGI(__func__, "try smart config");
-	res =  initialise_smartconfig_wifi();
-	if (res == ESP_OK) {
-		ESP_LOGI(__func__, "smart config successfull.");
-		return res;
-	}
-	ESP_LOGI(__func__, "smart config failed.");
-	return res;
-
-
-	//    ESP_ERROR_CHECK( esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &smartconfig_event_handler, NULL) );
-	//    ESP_ERROR_CHECK( esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &smartconfig_event_handler, NULL) );
-	//    ESP_ERROR_CHECK( esp_event_handler_register(SC_EVENT, ESP_EVENT_ANY_ID, &smartconfig_event_handler, NULL) );
-	//
-	//    ESP_ERROR_CHECK( esp_wifi_set_mode(WIFI_MODE_STA) );
-	//    ESP_ERROR_CHECK( esp_wifi_start() );
 }
 
 

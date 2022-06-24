@@ -26,6 +26,7 @@
 #include <stdio.h>
 
 #include "config.h"
+#include "wifi_config.h"
 
 esp_err_t init_fs(void);
 
@@ -42,6 +43,7 @@ void app_main() {
 
 	// init led-strip
 	ESP_ERROR_CHECK(strip_setup(gConfig.numleds));
+
 	firstled(32, 32, 32);
 
 	ESP_ERROR_CHECK(esp_netif_init());
@@ -50,26 +52,59 @@ void app_main() {
 	initialise_mdns();
 	initialise_netbios();
 
-	esp_err_t res =	initialise_wifi();
+	initialise_wifi();
+	// esp_err_t res =	waitforConnect();
 
-	if ( res == ESP_OK ) {
+	TickType_t xDelay = 500 / portTICK_PERIOD_MS;
+
+	wifi_status_type done = 0;
+	while(done==0) {
+		//printf("xxx\n");
+		vTaskDelay(xDelay);
+		wifi_status_type s = wifi_connect_status();
+		ESP_LOGI(__func__, "connection status=%d(%s)", s, wifi_connect_status2text(s));
+		switch (s) {
+		case WIFI_IDLE:
+			firstled(16,16,16);
+			break;
+		case WIFI_TRY_CONNECT:
+			firstled(16,16,0);
+			break;
+		case WIFI_TRY_SMART_CONFIG:
+			firstled(0,0,16);
+			break;
+		case WIFI_CONNECTED:
+			firstled(0,16,0);
+			done=s;
+			break;
+		case WIFI_CONNECTION_FAILED:
+			firstled(16,0,0);
+			done=s;
+			break;
+		default:
+			done = 99;
+		}
+	}
+
+
+	if ( done == WIFI_CONNECTED ) {
 		init_restservice();
 
 		// green
-		//firstled(0,32,0);
+		firstled(0,32,0);
 		ESP_LOGI(__func__, "with WIFI");
 
 
 	} else {
 
 		// red
-		//firstled(32,0,0);
+		firstled(32,0,0);
 		ESP_LOGI(__func__, "without WIFI");
 	}
 
 	//led_strip_main();
 
-	const TickType_t xDelay = 60000 / portTICK_PERIOD_MS;
+	xDelay = 50000 / portTICK_PERIOD_MS;
 
 	while(1) {
 		//printf("xxx\n");
