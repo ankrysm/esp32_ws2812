@@ -332,25 +332,7 @@ esp_err_t waitforConnect() {
  * check status of connect
  */
 wifi_status_type wifi_connect_status() {
-
 	return s_wifi_connect_status;
-
-//	EventBits_t uxBits = xEventGroupGetBits(s_wifi_event_group);
-//    ESP_LOGI(__func__, "connection status 0x%02X", uxBits);
-//
-//     if ( uxBits & WIFI_BIT_CONNECT_WITH_KNOWN_CREDETIALS) {
-//    	return WIFI_TRY_CONNECT;
-//    }
-//    if ( uxBits & WIFI_BIT_CONNECT_WITH_SMART_CONFIG) {
-//    	return WIFI_TRY_SMART_CONFIG;
-//    }
-//	if ( uxBits & WIFI_BIT_CONNECTED) {
-//		return WIFI_CONNECTED;
-//	}
-//	if ( uxBits & WIFI_BIT_CONNECT_FAILED) {
-//		return WIFI_CONNECTED;
-//	}
-//	return WIFI_IDLE;
 }
 
 char *wifi_connect_status2text(wifi_status_type status)  {

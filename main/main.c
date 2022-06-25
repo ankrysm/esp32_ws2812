@@ -27,6 +27,8 @@
 
 #include "config.h"
 #include "wifi_config.h"
+#include "timer_events.h"
+
 
 esp_err_t init_fs(void);
 
