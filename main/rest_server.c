@@ -33,6 +33,7 @@
 #include "esp_chip_info.h"
 #include "local.h"
 #include "config.h"
+#include "timer_events.h"
 
 #define MDNS_INSTANCE "esp home web server"
 
@@ -586,6 +587,73 @@ static esp_err_t get_handler_strip_config(httpd_req_t *req)
 	return ESP_OK;
 }
 
+
+
+static esp_err_t get_handler_status_do(httpd_req_t *req, run_status_type new_status)
+{
+	char*  buf;
+	size_t buf_len;
+
+	extern T_CONFIG gConfig;
+
+	// Read URL query string length and allocate memory for length + 1,
+	// extra byte for null termination
+
+	run_status_type old_status = SCENES_NOTHING;
+
+	buf_len = httpd_req_get_url_query_len(req) + 1;
+	if (buf_len > 1) {
+		buf = malloc(buf_len);
+		if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK) {
+			ESP_LOGI(__func__, "Found URL query => %s", buf);
+			char param[64];
+			// Get value of expected key from query string
+			if (httpd_query_key_value(buf, "scenefile", param, sizeof(param)) == ESP_OK) {
+				ESP_LOGI(__func__, "query parameter: scenefile=%s", param);
+				new_status = SCENES_RUNNING;
+				// TODO: new scene file
+			}
+		}
+		free(buf);
+	}
+
+	char resp_str[255];
+
+	if (new_status != SCENES_NOTHING) {
+		old_status = set_scene_status(new_status);
+		snprintf(resp_str,sizeof(resp_str),"New status %s -> %s\nTimer cycle=%lld ms\nScene time=%lld\n",
+				RUN_STATUS_TYPE2TEXT(old_status), RUN_STATUS_TYPE2TEXT(new_status),
+				get_event_timer_period(), get_scene_time());
+	} else {
+		old_status = get_scene_status();
+		snprintf(resp_str,sizeof(resp_str),"Status %s\nTimer cycle=%lld ms\nScene time=%lld\n",
+				RUN_STATUS_TYPE2TEXT(old_status),
+				get_event_timer_period(), get_scene_time());
+	}
+
+
+	// Send response with custom headers and body set as the
+	httpd_resp_send(req, resp_str, HTTPD_RESP_USE_STRLEN);
+
+	return ESP_OK;
+}
+
+static esp_err_t get_handler_run(httpd_req_t *req) {
+	return get_handler_status_do(req, SCENES_RUNNING);
+}
+
+static esp_err_t get_handler_stop(httpd_req_t *req) {
+	return get_handler_status_do(req, SCENES_STOPPED);
+}
+
+static esp_err_t get_handler_pause(httpd_req_t *req) {
+	return get_handler_status_do(req, SCENES_PAUSED);
+}
+
+static esp_err_t get_handler_status(httpd_req_t *req) {
+	return get_handler_status_do(req, SCENES_NOTHING);
+}
+
 static esp_err_t get_handler_reset(httpd_req_t *req)
 {
 	char*  buf;
@@ -720,14 +788,47 @@ esp_err_t start_rest_server(const char *base_path)
     };
     httpd_register_uri_handler(server, &strip_setup);
 
-    httpd_uri_t rest_uri = {
+    httpd_uri_t reset_uri = {
         .uri       = "/api/v1/reset",
         .method    = HTTP_GET,
         .handler   = get_handler_reset, // get_handler_strip_setup,
         .user_ctx  = rest_context
     };
-    httpd_register_uri_handler(server, &rest_uri);
-    /*
+    httpd_register_uri_handler(server, &reset_uri);
+
+    httpd_uri_t status_uri = {
+        .uri       = "/api/v1/status",
+        .method    = HTTP_GET,
+        .handler   = get_handler_status,
+        .user_ctx  = rest_context
+    };
+    httpd_register_uri_handler(server, &status_uri);
+
+    httpd_uri_t run_uri = {
+        .uri       = "/api/v1/run",
+        .method    = HTTP_GET,
+        .handler   = get_handler_run,
+        .user_ctx  = rest_context
+    };
+    httpd_register_uri_handler(server, &run_uri);
+
+    httpd_uri_t pause_uri = {
+         .uri       = "/api/v1/pause",
+         .method    = HTTP_GET,
+         .handler   = get_handler_pause,
+         .user_ctx  = rest_context
+     };
+     httpd_register_uri_handler(server, &pause_uri);
+
+     httpd_uri_t stop_uri = {
+         .uri       = "/api/v1/stop",
+         .method    = HTTP_GET,
+         .handler   = get_handler_stop,
+         .user_ctx  = rest_context
+     };
+     httpd_register_uri_handler(server, &stop_uri);
+
+     /*
     httpd_uri_t strip_setcolor = {
         .uri       = "/api/v1/setcolor",
         .method    = HTTP_GET,

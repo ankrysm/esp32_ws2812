@@ -7,7 +7,7 @@ I've found some ws2812 code in the esp-idf examples. This works parallel with th
 
 ## newer concepts
 
-### API 
+### API
 
 base path is */api/v1*
 
@@ -23,27 +23,27 @@ type: GET
 
 Parameter:
 
-* autoplay true|false - start immediately after reboot - true if theres no network connection, default: *true* 
+* autoplay true|false - start immediately after reboot - true if theres no network connection, default: *true*
 * scenefile <name> - scenefile for play, default: *scenes*
 * repeat true|false - plays scenes once or forever, default *true*
 * numleds - number of leds, default 12
 * cycle - cycle time in ms, default 100 ms
- 
+
 Response:
 
 actual key-value-list of parameters
 
-### status
+### status / run / pause /stop
 
 sets or gets the status of played scenes
 
 type: GET
 
-Parameter: 
+Parameter:
 
-* *run*, *pause*, *stop* 
+* scenefile <name> - optional, new scenefile name for play
 
-Response: 
+Response:
 
 * actual status: run/pause/stop
 * cycle count
@@ -54,7 +54,7 @@ Response:
 
 show a single scene immediately, implies status stop
 
-type: POST 
+type: POST
 
 parameter: none
 
@@ -62,20 +62,20 @@ POST-data: scene definition
 
 ### scenes
 
-upload of a scene data and storage in a file on the controller. 
+upload of a scene data and storage in a file on the controller.
 A scene file contains a list of scenes in JSON-format
 
 type POST
 
 parameter:
 
-* file name - used name for storage 
+* file name - used name for storage
 
 POST-data: JSON-Structure for list of scenes
 
-Response: OK/NOK  
+Response: OK/NOK
 
-Reason for NOK may be 
+Reason for NOK may be
 * format errors
 * not enough storage space
 * syntax errors
@@ -85,12 +85,12 @@ Reason for NOK may be
 
 ### common facts
 
-a scene definition consists of 
+a scene definition consists of
 * common parameters
     * "start":xx.yy - start time in seconds - scene will be activated 12.3 seconds after cycle start - default 0
     * "duration":xx.yy - duration of a scene in seconds - default 0 - means forever
     * "pos":nn - start position - default 0
-    * "len":nn - number of leds affected by this scene - default number leds  
+    * "len":nn - number of leds affected by this scene - default number leds
     * "type":"name" - name of the scene type
     * "bg_color":{COLOR} - background color - default black
     * "fadein"
@@ -127,7 +127,7 @@ description: color transition from *bg_color* to *color* and back
 
 parameters:
 * "color":{COLOR} - to color
-* ttime=nn - transition time in sec - default 0 
+* ttime=nn - transition time in sec - default 0
 * ctime=nn - cycle time in sec - default 1.0 sec
 
 
@@ -145,13 +145,13 @@ parameters:
 
 description: shows some sparkling elements
 
-paramter: 
+paramter:
 * "bg_color":{COLOR} - background color - default black
 * "colors":[{COLOR},..] - List of foreground colors
 * "size":n - n=0(small)..5(big) - size of a sparkle, default 3
 * "vary":n - n=0(few}..5(a lot) - varying of foreground color, default 3
 * "spped":n - n=0..10 - speed index
-* "num":n - number of sparkles 
+* "num":n - number of sparkles
 
 #### move
 
@@ -180,7 +180,7 @@ parameters: none
 
 ## old Concepts
 
-Objects are stored in files on the spiff. 
+Objects are stored in files on the spiff.
 The entries are lines in a specific format.
 The lines are list with comma separated values. they start with an index number to identify the line
 
@@ -257,7 +257,7 @@ has a set of
 ### events
 
 Events to start or stop a **set**
-- automatically on power up, 
+- automatically on power up,
 - manual start/stop
 - in a time range ( from ... to)
 - randomly
@@ -281,5 +281,5 @@ which has a **color** and a **brightness**
 - rainbow (range, brightness)
 - Color gradient (range, from (color,brightness), to(color,brightness))
 - color list
-- effects (type(random, flickr, ... ),range, some parameter) 
+- effects (type(random, flickr, ... ),range, some parameter)
 

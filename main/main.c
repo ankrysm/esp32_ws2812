@@ -46,6 +46,9 @@ void app_main() {
 	// init led-strip
 	ESP_ERROR_CHECK(strip_setup(gConfig.numleds));
 
+	// start timer
+	init_timer_events(1000); // TODO
+
 	firstled(32, 32, 32);
 
 	ESP_ERROR_CHECK(esp_netif_init());
