@@ -31,6 +31,8 @@
 
 
 esp_err_t init_fs(void);
+void start_demo1();
+
 
 extern T_CONFIG gConfig;
 
@@ -41,13 +43,12 @@ void app_main() {
 	// init storage and get/initalize config
 	ESP_ERROR_CHECK(nvs_flash_init());
 	ESP_ERROR_CHECK(init_storage());
-	//ESP_ERROR_CHECK(init_fs());
 
 	// init led-strip
 	ESP_ERROR_CHECK(strip_setup(gConfig.numleds));
 
 	// start timer
-	init_timer_events(1000); // TODO
+	init_timer_events(100); // TODO config time
 
 	firstled(32, 32, 32);
 
@@ -94,20 +95,16 @@ void app_main() {
 
 	if ( done == WIFI_CONNECTED ) {
 		init_restservice();
-
 		// green
 		firstled(0,32,0);
 		ESP_LOGI(__func__, "with WIFI");
-
-
 	} else {
-
 		// red
 		firstled(32,0,0);
 		ESP_LOGI(__func__, "without WIFI");
 	}
 
-	//led_strip_main();
+	start_demo1();
 
 	xDelay = 50000 / portTICK_PERIOD_MS;
 

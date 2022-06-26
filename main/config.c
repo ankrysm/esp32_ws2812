@@ -19,15 +19,10 @@
 #include "esp_log.h"
 #include "mdns.h"
 #include "lwip/apps/netbiosns.h"
-//#include "protocol_examples_common.h"
-//#if CONFIG_EXAMPLE_WEB_DEPLOY_SD
-//#include "driver/sdmmc_host.h"
-//#endif
 #include "local.h"
 #include <stdio.h>
 #include "config.h"
 
-//static const char *TAG = "config";
 
 T_CONFIG gConfig;
 
@@ -141,39 +136,6 @@ esp_err_t init_storage() {
     	return ret;
     }
 
-//    // get WIFI config
-//    char *keyname=STORAGE_KEY_WIFI_CONFIG_SSID;
-//    size = 64;
-//    ret = nvs_get_str(my_handle, keyname, NULL, &size);
-//    if ( ret == ESP_OK ) {
-//    	// known
-//    	gWifiConfig.ssid = malloc(size);
-//    	nvs_get_str(my_handle, keyname, gWifiConfig.ssid, &size);
-//        ESP_LOGI(__func__, "getting '%s' successful sz=%d: '%s'",keyname, size,gWifiConfig.ssid );
-//
-//    } else if (ret == ESP_ERR_NVS_NOT_FOUND) {
-//    	// nothing stored
-//        ESP_LOGI(__func__, "nothing stored for '%s'", keyname);
-//        gWifiConfig.ssid = strdup("");
-//    }
-//
-//    keyname=STORAGE_KEY_WIFI_CONFIG_PW;
-//    size = 64;
-//    ret = nvs_get_str(my_handle, keyname, NULL, &size);
-//     if ( ret == ESP_OK ) {
-//     	// known
-//     	gWifiConfig.pw = malloc(size);
-//     	nvs_get_str(my_handle, keyname, gWifiConfig.pw, &size);
-//        ESP_LOGI(__func__, "getting '%s' successful sz=%d: '%s'",keyname, size,gWifiConfig.pw );
-//
-//     } else if (ret == ESP_ERR_NVS_NOT_FOUND) {
-//     	// nothing stored, store an emtpy string
-//         ESP_LOGI(__func__, "nothing stored for '%s'", keyname);
-//         gWifiConfig.pw = strdup("");
-//     }
-//
-//     ESP_LOGI(__func__, "stored Wifi-Connection '%s', '%s'",(gWifiConfig.ssid?gWifiConfig.ssid:"<null>"),(gWifiConfig.pw?gWifiConfig.pw:"<null>") );
-
     size = sizeof(gConfig);
     ret = nvs_get_blob(my_handle, STORAGE_KEY_CONFIG, &gConfig, &size);
     // close handle immediately, if it's necessary to open it again, it will be done later
@@ -187,7 +149,7 @@ esp_err_t init_storage() {
     	snprintf(gConfig.scenefile, LEN_SCENEFILE, "%s", "scenes");
     	gConfig.flags = CFG_AUTOPLAY | CFG_REPEAT;
     	gConfig.cycle = 100;
-    	gConfig.numleds = 12;
+    	gConfig.numleds = 60;
 
     	ret = store_config();
         if (ret != ESP_OK) {
@@ -202,54 +164,6 @@ esp_err_t init_storage() {
 
     return ESP_OK;
 
-    /*
-    // Use POSIX and C standard library functions to work with files.
-    // First create a file.
-    ESP_LOGI(__func__, "Opening file");
-    FILE* f = fopen("/spiffs/hello.txt", "w");
-    if (f == NULL) {
-        ESP_LOGE(__func__, "Failed to open file for writing");
-        return;
-    }
-    fprintf(f, "Hello World!\n");
-    fclose(f);
-    ESP_LOGI(__func__, "File written");
-
-    // Check if destination file exists before renaming
-    struct stat st;
-    if (stat("/spiffs/foo.txt", &st) == 0) {
-        // Delete it if it exists
-        unlink("/spiffs/foo.txt");
-    }
-
-    // Rename original file
-    ESP_LOGI(__func__, "Renaming file");
-    if (rename("/spiffs/hello.txt", "/spiffs/foo.txt") != 0) {
-        ESP_LOGE(__func__, "Rename failed");
-        return;
-    }
-
-    // Open renamed file for reading
-    ESP_LOGI(__func__, "Reading file");
-    f = fopen("/spiffs/foo.txt", "r");
-    if (f == NULL) {
-        ESP_LOGE(__func__, "Failed to open file for reading");
-        return;
-    }
-    char line[64];
-    fgets(line, sizeof(line), f);
-    fclose(f);
-    // strip newline
-    char* pos = strchr(line, '\n');
-    if (pos) {
-        *pos = '\0';
-    }
-    ESP_LOGI(__func__, "Read from file: '%s'", line);
-
-    // All done, unmount partition and disable SPIFFS
-    esp_vfs_spiffs_unregister(conf.partition_label);
-    ESP_LOGI(__func__, "SPIFFS unmounted");
-	*/
 }
 
 char *config2txt(char *txt, size_t sz) {

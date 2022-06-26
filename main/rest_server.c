@@ -544,15 +544,24 @@ static esp_err_t get_handler_strip_config(httpd_req_t *req)
 			}
 			if (httpd_query_key_value(buf, "numleds", param, sizeof(param)) == ESP_OK) {
 				ESP_LOGI(__func__, "query parameter: numleds=%s", param);
-				gConfig.numleds = atoi(param);
-				strip_setup(gConfig.numleds);
+				int numleds = atoi(param);
+				gConfig.numleds = numleds;
+
+				// stop playing when numleds changed
+				scenes_stop();
+				strip_setup(numleds);
 			}
 			if (httpd_query_key_value(buf, "cycle", param, sizeof(param)) == ESP_OK) {
 				ESP_LOGI(__func__, "query parameter: cycle=%s", param);
 				gConfig.cycle = atoi(param);
+				// stop playing when cacle changed
+				scenes_stop();
+				set_timer_cycle(gConfig.cycle);
 			}
 		}
 		free(buf);
+
+		store_config();
 	}
 
 	// TODO do_led1();
@@ -656,7 +665,7 @@ static esp_err_t get_handler_status(httpd_req_t *req) {
 
 static esp_err_t get_handler_reset(httpd_req_t *req)
 {
-	char*  buf;
+//	char*  buf;
 	size_t buf_len;
 
 //	extern T_CONFIG gConfig;
@@ -700,7 +709,7 @@ static esp_err_t get_handler_reset(httpd_req_t *req)
 
 	// clear nvs
 	nvs_flash_erase();
-
+	scenes_stop();
 
 	char resp_str[255];
 	snprintf(resp_str, sizeof(resp_str),"RESET done\n");

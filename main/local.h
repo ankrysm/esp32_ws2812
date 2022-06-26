@@ -19,6 +19,7 @@ esp_err_t strip_init(int numleds);
 esp_err_t strip_setup(int numleds);
 esp_err_t strip_resize(int numleds);
 void strip_set_color(uint32_t start_idx, uint32_t end_idx, uint32_t red, uint32_t green, uint32_t blue);
+void strip_set_pixel(uint32_t idx, uint32_t red, uint32_t green, uint32_t blue);
 void strip_show();
 int strip_initialized();
 int strip_numleds();

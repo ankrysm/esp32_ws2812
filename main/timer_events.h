@@ -34,11 +34,21 @@ typedef enum {
 	c == SCENES_PAUSED  ? "PAUSED" : "???" )
 
 
+//typedef struct {
+//	int32_t duration;
+//	int32_t in;
+//	int32_t out;
+//} T_FADE_INOUT;
+
 typedef struct {
-	int32_t duration;
-	int32_t in;
-	int32_t out;
-} T_FADE_INOUT;
+	T_COLOR_RGB fg_color;
+	uint32_t inset;  // at the edge of leds
+	uint32_t outset;
+	uint32_t flags;
+	// working data
+	//T_COLOR_RGB color; // actual color
+	//T_COLOR_RGB delta_color; // for fade in / fade out
+} T_SOLID_DATA;
 
 typedef struct {
 	int32_t speed;
@@ -47,18 +57,23 @@ typedef struct {
 
 typedef struct EVENT{
 	strip_event_type type;
-	int64_t t_start; // Start time
-	int64_t duration; // duration
-	int32_t pos; // start position on strip
-	int32_t len; // length
-	T_COLOR_RGB bg_color;
-	T_FADE_INOUT *fade_in;
-	T_FADE_INOUT *fade_out;
+	uint32_t lfd; // for logging
+	uint32_t pos; // start position on strip
+	uint32_t len; // length
+	uint64_t t_start; // Start time in ms
+	uint64_t duration; // duration in ms
+	T_COLOR_RGB *bg_color; // assumed black when NULL
+	uint32_t t_fade_in; // in ms
+	uint32_t t_fade_out; // in ms
 	T_MOVEMENT *movement;
+	void *data; // special data
+	// working data
+	uint64_t t; // time from start
 	struct EVENT *nxt;
 } T_EVENT;
 
 void init_timer_events(int delta_ms);
+void set_timer_cycle(int new_delta_ms);
 void scenes_start();
 void scenes_stop();
 void scenes_pause();

@@ -53,6 +53,11 @@ struct led_strip_s {
     esp_err_t (*set_pixel)(led_strip_t *strip, uint32_t index, uint32_t red, uint32_t green, uint32_t blue);
 
     /**
+     * gets pixel
+     */
+    esp_err_t (*get_pixel)(led_strip_t *strip, uint32_t index, uint32_t *red, uint32_t *green, uint32_t *blue);
+
+    /**
     * @brief Refresh memory colors to LEDs
     *
     * @param strip: LED strip

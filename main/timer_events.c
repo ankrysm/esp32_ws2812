@@ -18,8 +18,8 @@
 #include "freertos/event_groups.h"
 #include "sdkconfig.h"
 #include "timer_events.h"
-
-
+#include "local.h"
+#include "math.h"
 
 static esp_timer_handle_t s_periodic_timer;
 static uint64_t s_timer_period; // in ms
@@ -29,6 +29,8 @@ static const int EVENT_BIT_START = BIT0;
 static const int EVENT_BIT_STOP = BIT1;
 static const int EVENT_BIT_PAUSE = BIT2;
 static const int EVENT_BIT_NEW_SCENE = BIT3;
+
+static const uint32_t EVENT_BIT_RESET = BIT0;
 
 static const int EVENT_BITS_ALL = EVENT_BIT_START | \
 		EVENT_BIT_STOP | \
@@ -48,9 +50,11 @@ void event_list_free() {
 	T_EVENT *nxt;
 	while (s_event_list) {
 		nxt = s_event_list->nxt;
-		if ( s_event_list->fade_in) free(s_event_list->fade_in);
-		if ( s_event_list->fade_out) free(s_event_list->fade_out);
+//		if ( s_event_list->fade_in) free(s_event_list->fade_in);
+//		if ( s_event_list->fade_out) free(s_event_list->fade_out);
 		if ( s_event_list->movement) free(s_event_list->movement);
+		if ( s_event_list->data) free(s_event_list->data);
+		if ( s_event_list->bg_color) free(s_event_list->bg_color);
 		free(s_event_list);
 		s_event_list = nxt;
 	}
@@ -62,23 +66,123 @@ void event_list_add(T_EVENT *evt) {
 		// add at the end of the list
 		T_EVENT *t;
 		for (t=s_event_list; t->nxt; t=t->nxt){}
+		evt->lfd = t->lfd +1;
 		t->nxt = evt;
 	} else {
 		// first entry
+		evt->lfd = 1;
 		s_event_list = evt;
 	}
 }
 
+static void process_solid(T_EVENT *evt, uint32_t flags) {
+	if ( ! evt->data) {
+		ESP_LOGE(__func__,"[%d] missing data", evt->lfd);
+		return;
+	}
+	T_SOLID_DATA *d = (T_SOLID_DATA*) evt->data;
+	if ( flags & EVENT_BIT_RESET) {
+		ESP_LOGI(__func__, "[%d] reset, start %lld, duration %lld", evt->lfd, evt->t_start, evt->duration);
+		evt->t = 0;
+		d->flags =0;
+	}
+
+	if ( s_scene_time <= evt->t_start ) {
+		// not yet
+		ESP_LOGI(__func__, "[%d] check start %lld <= %lld", evt->lfd, s_scene_time, evt->t_start);
+		return;
+	}
+
+	if ( d->flags & 2 ) {
+		return; // duration ended
+	}
+
+	if ( d->flags & 1) {
+		// done, check duration
+		if ( evt->duration > 0  && evt->t > evt->duration) {
+			ESP_LOGI(__func__,"[%d] duration -> stop %lld, %lld", evt->lfd, evt->t, evt->duration);
+			strip_set_color(evt->pos, evt->pos+ evt->len, 0, 0, 0);
+			d->flags |= 2;
+			return;
+		}
+		ESP_LOGI(__func__,"[%d] duration check %lld, %lld", evt->lfd, evt->t, evt->duration);
+		evt->t += s_timer_period;
+		return;
+	}
+
+	uint32_t pos = evt->pos;
+	ESP_LOGI(__func__, "[%d] start at pos %d", evt->lfd, pos);
+
+	int32_t r,g,b,dr,dg,db;
+	// inset
+	ESP_LOGI(__func__, "[%d] inset %d", evt->lfd, d->inset);
+	if ( d->inset > 0 ) {
+		double dd = 1.0 / pow(2.0, d->inset);
+		r = g = b = 0;
+		for (int i=0; i < d->inset; i++) {
+			dr = d->fg_color.r * dd;
+			dg = d->fg_color.g * dd;
+			db = d->fg_color.b * dd;
+
+			r += dr; if ( r > d->fg_color.r ) {r = d->fg_color.r;}
+			g += dg; if ( g > d->fg_color.g ) {g = d->fg_color.g;}
+			b += db; if ( b > d->fg_color.b ) {b = d->fg_color.b;}
+			ESP_LOGI(__func__, "[%d] inset %d/%d, %0.4f RGB=%d,%d,%d", evt->lfd, i, d->inset, dd,r,g,b);
+
+			strip_set_pixel(pos, r, g, b);
+			dd = dd*2.0;
+			pos++;
+		}
+	}
+	int32_t len = evt->len - d->inset - d->outset;
+	if ( len < 0) {
+		// outset parameter to big
+		len = evt->len - d->inset;
+	}
+	ESP_LOGI(__func__, "[%d] setcolor %d ... %d", evt->lfd, pos, pos+len);
+	strip_set_color(pos, pos+len, d->fg_color.r, d->fg_color.g, d->fg_color.b);
+	pos +=len;
+
+	ESP_LOGI(__func__, "[%d] outset %d", evt->lfd, d->outset);
+	if ( d->outset > 0 ) {
+		double dd = 1.0 / pow(2.0, d->outset);
+		r = g = b = 0;
+
+		pos = evt->pos + evt->len;
+		for (int i=0; i < d->inset; i++) {
+			dr = d->fg_color.r * dd;
+			dg = d->fg_color.g * dd;
+			db = d->fg_color.b * dd;
+
+			r += dr; if ( r > d->fg_color.r ) {r = d->fg_color.r;}
+			g += dg; if ( g > d->fg_color.g ) {g = d->fg_color.g;}
+			b += db; if ( b > d->fg_color.b ) {b = d->fg_color.b;}
+			strip_set_pixel(pos, r, g, b);
+			ESP_LOGI(__func__, "[%d] outset %d/%d, %0.4f RGB=%d,%d,%d", evt->lfd, i, d->inset, dd,r,g,b);
+
+			pos--;
+		}
+	}
+	ESP_LOGI(__func__, "[%d] done", evt->lfd);
+
+	d->flags |= 1;
+	evt->t += s_timer_period;
+
+}
+
+
 static void periodic_timer_callback(void* arg)
 {
-	static int first_run=10;
-	if ( (first_run--) > 0) {
-		ESP_LOGI(__func__,"started %d", first_run);
+	static uint32_t flags= EVENT_BIT_RESET | BIT5;
+
+	if ( flags & BIT5) {
+		ESP_LOGI(__func__,"started");
+		flags &= ~BIT5;
 	}
 
 	EventBits_t uxBits = xEventGroupGetBits(s_timer_event_group);
-	if ( uxBits & EVENT_BIT_START ) {
-		ESP_LOGI(__func__, "new scenes");
+	if ( uxBits & EVENT_BIT_NEW_SCENE ) {
+		ESP_LOGI(__func__, "new scenes NYI");
 		// TODO switch to new scenes
 	}
 	if ( uxBits & EVENT_BIT_START ) {
@@ -93,6 +197,7 @@ static void periodic_timer_callback(void* arg)
 			ESP_LOGI(__func__, "Stop scenes");
 			s_run_status = SCENES_STOPPED;
 			s_scene_time = 0; // stop resets the time
+			flags |= EVENT_BIT_RESET; // set reset bit
 		}
 	}
 	if ( uxBits & EVENT_BIT_PAUSE ) {
@@ -105,7 +210,7 @@ static void periodic_timer_callback(void* arg)
 	xEventGroupClearBits(s_timer_event_group, EVENT_BITS_ALL);
 
 	if ( !s_event_list) {
-		ESP_LOGI(__func__,"event list is empty");
+		//ESP_LOGI(__func__,"event list is empty");
 		s_run_status = SCENES_NOTHING;
 		s_scene_time = 0;
 		return;
@@ -116,12 +221,25 @@ static void periodic_timer_callback(void* arg)
 		return;
 	}
 
-
 	/// play scenes
+	s_scene_time += s_timer_period;
+
+	for ( T_EVENT *evt= s_event_list; evt; evt = evt->nxt) {
+		switch(evt->type) {
+		case EVT_SOLID:
+			process_solid(evt, flags);
+			break;
+		default:
+			ESP_LOGI(__func__,"Event %d NYI", evt->type);
+		}
+	}
+
+	strip_show();
+	flags &= ~EVENT_BIT_RESET; // reset of reset bit
+
 
     //int64_t time_since_boot = esp_timer_get_time();
     //ESP_LOGI(__func__, "Periodic timer called, time since boot: %lld us", time_since_boot);
-	s_scene_time += s_timer_period;
 }
 
 void scenes_start() {
@@ -169,6 +287,14 @@ uint64_t get_event_timer_period() {
 //		return p/1000; // return ms
 //	}
 //	return 0;
+}
+
+void set_timer_cycle(int new_delta_ms) {
+	ESP_LOGI(__func__, "started, new delta=%d", new_delta_ms);
+	esp_timer_stop(s_periodic_timer);
+	s_timer_period = new_delta_ms;
+    ESP_ERROR_CHECK(esp_timer_start_periodic(s_periodic_timer, s_timer_period*1000));
+
 }
 
 void init_timer_events(int delta_ms) {

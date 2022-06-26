@@ -83,11 +83,11 @@ Reason for NOK may be
 
 ## scene definitions
 
-### common facts
+### common parameter
 
 a scene definition consists of
 * common parameters
-    * "start":xx.yy - start time in seconds - scene will be activated 12.3 seconds after cycle start - default 0
+    * "start":xx.yy - start time in seconds - scene will be activated xxx.yy seconds after cycle start - default 0
     * "duration":xx.yy - duration of a scene in seconds - default 0 - means forever
     * "pos":nn - start position - default 0
     * "len":nn - number of leds affected by this scene - default number leds
