@@ -32,7 +32,8 @@ void create_solid(
 		int32_t t_start, // in ms
 		int32_t duration, // in ms
 		int32_t fadein_time, // in ms
-		int32_t fadeout_time // in ms
+		int32_t fadeout_time, // in ms
+		uint32_t flags
 ) {
 	ESP_LOGI(__func__, "start");
 
@@ -44,6 +45,7 @@ void create_solid(
 	evt->duration = duration;
 	evt->t_fade_in = fadein_time;
 	evt->t_fade_out = fadeout_time;
+	evt->flags_origin = flags;
 
 	if ( bg_color) {
 		evt->bg_color=calloc(1,sizeof(T_COLOR_RGB));
@@ -59,6 +61,40 @@ void create_solid(
 	data->inset = inset;
 	data->outset = outset;
 
+	event_list_add(evt);
+
+}
+
+void create_blank(
+		int32_t pos, // start position
+		int32_t len, // numer of leds, -1 = strip len
+		int32_t t_start, // in ms
+		int32_t duration, // in ms
+		uint32_t flags
+) {
+	ESP_LOGI(__func__, "start");
+
+	T_EVENT *evt = calloc(1,sizeof(T_EVENT));
+	evt->type = EVT_BLANK;
+	evt->pos = pos;
+	evt->len = len > 0 ? len : gConfig.numleds;
+	evt->t_start = t_start;
+	evt->duration = duration;
+	evt->flags_origin = flags;
+	event_list_add(evt);
+
+}
+
+void create_noops(
+		int32_t t_start, // in ms
+		uint32_t flags
+) {
+	ESP_LOGI(__func__, "start");
+
+	T_EVENT *evt = calloc(1,sizeof(T_EVENT));
+	evt->type = EVT_NOOP;
+	evt->t_start = t_start;
+	evt->flags_origin = flags;
 	event_list_add(evt);
 
 }

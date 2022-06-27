@@ -19,6 +19,7 @@
 
 
 void start_demo1() {
+
 	T_COLOR_RGB c = {32,0,0};
 	create_solid(
 			1,
@@ -27,10 +28,19 @@ void start_demo1() {
 			NULL,
 			5,
 			5,
-			0,
+			1000,
 			5000,
 			1000,
-			1000
+			1000,
+			0
+			);
+
+	create_blank(
+			1,
+			-1,
+			0,
+			0,
+			0
 			);
 
 	c.r=64;
@@ -43,10 +53,18 @@ void start_demo1() {
 			NULL,
 			5,
 			5,
+			3000,
+			4000,
 			1000,
-			5000,
 			1000,
-			1000
+			0
+			);
+	create_blank(
+			1,
+			-1,
+			12000,
+			0,
+			0
 			);
 
 }

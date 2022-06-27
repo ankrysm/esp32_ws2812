@@ -659,6 +659,10 @@ static esp_err_t get_handler_pause(httpd_req_t *req) {
 	return get_handler_status_do(req, SCENES_PAUSED);
 }
 
+static esp_err_t get_handler_restart(httpd_req_t *req) {
+	return get_handler_status_do(req, SCENES_RESTART);
+}
+
 static esp_err_t get_handler_status(httpd_req_t *req) {
 	return get_handler_status_do(req, SCENES_NOTHING);
 }
@@ -836,6 +840,15 @@ esp_err_t start_rest_server(const char *base_path)
          .user_ctx  = rest_context
      };
      httpd_register_uri_handler(server, &stop_uri);
+
+     httpd_uri_t restart_uri = {
+         .uri       = "/api/v1/restart",
+         .method    = HTTP_GET,
+         .handler   = get_handler_restart,
+         .user_ctx  = rest_context
+     };
+     httpd_register_uri_handler(server, &restart_uri);
+
 
      /*
     httpd_uri_t strip_setcolor = {

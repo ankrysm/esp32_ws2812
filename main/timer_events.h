@@ -12,6 +12,7 @@
 
 typedef enum {
 	EVT_NOTHING, // nothing to do
+	EVT_NOOP, // paints nothing, for control purposes
 	EVT_BLANK, // switch off all leds
 	EVT_SOLID, // one color for all
 	EVT_BLINKING, // blinking
@@ -24,15 +25,24 @@ typedef enum {
 	SCENES_NOTHING,
 	SCENES_STOPPED,
 	SCENES_RUNNING,
-	SCENES_PAUSED
+	SCENES_PAUSED,
+	SCENES_RESTART
 } run_status_type;
 
 #define RUN_STATUS_TYPE2TEXT(c) ( \
 	c == SCENES_NOTHING ? "NOTHING" : \
 	c == SCENES_STOPPED ? "STOPPED" : \
 	c == SCENES_RUNNING ? "RUNNING" : \
-	c == SCENES_PAUSED  ? "PAUSED" : "???" )
+	c == SCENES_PAUSED  ? "PAUSED" : \
+	c == SCENES_RESTART ? "RESTART" : "???" )
 
+// scene stopped after the event duration is over
+#define EVENT_FLAG_BIT_SCENE_STARTED BIT0
+#define EVENT_FLAG_BIT_SCENE_ENDED BIT1
+
+#define EVENT_FLAG_BIT_STOP_AFTER_DURATION BIT4
+#define EVENT_FLAG_BIT_REPEAT_AFTER_DURATION BIT5
+#define EVENT_FLAG_BIT_STRIP_SHOW_NEEDED BIT6
 
 //typedef struct {
 //	int32_t duration;
@@ -44,7 +54,7 @@ typedef struct {
 	T_COLOR_RGB fg_color;
 	uint32_t inset;  // at the edge of leds
 	uint32_t outset;
-	uint32_t flags;
+	//uint32_t flags;
 	// working data
 	//T_COLOR_RGB color; // actual color
 	//T_COLOR_RGB delta_color; // for fade in / fade out
@@ -62,6 +72,8 @@ typedef struct EVENT{
 	uint32_t len; // length
 	uint64_t t_start; // Start time in ms
 	uint64_t duration; // duration in ms
+	uint32_t flags_origin;
+	uint32_t flags;
 	T_COLOR_RGB *bg_color; // assumed black when NULL
 	uint32_t t_fade_in; // in ms
 	uint32_t t_fade_out; // in ms
@@ -77,6 +89,7 @@ void set_timer_cycle(int new_delta_ms);
 void scenes_start();
 void scenes_stop();
 void scenes_pause();
+void scenes_restart();
 run_status_type get_scene_status();
 run_status_type set_scene_status(run_status_type new_status);
 uint64_t get_event_timer_period();

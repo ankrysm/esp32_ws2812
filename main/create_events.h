@@ -18,9 +18,21 @@ void create_solid(
 		int32_t t_start, // in ms
 		int32_t duration, // in ms
 		int32_t fadein_time, // in ms
-		int32_t fadeout_time // in ms
-) ;
+		int32_t fadeout_time, // in ms
+		uint32_t flags
+);
 
+void create_blank(
+		int32_t pos, // start position
+		int32_t len, // numer of leds, -1 = strip len
+		int32_t t_start, // in ms
+		int32_t duration, // in ms
+		uint32_t flags
+);
 
+void create_noops(
+		int32_t t_start, // in ms
+		uint32_t flags
+);
 
 #endif /* MAIN_CREATE_EVENTS_H_ */
