@@ -38,9 +38,10 @@ void create_solid(
 	ESP_LOGI(__func__, "start");
 
 	T_EVENT *evt = calloc(1,sizeof(T_EVENT));
+	evt->status = SCENE_IDLE;
 	evt->type = EVT_SOLID;
 	evt->pos = pos;
-	evt->len = len > 0 ? len : gConfig.numleds;
+	evt->len = len;
 	evt->t_start = t_start;
 	evt->duration = duration;
 	evt->t_fade_in = fadein_time;
@@ -76,8 +77,9 @@ void create_blank(
 
 	T_EVENT *evt = calloc(1,sizeof(T_EVENT));
 	evt->type = EVT_BLANK;
+	evt->status = SCENE_IDLE;
 	evt->pos = pos;
-	evt->len = len > 0 ? len : gConfig.numleds;
+	evt->len = len;
 	evt->t_start = t_start;
 	evt->duration = duration;
 	evt->flags_origin = flags;
@@ -93,6 +95,7 @@ void create_noops(
 
 	T_EVENT *evt = calloc(1,sizeof(T_EVENT));
 	evt->type = EVT_NOOP;
+	evt->status = SCENE_IDLE;
 	evt->t_start = t_start;
 	evt->flags_origin = flags;
 	event_list_add(evt);

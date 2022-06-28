@@ -48,7 +48,7 @@ void app_main() {
 	ESP_ERROR_CHECK(strip_setup(gConfig.numleds));
 
 	// start timer
-	init_timer_events(100); // TODO config time
+	init_timer_events(50); // TODO config time
 
 	firstled(32, 32, 32);
 

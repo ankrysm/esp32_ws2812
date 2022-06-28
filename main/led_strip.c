@@ -177,6 +177,27 @@ void strip_set_pixel(uint32_t idx, uint32_t red, uint32_t green, uint32_t blue) 
 	ESP_ERROR_CHECK(gVstrip->set_pixel(gVstrip, idx, red, green, blue));
 }
 
+/**
+ * lvl between 0.0 and 1.0
+ */
+void strip_set_pixel_lvl(uint32_t idx, uint32_t red, uint32_t green, uint32_t blue, double lvl) {
+	if (!strip_initialized()) {
+		ESP_LOGE(__func__, "%s: not initalized", __func__);
+		return;
+	}
+	if ( idx >= s_numleds) {
+		ESP_LOGE(__func__, "%s: idx %d out of range", __func__, idx);
+		return;
+	}
+	int32_t r,g,b;
+	double f = lvl < 0.0 ? 0.0 : lvl > 1.0 ? 1.0 : lvl;
+	r = red * f;
+	g = green * f;
+	b = blue * f;
+
+	ESP_ERROR_CHECK(gVstrip->set_pixel(gVstrip, idx, r, g, b));
+}
+
 void strip_clear()  {
 	ESP_ERROR_CHECK(gVstrip->clear(gVstrip, 100));
 }
@@ -197,6 +218,10 @@ void firstled(int red, int green, int blue) {
 	int pos = 0;
 	strip_set_color(pos, pos, red, green, blue);
 	strip_show();
+}
+
+uint32_t strip_get_numleds() {
+	return s_numleds;
 }
 
 /*

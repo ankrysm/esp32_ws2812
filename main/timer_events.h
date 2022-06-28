@@ -37,12 +37,20 @@ typedef enum {
 	c == SCENES_RESTART ? "RESTART" : "???" )
 
 // scene stopped after the event duration is over
-#define EVENT_FLAG_BIT_SCENE_STARTED BIT0
-#define EVENT_FLAG_BIT_SCENE_ENDED BIT1
+//#define EVENT_FLAG_BIT_SCENE_STARTED BIT0
+//#define EVENT_FLAG_BIT_SCENE_ENDED BIT1
 
-#define EVENT_FLAG_BIT_STOP_AFTER_DURATION BIT4
-#define EVENT_FLAG_BIT_REPEAT_AFTER_DURATION BIT5
-#define EVENT_FLAG_BIT_STRIP_SHOW_NEEDED BIT6
+typedef enum {
+	SCENE_IDLE,    // befor start time
+	SCENE_STARTED, // just started, ramp up
+	SCENE_UP,      // main status
+	SCENE_ENDED,   // duration ended, shutdown startet
+	SCENE_FINISHED // shutdown ended 
+} scene_status_type;
+
+//#define EVENT_FLAG_BIT_STOP_AFTER_DURATION BIT4
+//#define EVENT_FLAG_BIT_REPEAT_AFTER_DURATION BIT5
+#define EVENT_FLAG_BIT_STRIP_SHOW_NEEDED BIT0
 
 //typedef struct {
 //	int32_t duration;
@@ -67,9 +75,10 @@ typedef struct {
 
 typedef struct EVENT{
 	strip_event_type type;
+	scene_status_type status;
 	uint32_t lfd; // for logging
 	uint32_t pos; // start position on strip
-	uint32_t len; // length
+	int32_t len; // length, -1 = until numleds
 	uint64_t t_start; // Start time in ms
 	uint64_t duration; // duration in ms
 	uint32_t flags_origin;
