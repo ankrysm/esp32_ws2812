@@ -10,4 +10,4 @@ cmake_minimum_required(VERSION 3.5)
 
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
-project(FastLED-idf-Application)
+project(esp32_ws2812-Application)

@@ -22,49 +22,49 @@ void start_demo1() {
 
 	T_COLOR_RGB c = {32,0,0};
 	create_solid(
-			1,
-			20,
-			&c,
-			NULL,
-			5,
-			5,
-			1000,
-			5000,
-			1000,
-			1000,
-			0
+			1,    // start position
+			20,   // len
+			&c,   // fg color
+			NULL, // bg_color
+			5,    // inset
+			5,    // outset
+			1000, // t_start
+			5000, // duration
+			1000, // fade in time
+			1000, // fade out time
+			0     // flags
 			);
 
 	create_blank(
-			1,
-			-1,
-			0,
-			0,
-			0
+			1,     // start position
+			-1,    // len
+			0,     // t_start
+			0,     // duration
+			0      // flags
 			);
 
 	c.r=64;
 	c.g=64;
 	c.b=0;
 	create_solid(
-			20,
-			20,
-			&c,
-			NULL,
-			5,
-			5,
-			3000,
-			4000,
-			1000,
-			1000,
-			0
+			20,     // start position
+			20,     // len
+			&c,     // fg color
+			NULL,   // bg_color
+			5,      // inset
+			5,      // outset
+			3000,   // t_start
+			4000,   // duration
+			200,   // fade in time
+			500,   // fade out time
+			0       // flags
 			);
 	create_blank(
-			1,
-			-1,
-			12000,
-			0,
-			0
+			1,       // start position
+			-1,      // len
+			12000,  // t_start
+			0,       // duration
+			0        // flags
 			);
 
 }

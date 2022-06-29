@@ -80,6 +80,8 @@ void event_list_add(T_EVENT *evt) {
 	}
 }
 
+
+/*
 static esp_err_t process_blank_reset(T_EVENT *evt) {
 	ESP_LOGI(__func__,"started");
 	return ESP_OK;
@@ -103,6 +105,7 @@ static esp_err_t process_solid_reset(T_EVENT *evt) {
 	//d->flags =0;
 	return ESP_OK;
 }
+*/
 
 static void process_solid_set_pixel(T_EVENT *evt, double lvl) {
 	T_SOLID_DATA *d = (T_SOLID_DATA*) evt->data;
@@ -216,14 +219,14 @@ static void process_solid(T_EVENT *evt) {
 		process_solid_set_pixel(evt, p);
 		if ( p < 0.0 ) {
 			evt->status = SCENE_FINISHED;
+			strip_set_color(evt->pos, evt->pos+ evt->len, 0, 0, 0);
+			evt->flags |= EVENT_FLAG_BIT_STRIP_SHOW_NEEDED;
+
+			ESP_LOGI(__func__, "[%d] done", evt->lfd);
 			break;
 		}
 		break;
 	case SCENE_FINISHED:
-		strip_set_color(evt->pos, evt->pos+ evt->len, 0, 0, 0);
-		evt->flags |= EVENT_FLAG_BIT_STRIP_SHOW_NEEDED;
-
-		ESP_LOGI(__func__, "[%d] done", evt->lfd);
 		break;
 	}
 	evt->t += s_timer_period;
@@ -318,6 +321,12 @@ static void process_solid(T_EVENT *evt) {
 
 static void process_blank(T_EVENT *evt) {
 
+	int32_t evt_len = evt->len > 0 ? evt->len : strip_get_numleds() - evt->pos;
+	if ( evt_len <= 0 ) {
+		ESP_LOGE(__func__,"pos out of range, pos=%d, numleds=%d", evt->pos, strip_get_numleds());
+		return;
+	}
+
 	switch (evt->status) {
 	case SCENE_IDLE:
 		if ( s_scene_time <= evt->t_start ) {
@@ -325,7 +334,7 @@ static void process_blank(T_EVENT *evt) {
 			//ESP_LOGI(__func__, "[%d] check start %lld <= %lld", evt->lfd, s_scene_time, evt->t_start);
 			break;
 		}
-		strip_set_color(evt->pos, evt->pos+ evt->len, 0, 0, 0);
+		strip_set_color(evt->pos, evt_len, 0, 0, 0);
 		evt->flags |= EVENT_FLAG_BIT_STRIP_SHOW_NEEDED;
 		evt->status = SCENE_UP;
 		ESP_LOGI(__func__, "[%d] started", evt->lfd);
@@ -448,15 +457,16 @@ static void periodic_timer_callback(void* arg)
 		return;
 	}
 
+
 	if ( do_reset) {
 		// process event resets
 		for ( T_EVENT *evt= s_event_list; evt; evt = evt->nxt) {
-			esp_err_t ret=ESP_OK;
+			//esp_err_t ret=ESP_OK;
 
 			evt->flags = evt->flags_origin;
 			evt->t = 0;
 			evt->status = SCENE_IDLE;
-
+/*
 			switch(evt->type) {
 			case EVT_SOLID:
 				ret = process_solid_reset(evt);
@@ -475,9 +485,11 @@ static void periodic_timer_callback(void* arg)
 				ESP_LOGE(__func__, "reset evt failed");
 				return;
 			}
+			*/
 		}
 
 	}
+
 	/// play scenes
 	s_scene_time += s_timer_period;
 	int n_paint=0;
