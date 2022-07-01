@@ -45,12 +45,11 @@ typedef enum {
 	SCENE_STARTED, // just started, ramp up
 	SCENE_UP,      // main status
 	SCENE_ENDED,   // duration ended, shutdown startet
-	SCENE_FINISHED // shutdown ended 
+	SCENE_FINISHED // shutdown ended
 } scene_status_type;
 
-//#define EVENT_FLAG_BIT_STOP_AFTER_DURATION BIT4
-//#define EVENT_FLAG_BIT_REPEAT_AFTER_DURATION BIT5
 #define EVENT_FLAG_BIT_STRIP_SHOW_NEEDED BIT0
+#define EVENT_FLAG_BIT_STRIP_CLEARED BIT1
 
 //typedef struct {
 //	int32_t duration;
@@ -68,28 +67,42 @@ typedef struct {
 	//T_COLOR_RGB delta_color; // for fade in / fade out
 } T_SOLID_DATA;
 
+typedef enum {
+	MOVEMENT_ONCE,
+	MOVEMENT_ROTATE,
+	MOVEMENT_BOUNCE
+} movement_type_type;
+
 typedef struct {
-	int32_t speed;
-	int32_t rotate_flag;
+	int32_t pos; // start position on strip, negative values before beginning of the strip
+	int32_t len; // length, -1 = until numleds
+	float speed; // leds per second
+	int32_t pause; // in ms
+	int32_t repeats; // -1 forever
+	movement_type_type type;
 } T_MOVEMENT;
 
 typedef struct EVENT{
 	strip_event_type type;
 	scene_status_type status;
 	uint32_t lfd; // for logging
-	uint32_t pos; // start position on strip
+	int32_t pos; // start position on strip, negative values - before the beginning
 	int32_t len; // length, -1 = until numleds
 	uint64_t t_start; // Start time in ms
 	uint64_t duration; // duration in ms
-	uint32_t flags_origin;
-	uint32_t flags;
+	int32_t repeats; // -1 forever, 0 once
+//	uint32_t flags_origin;
 	T_COLOR_RGB *bg_color; // assumed black when NULL
 	uint32_t t_fade_in; // in ms
 	uint32_t t_fade_out; // in ms
 	T_MOVEMENT *movement;
 	void *data; // special data
 	// working data
-	uint64_t t; // time from start
+	uint64_t w_t; // time from last status change
+	int32_t w_pos;
+	uint32_t w_len;
+	uint32_t w_flags;
+	int32_t w_repeats;
 	struct EVENT *nxt;
 } T_EVENT;
 

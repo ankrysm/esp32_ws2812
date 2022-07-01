@@ -55,8 +55,6 @@ void event_list_free() {
 	T_EVENT *nxt;
 	while (s_event_list) {
 		nxt = s_event_list->nxt;
-//		if ( s_event_list->fade_in) free(s_event_list->fade_in);
-//		if ( s_event_list->fade_out) free(s_event_list->fade_out);
 		if ( s_event_list->movement) free(s_event_list->movement);
 		if ( s_event_list->data) free(s_event_list->data);
 		if ( s_event_list->bg_color) free(s_event_list->bg_color);
@@ -80,43 +78,38 @@ void event_list_add(T_EVENT *evt) {
 	}
 }
 
-
-/*
-static esp_err_t process_blank_reset(T_EVENT *evt) {
-	ESP_LOGI(__func__,"started");
-	return ESP_OK;
+static void real_pos_len(T_EVENT *evt, int32_t *pos, int32_t *len) {
+	int32_t p_end = evt->w_pos + evt->w_len;
+	*len = -1;
+	*pos = evt->w_pos < 0 ? 0 : evt->w_pos > strip_get_numleds() ? -1 : evt->w_pos;
+	if ( *pos < 0 || p_end < 0)
+		return ; // out of range
+	*len = *pos - p_end;
 }
 
-static esp_err_t process_noop_reset(T_EVENT *evt) {
-	ESP_LOGI(__func__,"started");
-	return ESP_OK;
+// clear strip a needed
+static void check_clear_strip(T_EVENT *evt) {
+	if ( evt->w_flags & EVENT_FLAG_BIT_STRIP_CLEARED)
+		return; // already cleared
+	strip_set_color(0, strip_get_numleds(), 0, 0, 0);
+	evt->w_flags |= EVENT_FLAG_BIT_STRIP_SHOW_NEEDED | EVENT_FLAG_BIT_STRIP_CLEARED;
 }
 
-
-
-static esp_err_t process_solid_reset(T_EVENT *evt) {
-	if ( ! evt->data) {
-		ESP_LOGE(__func__,"[%d] missing data", evt->lfd);
-		return ESP_FAIL;
-	}
-	//T_SOLID_DATA *d = (T_SOLID_DATA*) evt->data;
-	ESP_LOGI(__func__, "[%d] reset, start %lld, duration %lld", evt->lfd, evt->t_start, evt->duration);
-	//evt->t = 0;
-	//d->flags =0;
-	return ESP_OK;
-}
-*/
 
 static void process_solid_set_pixel(T_EVENT *evt, double lvl) {
 	T_SOLID_DATA *d = (T_SOLID_DATA*) evt->data;
-	int32_t evt_len = evt->len > 0 ? evt->len : strip_get_numleds() - evt->pos;
-	if ( evt_len <= 0 ) {
-		ESP_LOGE(__func__,"pos out of range, pos=%d, numleds=%d", evt->pos, strip_get_numleds());
-		return;
+	int32_t evt_pos, evt_len;
+
+	real_pos_len(evt, &evt_pos, &evt_len);
+
+	check_clear_strip(evt);
+
+	if ( evt_len < 1) {
+		return; // nothing visible
 	}
 
 	int32_t r,g,b,dr,dg,db;
-	uint32_t pos = evt->pos;
+	uint32_t pos = evt_pos;
 	double f = lvl < 0.0 ? 0.0 : lvl > 1.0 ? 1.0 : lvl;
 
 	if ( d->inset > 0 ) {
@@ -167,12 +160,12 @@ static void process_solid_set_pixel(T_EVENT *evt, double lvl) {
 			pos--;
 		}
 	}
-	evt->flags |= EVENT_FLAG_BIT_STRIP_SHOW_NEEDED;
+	evt->w_flags |= EVENT_FLAG_BIT_STRIP_SHOW_NEEDED;
 
 }
 
 static void process_solid(T_EVENT *evt) {
-	T_SOLID_DATA *d = (T_SOLID_DATA*) evt->data;
+	//T_SOLID_DATA *d = (T_SOLID_DATA*) evt->data;
 	double p;
 
 	switch (evt->status) {
@@ -183,7 +176,7 @@ static void process_solid(T_EVENT *evt) {
 			break;
 		}
 		ESP_LOGI(__func__, "[%d] started", evt->lfd);
-		evt->t = 0;
+		evt->w_t = 0;
 		if ( evt->t_fade_in > 0 ) {
 			//have to fade in
 			evt->status = SCENE_STARTED;
@@ -194,7 +187,7 @@ static void process_solid(T_EVENT *evt) {
 		break;
 
 	case SCENE_STARTED:
-		p = 1.0 * evt->t / evt->t_fade_in;
+		p = 1.0 * evt->w_t / evt->t_fade_in;
 		process_solid_set_pixel(evt, p);
 		if ( p > 1.0 ) {
 			evt->status = SCENE_UP;
@@ -202,12 +195,12 @@ static void process_solid(T_EVENT *evt) {
 		}
 		break;
 	case SCENE_UP:
-		if ( evt->t < evt->duration) {
+		if ( evt->w_t < evt->duration) {
 			// not yet
 			break;
 		}
-		ESP_LOGI(__func__,"[%d] duration -> stop %lld, %lld", evt->lfd, evt->t, evt->duration);
-		evt->t = 0;
+		ESP_LOGI(__func__,"[%d] duration -> stop %lld, %lld", evt->lfd, evt->w_t, evt->duration);
+		evt->w_t = 0;
 		if ( evt->t_fade_out > 0 ) {
 			evt->status = SCENE_ENDED;
 		} else {
@@ -215,12 +208,12 @@ static void process_solid(T_EVENT *evt) {
 		}
 		break;
 	case SCENE_ENDED:
-		p = 1.0 - (1.0 * evt->t / evt->t_fade_out);
+		p = 1.0 - (1.0 * evt->w_t / evt->t_fade_out);
 		process_solid_set_pixel(evt, p);
 		if ( p < 0.0 ) {
 			evt->status = SCENE_FINISHED;
 			strip_set_color(evt->pos, evt->pos+ evt->len, 0, 0, 0);
-			evt->flags |= EVENT_FLAG_BIT_STRIP_SHOW_NEEDED;
+			evt->w_flags |= EVENT_FLAG_BIT_STRIP_SHOW_NEEDED;
 
 			ESP_LOGI(__func__, "[%d] done", evt->lfd);
 			break;
@@ -229,104 +222,12 @@ static void process_solid(T_EVENT *evt) {
 	case SCENE_FINISHED:
 		break;
 	}
-	evt->t += s_timer_period;
-
-
-//
-//	if ( s_scene_time <= evt->t_start ) {
-//		// not yet
-//		//ESP_LOGI(__func__, "[%d] check start %lld <= %lld", evt->lfd, s_scene_time, evt->t_start);
-//		return;
-//	}
-//
-//	if ( evt->flags & EVENT_FLAG_BIT_SCENE_ENDED ) {
-//		return ; // duration ended
-//	}
-//
-//	if ( evt->flags & EVENT_FLAG_BIT_SCENE_STARTED) {
-//		// done, check duration
-//		if (evt->t > evt->duration) {
-//			ESP_LOGI(__func__,"[%d] duration -> stop %lld, %lld", evt->lfd, evt->t, evt->duration);
-//			strip_set_color(evt->pos, evt->pos+ evt->len, 0, 0, 0);
-//			evt->flags |= EVENT_FLAG_BIT_SCENE_ENDED | EVENT_FLAG_BIT_STRIP_SHOW_NEEDED;
-//
-//			return;
-//		}
-//		//ESP_LOGI(__func__,"[%d] duration check %lld, %lld", evt->lfd, evt->t, evt->duration);
-//		evt->t += s_timer_period;
-//		return;
-//	}
-//
-//	uint32_t pos = evt->pos;
-//	ESP_LOGI(__func__, "[%d] start at pos %d", evt->lfd, pos);
-//
-//	int32_t r,g,b,dr,dg,db;
-//	// inset
-//	//ESP_LOGI(__func__, "[%d] inset %d", evt->lfd, d->inset);
-//	if ( d->inset > 0 ) {
-//		double dd = 1.0 / pow(2.0, d->inset);
-//		r = g = b = 0;
-//		for (int i=0; i < d->inset; i++) {
-//			dr = d->fg_color.r * dd;
-//			dg = d->fg_color.g * dd;
-//			db = d->fg_color.b * dd;
-//
-//			r += dr; if ( r > d->fg_color.r ) {r = d->fg_color.r;}
-//			g += dg; if ( g > d->fg_color.g ) {g = d->fg_color.g;}
-//			b += db; if ( b > d->fg_color.b ) {b = d->fg_color.b;}
-//			//ESP_LOGI(__func__, "[%d] inset %d/%d, %0.4f RGB=%d,%d,%d", evt->lfd, i, d->inset, dd,r,g,b);
-//
-//			strip_set_pixel(pos, r, g, b);
-//			dd = dd*2.0;
-//			pos++;
-//		}
-//	}
-//	int32_t len = evt->len - d->inset - d->outset;
-//	if ( len < 0) {
-//		// outset parameter to big
-//		len = evt->len - d->inset;
-//	}
-//	//ESP_LOGI(__func__, "[%d] setcolor %d ... %d", evt->lfd, pos, pos+len);
-//	strip_set_color(pos, pos+len, d->fg_color.r, d->fg_color.g, d->fg_color.b);
-//	pos +=len;
-//
-//	//ESP_LOGI(__func__, "[%d] outset %d", evt->lfd, d->outset);
-//	if ( d->outset > 0 ) {
-//		double dd = 1.0 / pow(2.0, d->outset);
-//		r = g = b = 0;
-//
-//		pos = evt->pos + evt->len;
-//		for (int i=0; i < d->inset; i++) {
-//			dr = d->fg_color.r * dd;
-//			dg = d->fg_color.g * dd;
-//			db = d->fg_color.b * dd;
-//
-//			r += dr; if ( r > d->fg_color.r ) {r = d->fg_color.r;}
-//			g += dg; if ( g > d->fg_color.g ) {g = d->fg_color.g;}
-//			b += db; if ( b > d->fg_color.b ) {b = d->fg_color.b;}
-//			strip_set_pixel(pos, r, g, b);
-//			//ESP_LOGI(__func__, "[%d] outset %d/%d, %0.4f RGB=%d,%d,%d", evt->lfd, i, d->inset, dd,r,g,b);
-//
-//			pos--;
-//		}
-//	}
-//	ESP_LOGI(__func__, "[%d] done", evt->lfd);
-//
-//	evt->flags |= EVENT_FLAG_BIT_SCENE_STARTED | EVENT_FLAG_BIT_STRIP_SHOW_NEEDED;
-//	evt->t += s_timer_period;
-//
-//	return;
+	evt->w_t += s_timer_period;
 }
-
 
 static void process_blank(T_EVENT *evt) {
 
-	int32_t evt_len = evt->len > 0 ? evt->len : strip_get_numleds() - evt->pos;
-	if ( evt_len <= 0 ) {
-		ESP_LOGE(__func__,"pos out of range, pos=%d, numleds=%d", evt->pos, strip_get_numleds());
-		return;
-	}
-
+	int32_t evt_len, evt_pos, evt_end;
 	switch (evt->status) {
 	case SCENE_IDLE:
 		if ( s_scene_time <= evt->t_start ) {
@@ -334,21 +235,26 @@ static void process_blank(T_EVENT *evt) {
 			//ESP_LOGI(__func__, "[%d] check start %lld <= %lld", evt->lfd, s_scene_time, evt->t_start);
 			break;
 		}
-		strip_set_color(evt->pos, evt_len, 0, 0, 0);
-		evt->flags |= EVENT_FLAG_BIT_STRIP_SHOW_NEEDED;
+		// scene starts
+		check_clear_strip(evt);
+		real_pos_len(evt, &evt_pos, &evt_len);
+		if ( evt_len > 0) {
+			strip_set_color(evt->pos, evt_len, 0, 0, 0);
+			evt->w_flags |= EVENT_FLAG_BIT_STRIP_SHOW_NEEDED;
+		}
 		evt->status = SCENE_UP;
 		ESP_LOGI(__func__, "[%d] started", evt->lfd);
 		break;
 	case SCENE_STARTED:
-		// nothing to do
+		// do movement
 		break;
 	case SCENE_UP:
-		if ( evt->t < evt->duration) {
+		if ( evt->w_t < evt->duration) {
 			// not yet
 			break;
 		}
-		ESP_LOGI(__func__,"[%d] duration -> stop %lld, %lld", evt->lfd, evt->t, evt->duration);
-		evt->flags |= EVENT_FLAG_BIT_STRIP_SHOW_NEEDED;
+		ESP_LOGI(__func__,"[%d] duration -> stop %lld, %lld", evt->lfd, evt->w_t, evt->duration);
+		//evt->w_flags |= EVENT_FLAG_BIT_STRIP_SHOW_NEEDED;
 		evt->status = SCENE_FINISHED;
 		ESP_LOGI(__func__, "[%d] done", evt->lfd);
 		break;
@@ -359,48 +265,13 @@ static void process_blank(T_EVENT *evt) {
 		// nothing to do
 		break;
 	}
-	evt->t += s_timer_period;
-
-//	// ************
-//	if ( s_scene_time <= evt->t_start ) {
-//		// not yet
-//		//ESP_LOGI(__func__, "[%d] check start %lld <= %lld", evt->lfd, s_scene_time, evt->t_start);
-//		return;
-//	}
-//	evt->status = SCENE_UP;
-//
-//	if ( evt->status == SCENE_FINISHED ) {
-//		return ; // scene ended
-//	}
-//
-//	if ( evt->status == SCENE_UP ) {
-//		// done, check duration
-//		if ( evt->t > evt->duration) {
-//			ESP_LOGI(__func__,"[%d] duration -> stop %lld, %lld", evt->lfd, evt->t, evt->duration);
-//			evt->flags |= EVENT_FLAG_BIT_STRIP_SHOW_NEEDED;
-//			evt->status = SCENE_FINISHED;
-//			return;
-//		}
-//		//ESP_LOGI(__func__,"[%d] duration check %lld, %lld", evt->lfd, evt->t, evt->duration);
-//		evt->t += s_timer_period;
-//		return;
-//	}
-//
-//	strip_set_color(evt->pos, evt->pos+ evt->len, 0, 0, 0);
-//
-//	ESP_LOGI(__func__, "[%d] done", evt->lfd);
-//
-//	evt->flags |= EVENT_FLAG_BIT_SCENE_STARTED | EVENT_FLAG_BIT_STRIP_SHOW_NEEDED;
-//	evt->t += s_timer_period;
-//
-//	return;
+	evt->w_t += s_timer_period;
 
 }
 
 static void periodic_timer_callback(void* arg)
 {
-	static uint32_t flags= //EVENT_BIT_RESET |
-			BIT5;
+	static uint32_t flags= BIT5; // Bit 5 for initial logging
 
 	if ( flags & BIT5) {
 		ESP_LOGI(__func__,"started");
@@ -457,45 +328,24 @@ static void periodic_timer_callback(void* arg)
 		return;
 	}
 
-
 	if ( do_reset) {
-		// process event resets
+		// reset all events
 		for ( T_EVENT *evt= s_event_list; evt; evt = evt->nxt) {
-			//esp_err_t ret=ESP_OK;
-
-			evt->flags = evt->flags_origin;
-			evt->t = 0;
+			evt->w_flags = 0;
+			evt->w_t = 0;
 			evt->status = SCENE_IDLE;
-/*
-			switch(evt->type) {
-			case EVT_SOLID:
-				ret = process_solid_reset(evt);
-				break;
-			case EVT_NOOP:
-				ret = process_noop_reset(evt);
-				break;
-			case EVT_BLANK:
-				ret = process_blank_reset(evt);
-				break;
-			default:
-				ESP_LOGI(__func__,"Event %d NYI", evt->type);
-			}
-			if (ret != ESP_OK) {
-				s_run_status = SCENES_STOPPED;
-				ESP_LOGE(__func__, "reset evt failed");
-				return;
-			}
-			*/
+			evt->w_pos = evt->pos;
+			evt->w_len = evt->len > 0 ? evt->len : strip_get_numleds();
 		}
-
 	}
 
 	/// play scenes
 	s_scene_time += s_timer_period;
 	int n_paint=0;
-
+	int n_cleared = 0;
 	for ( T_EVENT *evt= s_event_list; evt; evt = evt->nxt) {
-		evt->flags &= ~ EVENT_FLAG_BIT_STRIP_SHOW_NEEDED;
+		evt->w_flags &= ~ EVENT_FLAG_BIT_STRIP_SHOW_NEEDED;
+		evt->w_flags |= n_cleared;
 		switch(evt->type) {
 		case EVT_SOLID:
 			process_solid(evt);
@@ -506,14 +356,14 @@ static void periodic_timer_callback(void* arg)
 		default:
 			ESP_LOGI(__func__,"Event %d NYI", evt->type);
 		}
-		n_paint |= evt->flags & EVENT_FLAG_BIT_STRIP_SHOW_NEEDED ? 1 :0;
+		n_paint |= evt->w_flags & EVENT_FLAG_BIT_STRIP_SHOW_NEEDED ? 1 : 0;
+		n_cleared |= evt->w_flags & EVENT_FLAG_BIT_STRIP_CLEARED ? 1 : 0;
+
 	}
 	if (n_paint ) {
 		ESP_LOGI(__func__, "strip_show");
 		strip_show();
 	}
-	//flags &= ~EVENT_BIT_RESET; // reset of reset bit
-
 
     //int64_t time_since_boot = esp_timer_get_time();
     //ESP_LOGI(__func__, "Periodic timer called, time since boot: %lld us", time_since_boot);
@@ -564,12 +414,6 @@ run_status_type set_scene_status(run_status_type new_status) {
 
 uint64_t get_event_timer_period() {
 	return s_timer_period;
-//	uint64_t p;
-//	// get micro secoinds
-//	if (esp_timer_get_period( s_periodic_timer, &p) == ESP_OK ) {
-//		return p/1000; // return ms
-//	}
-//	return 0;
 }
 
 void set_timer_cycle(int new_delta_ms) {
@@ -590,13 +434,13 @@ void init_timer_events(int delta_ms) {
 
     const esp_timer_create_args_t periodic_timer_args = {
             .callback = &periodic_timer_callback,
-            /* name is optional, but may help identify the timer when debugging */
+            // name is optional, but may help identify the timer when debugging
             .name = "periodic"
     };
 
 	ESP_ERROR_CHECK(esp_timer_create(&periodic_timer_args, &s_periodic_timer));
 
-	// start timer, time inm microseconds
+	// start timer, time in microseconds
     ESP_ERROR_CHECK(esp_timer_start_periodic(s_periodic_timer, s_timer_period*1000));
 }
 

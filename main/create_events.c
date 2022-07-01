@@ -33,7 +33,8 @@ void create_solid(
 		int32_t duration, // in ms
 		int32_t fadein_time, // in ms
 		int32_t fadeout_time, // in ms
-		uint32_t flags
+		int32_t repeats, // -1 forever
+		T_MOVEMENT *movement
 ) {
 	ESP_LOGI(__func__, "start");
 
@@ -46,7 +47,8 @@ void create_solid(
 	evt->duration = duration;
 	evt->t_fade_in = fadein_time;
 	evt->t_fade_out = fadeout_time;
-	evt->flags_origin = flags;
+	evt->repeats = repeats;
+//	evt->flags_origin = flags;
 
 	if ( bg_color) {
 		evt->bg_color=calloc(1,sizeof(T_COLOR_RGB));
@@ -71,7 +73,8 @@ void create_blank(
 		int32_t len, // numer of leds, -1 = strip len
 		int32_t t_start, // in ms
 		int32_t duration, // in ms
-		uint32_t flags
+		int32_t repeats, // -1 forever
+		T_MOVEMENT *movement
 ) {
 	ESP_LOGI(__func__, "start");
 
@@ -82,14 +85,14 @@ void create_blank(
 	evt->len = len;
 	evt->t_start = t_start;
 	evt->duration = duration;
-	evt->flags_origin = flags;
+	evt->repeats = repeats;
+//	evt->flags_origin = flags;
 	event_list_add(evt);
 
 }
 
 void create_noops(
-		int32_t t_start, // in ms
-		uint32_t flags
+		int32_t t_start // in ms
 ) {
 	ESP_LOGI(__func__, "start");
 
@@ -97,7 +100,26 @@ void create_noops(
 	evt->type = EVT_NOOP;
 	evt->status = SCENE_IDLE;
 	evt->t_start = t_start;
-	evt->flags_origin = flags;
+//	evt->flags_origin = flags;
 	event_list_add(evt);
 
+}
+
+T_MOVEMENT *create_movement(
+		int32_t pos, // start movement positiin
+		int32_t len, // length of moving area, -1 = strip len
+		float speed, // leds per second
+		int32_t pause, // pause between move cycles in ms
+		int32_t repeats, // -1 forever
+		movement_type_type type
+){
+	ESP_LOGI(__func__, "start");
+	T_MOVEMENT *mv = calloc(1, sizeof(T_MOVEMENT));
+	mv->pos = pos;
+	mv->len = len;
+	mv->speed = speed;
+	mv->pause = pause;
+	mv->repeats = repeats;
+	mv->type = type;
+	return mv;
 }
