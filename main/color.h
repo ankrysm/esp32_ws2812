@@ -8,6 +8,14 @@
 #ifndef MAIN_COLOR_H_
 #define MAIN_COLOR_H_
 
+#include "sdkconfig.h"
+#include "driver/gpio.h"
+#include "nvs_flash.h"
+#include "esp_event.h"
+#include "esp_log.h"
+#include <stdio.h>
+#include "config.h"
+
 typedef struct {
 	uint32_t r;
 	uint32_t g;

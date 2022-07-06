@@ -22,6 +22,7 @@
 
 extern T_CONFIG gConfig;
 
+/*
 void create_solid(
 		int32_t pos, // start position
 		int32_t len, // numer of leds, -1 = strip len
@@ -43,11 +44,11 @@ void create_solid(
 	evt->type = EVT_SOLID;
 	evt->pos = pos;
 	evt->len = len;
-	evt->t_start = t_start;
-	evt->duration = duration;
-	evt->t_fade_in = fadein_time;
-	evt->t_fade_out = fadeout_time;
-	evt->repeats = repeats;
+//	evt->t_start = t_start;
+//	evt->duration = duration;
+//	evt->t_fade_in = fadein_time;
+//	evt->t_fade_out = fadeout_time;
+//	evt->repeats = repeats;
 //	evt->flags_origin = flags;
 
 	if ( bg_color) {
@@ -67,7 +68,9 @@ void create_solid(
 	event_list_add(evt);
 
 }
+*/
 
+/*
 void create_blank(
 		int32_t pos, // start position
 		int32_t len, // numer of leds, -1 = strip len
@@ -90,7 +93,9 @@ void create_blank(
 	event_list_add(evt);
 
 }
+*/
 
+/*
 void create_noops(
 		int32_t t_start // in ms
 ) {
@@ -104,7 +109,9 @@ void create_noops(
 	event_list_add(evt);
 
 }
+*/
 
+/*
 T_MOVEMENT *create_movement(
 		int32_t pos, // start movement positiin
 		int32_t len, // length of moving area, -1 = strip len
@@ -123,3 +130,4 @@ T_MOVEMENT *create_movement(
 	mv->type = type;
 	return mv;
 }
+*/

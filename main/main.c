@@ -28,10 +28,12 @@
 #include "config.h"
 #include "wifi_config.h"
 #include "timer_events.h"
+#include "led_strip_proto.h"
 
 
 esp_err_t init_fs(void);
-void start_demo1();
+
+//void start_demo1();
 
 
 extern T_CONFIG gConfig;
@@ -104,7 +106,12 @@ void app_main() {
 		ESP_LOGI(__func__, "without WIFI");
 	}
 
-	start_demo1();
+	//start_demo1();
+	T_COLOR_RGB fg_color ={32,0,0};
+	build_demo2(
+			 &fg_color // foreground color
+	) ;
+
 
 	xDelay = 50000 / portTICK_PERIOD_MS;
 

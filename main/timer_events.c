@@ -20,6 +20,7 @@
 #include "timer_events.h"
 #include "local.h"
 #include "math.h"
+#include "led_strip_proto.h"
 
 static esp_timer_handle_t s_periodic_timer;
 static uint64_t s_timer_period; // in ms
@@ -46,56 +47,11 @@ static const int EVENT_BITS_ALL = EVENT_BIT_START | \
 static volatile run_status_type s_run_status = SCENES_NOTHING;
 static volatile uint64_t s_scene_time = 0;
 
-static T_EVENT *s_event_list = NULL;
-
-void event_list_free() {
-	if ( !s_event_list)
-		return;
-
-	T_EVENT *nxt;
-	while (s_event_list) {
-		nxt = s_event_list->nxt;
-		if ( s_event_list->movement) free(s_event_list->movement);
-		if ( s_event_list->data) free(s_event_list->data);
-		if ( s_event_list->bg_color) free(s_event_list->bg_color);
-		free(s_event_list);
-		s_event_list = nxt;
-	}
-	// after this s_event_list is NULL
-}
-
-void event_list_add(T_EVENT *evt) {
-	if ( s_event_list) {
-		// add at the end of the list
-		T_EVENT *t;
-		for (t=s_event_list; t->nxt; t=t->nxt){}
-		evt->lfd = t->lfd +1;
-		t->nxt = evt;
-	} else {
-		// first entry
-		evt->lfd = 1;
-		s_event_list = evt;
-	}
-}
-
-static void real_pos_len(T_EVENT *evt, int32_t *pos, int32_t *len) {
-	int32_t p_end = evt->w_pos + evt->w_len;
-	*len = -1;
-	*pos = evt->w_pos < 0 ? 0 : evt->w_pos > strip_get_numleds() ? -1 : evt->w_pos;
-	if ( *pos < 0 || p_end < 0)
-		return ; // out of range
-	*len = *pos - p_end;
-}
-
-// clear strip a needed
-static void check_clear_strip(T_EVENT *evt) {
-	if ( evt->w_flags & EVENT_FLAG_BIT_STRIP_CLEARED)
-		return; // already cleared
-	strip_set_color(0, strip_get_numleds(), 0, 0, 0);
-	evt->w_flags |= EVENT_FLAG_BIT_STRIP_SHOW_NEEDED | EVENT_FLAG_BIT_STRIP_CLEARED;
-}
+T_EVENT *s_event_list = NULL;
 
 
+
+/*
 static void process_solid_set_pixel(T_EVENT *evt, double lvl) {
 	T_SOLID_DATA *d = (T_SOLID_DATA*) evt->data;
 	int32_t evt_pos, evt_len;
@@ -163,9 +119,11 @@ static void process_solid_set_pixel(T_EVENT *evt, double lvl) {
 	evt->w_flags |= EVENT_FLAG_BIT_STRIP_SHOW_NEEDED;
 
 }
+*/
 
 static void process_solid(T_EVENT *evt) {
 	//T_SOLID_DATA *d = (T_SOLID_DATA*) evt->data;
+	/*
 	double p;
 
 	switch (evt->status) {
@@ -223,9 +181,11 @@ static void process_solid(T_EVENT *evt) {
 		break;
 	}
 	evt->w_t += s_timer_period;
+*/
 }
 
 static void process_blank(T_EVENT *evt) {
+	/*
 
 	int32_t evt_len, evt_pos, evt_end;
 	switch (evt->status) {
@@ -266,9 +226,13 @@ static void process_blank(T_EVENT *evt) {
 		break;
 	}
 	evt->w_t += s_timer_period;
+*/
 
 }
 
+/**
+ * main timer function
+ */
 static void periodic_timer_callback(void* arg)
 {
 	static uint32_t flags= BIT5; // Bit 5 for initial logging

@@ -78,8 +78,7 @@ void led_strip_hsv2rgb(uint32_t h, uint32_t s, uint32_t v, uint32_t *r, uint32_t
 }
 
 
-
-static int strip_initialized() {
+int strip_initialized() {
 	return gVstrip ? 1 : 0;
 }
 

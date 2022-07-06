@@ -8,6 +8,7 @@
 #ifndef MAIN_CREATE_EVENTS_H_
 #define MAIN_CREATE_EVENTS_H_
 
+/*
 void create_solid(
 		int32_t pos, // start position
 		int32_t len, // numer of leds (-1 len)
@@ -44,5 +45,6 @@ T_MOVEMENT *create_movement(
 		int32_t repeats, // -1 forever
 		movement_type_type type
 );
+*/
 
 #endif /* MAIN_CREATE_EVENTS_H_ */

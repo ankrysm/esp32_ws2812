@@ -10,6 +10,7 @@
 
 #include "color.h"
 
+// art of scene
 typedef enum {
 	EVT_NOTHING, // nothing to do
 	EVT_NOOP, // paints nothing, for control purposes
@@ -21,6 +22,7 @@ typedef enum {
 	EVT_MOVE
 } strip_event_type;
 
+// run status
 typedef enum {
 	SCENES_NOTHING,
 	SCENES_STOPPED,
@@ -36,10 +38,7 @@ typedef enum {
 	c == SCENES_PAUSED  ? "PAUSED" : \
 	c == SCENES_RESTART ? "RESTART" : "???" )
 
-// scene stopped after the event duration is over
-//#define EVENT_FLAG_BIT_SCENE_STARTED BIT0
-//#define EVENT_FLAG_BIT_SCENE_ENDED BIT1
-
+// status of a scene
 typedef enum {
 	SCENE_IDLE,    // befor start time
 	SCENE_STARTED, // just started, ramp up
@@ -48,39 +47,46 @@ typedef enum {
 	SCENE_FINISHED // shutdown ended
 } scene_status_type;
 
-#define EVENT_FLAG_BIT_STRIP_SHOW_NEEDED BIT0
-#define EVENT_FLAG_BIT_STRIP_CLEARED BIT1
-
-//typedef struct {
-//	int32_t duration;
-//	int32_t in;
-//	int32_t out;
-//} T_FADE_INOUT;
-
-typedef struct {
-	T_COLOR_RGB fg_color;
-	uint32_t inset;  // at the edge of leds
-	uint32_t outset;
-	//uint32_t flags;
-	// working data
-	//T_COLOR_RGB color; // actual color
-	//T_COLOR_RGB delta_color; // for fade in / fade out
-} T_SOLID_DATA;
+typedef enum {
+	TR_LINEAR,
+	TR_EXPONENTIAL
+} transition_type;
 
 typedef enum {
-	MOVEMENT_ONCE,
-	MOVEMENT_ROTATE,
-	MOVEMENT_BOUNCE
-} movement_type_type;
+	AL_LEFT,
+	AL_RIGHT,
+	AL_CENTER
+} alignement_type;
 
-typedef struct {
-	int32_t pos; // start position on strip, negative values before beginning of the strip
-	int32_t len; // length, -1 = until numleds
-	float speed; // leds per second
-	int32_t pause; // in ms
-	int32_t repeats; // -1 forever
-	movement_type_type type;
-} T_MOVEMENT;
+typedef enum {
+	MV_ONE_DIRECTION,
+	MV_ROTATE,
+	MV_BOUNCE
+} movement_type;
+
+// scene parameter (location or time based)
+typedef struct SCENE_PARAMETER{
+	int32_t v_start; // start in %
+	int32_t v_end;  // end in %
+	int32_t length; // in ms or %
+	transition_type type_t; // 0=linear, 1=exponential
+	alignement_type type_a;
+	movement_type type_m;
+	// 
+	struct SCENE_PARAMETER *nxt;
+} T_SCENE_PARAMETER;
+
+typedef struct SCENE_PARAMETER_LIST {
+	int32_t pos; // range start  
+	int32_t len; // range width
+	int32_t repeat; // <0: endless, ==0 once, >0 number of repeats / at the end go to the nxt timing paramter
+	T_SCENE_PARAMETER *sp_list;
+} T_SCENE_PARAMETER_LIST;
+
+// a process function has changed the display data
+#define EVENT_FLAG_BIT_STRIP_SHOW_NEEDED BIT0
+// a process function has cleared the strip data
+#define EVENT_FLAG_BIT_STRIP_CLEARED BIT1
 
 typedef struct EVENT{
 	strip_event_type type;
@@ -88,17 +94,24 @@ typedef struct EVENT{
 	uint32_t lfd; // for logging
 	int32_t pos; // start position on strip, negative values - before the beginning
 	int32_t len; // length, -1 = until numleds
-	uint64_t t_start; // Start time in ms
-	uint64_t duration; // duration in ms
-	int32_t repeats; // -1 forever, 0 once
-//	uint32_t flags_origin;
-	T_COLOR_RGB *bg_color; // assumed black when NULL
-	uint32_t t_fade_in; // in ms
-	uint32_t t_fade_out; // in ms
-	T_MOVEMENT *movement;
+	T_COLOR_RGB bg_color; // assume black when NULL
+	T_COLOR_RGB fg_color; // assume white when NULL
+	
+	// location based parameter
+	T_SCENE_PARAMETER_LIST *l_brightness; // brightness parameter in location %
+	T_SCENE_PARAMETER_LIST *l_color;  // color paramter in location %
+	
+	// time based parameter
+	T_SCENE_PARAMETER_LIST *t_moving;
+	T_SCENE_PARAMETER_LIST *t_brightness;
+	T_SCENE_PARAMETER_LIST *t_color;
+	T_SCENE_PARAMETER_LIST *t_size;
+
 	void *data; // special data
-	// working data
+	
 	uint64_t w_t; // time from last status change
+
+	// location working data
 	int32_t w_pos;
 	uint32_t w_len;
 	uint32_t w_flags;
@@ -106,6 +119,7 @@ typedef struct EVENT{
 	struct EVENT *nxt;
 } T_EVENT;
 
+// some prototyped
 void init_timer_events(int delta_ms);
 void set_timer_cycle(int new_delta_ms);
 void scenes_start();
