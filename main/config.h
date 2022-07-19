@@ -14,7 +14,7 @@
 
 // flag values
 #define CFG_AUTOPLAY 0x0001
-#define CFG_REPEAT   0x0002
+//#define CFG_REPEAT   0x0002
 
 #define LEN_SCENEFILE 32
 
@@ -22,7 +22,7 @@ typedef struct {
 	uint32_t flags;
 	uint32_t numleds;
 	uint32_t cycle; // Timer cycle in ms
-	char scenefile[LEN_SCENEFILE];
+	char autoplayfile[LEN_SCENEFILE];
 } T_CONFIG;
 
 

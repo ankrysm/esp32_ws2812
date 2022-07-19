@@ -70,6 +70,9 @@ static esp_err_t set_content_type_from_file(httpd_req_t *req, const char *filepa
 }
 
 
+/**
+ * check text, 'true' '1' fort true, others for false
+ */
 static uint32_t trufal(char *txt) {
 	if ( !strcmp(txt,"1") || !strcasecmp(txt,"true") || !strcasecmp(txt,"t")) {
 		return 1;
@@ -77,57 +80,6 @@ static uint32_t trufal(char *txt) {
 		return 0;
 	}
 }
-/* Send HTTP response with the contents of the requested file */
-/*
-static esp_err_t rest_common_get_handler(httpd_req_t *req)
-{
-    char filepath[FILE_PATH_MAX];
-
-    rest_server_context_t *rest_context = (rest_server_context_t *)req->user_ctx;
-    strlcpy(filepath, rest_context->base_path, sizeof(filepath));
-    if (req->uri[strlen(req->uri) - 1] == '/') {
-        strlcat(filepath, "/index.html", sizeof(filepath));
-    } else {
-        strlcat(filepath, req->uri, sizeof(filepath));
-    }
-    int fd = open(filepath, O_RDONLY, 0);
-    if (fd == -1) {
-        ESP_LOGE(__func__, "Failed to open file : %s", filepath);
-        // Respond with 500 Internal Server Error
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to read existing file");
-        return ESP_FAIL;
-    }
-
-    set_content_type_from_file(req, filepath);
-
-    char *chunk = rest_context->scratch;
-    ssize_t read_bytes;
-    do {
-        // Read file in chunks into the scratch buffer
-        read_bytes = read(fd, chunk, SCRATCH_BUFSIZE);
-        if (read_bytes == -1) {
-            ESP_LOGE(__func__, "Failed to read file : %s", filepath);
-        } else if (read_bytes > 0) {
-            // Send the buffer contents as HTTP response chunk
-            if (httpd_resp_send_chunk(req, chunk, read_bytes) != ESP_OK) {
-                close(fd);
-                ESP_LOGE(__func__, "File sending failed!");
-                // Abort sending file
-                httpd_resp_sendstr_chunk(req, NULL);
-                // Respond with 500 Internal Server Error
-                httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to send file");
-                return ESP_FAIL;
-            }
-        }
-    } while (read_bytes > 0);
-    // Close file after sending complete
-    close(fd);
-    ESP_LOGI(__func__, "File sending complete");
-    // Respond with an empty chunk to signal HTTP response completion
-    httpd_resp_send_chunk(req, NULL, 0);
-    return ESP_OK;
-}
-*/
 
 /* Simple handler for light brightness control */
 /*
@@ -163,7 +115,7 @@ static esp_err_t light_brightness_post_handler(httpd_req_t *req)
     return ESP_OK;
 }
 */
-/* Simple handler for getting system handler */
+/* Simple handler for getting system handler * /
 static esp_err_t system_info_get_handler(httpd_req_t *req)
 {
     httpd_resp_set_type(req, "application/json");
@@ -178,21 +130,7 @@ static esp_err_t system_info_get_handler(httpd_req_t *req)
     cJSON_Delete(root);
     return ESP_OK;
 }
-
-/* Simple handler for getting temperature data */
-/*
-static esp_err_t temperature_data_get_handler(httpd_req_t *req)
-{
-    httpd_resp_set_type(req, "application/json");
-    cJSON *root = cJSON_CreateObject();
-    cJSON_AddNumberToObject(root, "raw", esp_random() % 20);
-    const char *sys_info = cJSON_Print(root);
-    httpd_resp_sendstr(req, sys_info);
-    free((void *)sys_info);
-    cJSON_Delete(root);
-    return ESP_OK;
-}
-*/
+/// */
 
 /*
 static int process_commands(char *buf) {
@@ -525,24 +463,26 @@ static esp_err_t get_handler_strip_config(httpd_req_t *req)
 		buf = malloc(buf_len);
 		if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK) {
 			ESP_LOGI(__func__, "Found URL query => %s", buf);
+			char *paramname;
 			char param[32];
 			// Get value of expected key from query string
-			if (httpd_query_key_value(buf, "autoplay", param, sizeof(param)) == ESP_OK) {
-				ESP_LOGI(__func__, "query parameter: autoplay=%s", param);
+
+			paramname = "autoplay";
+			if (httpd_query_key_value(buf, paramname, param, sizeof(param)) == ESP_OK) {
+				ESP_LOGI(__func__, "query parameter: %s=%s", paramname, param);
 				gConfig.flags &= !CFG_AUTOPLAY;
 				gConfig.flags |= trufal(param);
 			}
-			if (httpd_query_key_value(buf, "scenefile", param, sizeof(param)) == ESP_OK) {
-				ESP_LOGI(__func__, "query parameter: scenefile=%s", param);
-				snprintf(gConfig.scenefile, sizeof(gConfig.scenefile), "%s", param);
+
+			paramname = "autoplayfile";
+			if (httpd_query_key_value(buf, paramname, param, sizeof(param)) == ESP_OK) {
+				ESP_LOGI(__func__, "query parameter: %s=%s", paramname, param);
+				snprintf(gConfig.autoplayfile, sizeof(gConfig.autoplayfile), "%s", param);
 			}
-			if (httpd_query_key_value(buf, "repeat", param, sizeof(param)) == ESP_OK) {
-				ESP_LOGI(__func__, "query parameter: repeat=%s", param);
-				gConfig.flags &= !CFG_REPEAT;
-				gConfig.flags |= trufal(param);
-			}
-			if (httpd_query_key_value(buf, "numleds", param, sizeof(param)) == ESP_OK) {
-				ESP_LOGI(__func__, "query parameter: numleds=%s", param);
+
+			paramname = "numleds";
+			if (httpd_query_key_value(buf, paramname, param, sizeof(param)) == ESP_OK) {
+				ESP_LOGI(__func__, "query parameter: %s=%s", paramname, param);
 				int numleds = atoi(param);
 				gConfig.numleds = numleds;
 
@@ -550,8 +490,9 @@ static esp_err_t get_handler_strip_config(httpd_req_t *req)
 				scenes_stop();
 				strip_setup(numleds);
 			}
-			if (httpd_query_key_value(buf, "cycle", param, sizeof(param)) == ESP_OK) {
-				ESP_LOGI(__func__, "query parameter: cycle=%s", param);
+			paramname = "cycle";
+			if (httpd_query_key_value(buf, paramname, param, sizeof(param)) == ESP_OK) {
+				ESP_LOGI(__func__, "query parameter: %s=%s", paramname, param);
 				gConfig.cycle = atoi(param);
 				// stop playing when cacle changed
 				scenes_stop();
@@ -563,41 +504,42 @@ static esp_err_t get_handler_strip_config(httpd_req_t *req)
 		store_config();
 	}
 
-	// TODO do_led1();
-	char resp_str[255];
+
+    httpd_resp_set_type(req, "application/json");
+    cJSON *root = cJSON_CreateObject();
+
+    // system informations
+    esp_chip_info_t chip_info;
+    esp_chip_info(&chip_info);
+    cJSON_AddStringToObject(root, "version", IDF_VER);
+    cJSON_AddNumberToObject(root, "cores", chip_info.cores);
+
+    cJSON_AddNumberToObject(root, "numleds", gConfig.numleds);
+    cJSON_AddStringToObject(root, "autoplayfile", gConfig.autoplayfile);
+    if ( gConfig.flags & CFG_AUTOPLAY ) {
+        cJSON_AddTrueToObject(root, "autoplay");
+    } else {
+        cJSON_AddFalseToObject(root, "autoplay");
+    }
+    cJSON_AddNumberToObject(root, "cycle", gConfig.cycle);
 
 
-//	if ( !strip_initialized()) {
-//		snprintf(resp_str, sizeof(resp_str),"NOT INITIALIZED\n");
-//	} else {
-//		strip_set_color(start_idx, end_idx, red, green, blue);
-//		strip_show();
-//		snprintf(resp_str, sizeof(resp_str),"done: %d-%d rgb=%d/%d/%d\n", start_idx, end_idx, red,green,blue);
-//	}
+    // led strip configuration
+    const char *resp = cJSON_PrintUnformatted(root);
+    httpd_resp_sendstr(req, resp);
+    free((void *)resp);
+    cJSON_Delete(root);
 
-	// Set some custom headers
-	//httpd_resp_set_hdr(req, "Custom-Header-1", "Custom-Value-1");
-	//httpd_resp_set_hdr(req, "Custom-Header-2", "Custom-Value-2");
-
-	// Send response with custom headers and body set as the
-	// string passed in user context
-	//const char* resp_str = (const char*) "done\n";
-
-	config2txt(resp_str, sizeof(resp_str));
-	httpd_resp_send(req, resp_str, HTTPD_RESP_USE_STRLEN);
-
-	// After sending the HTTP response the old HTTP request
-	// headers are lost. Check if HTTP request headers can be read now.
-//	if (httpd_req_get_hdr_value_len(req, "Host") == 0) {
-//		ESP_LOGI(__func__, "Request headers lost");
-//	}
 
 	return ESP_OK;
 }
 
 
-
-static esp_err_t get_handler_status_do(httpd_req_t *req, run_status_type new_status)
+/**
+ * play scene
+ * Parameter: cmd=run|stop|pause, file=fname
+ */
+static esp_err_t get_handler_scene(httpd_req_t *req)
 {
 	char*  buf;
 	size_t buf_len;
@@ -608,6 +550,8 @@ static esp_err_t get_handler_status_do(httpd_req_t *req, run_status_type new_sta
 	// extra byte for null termination
 
 	run_status_type old_status = SCENES_NOTHING;
+	run_status_type new_status = SCENES_NOTHING;
+
 
 	buf_len = httpd_req_get_url_query_len(req) + 1;
 	if (buf_len > 1) {
@@ -616,10 +560,23 @@ static esp_err_t get_handler_status_do(httpd_req_t *req, run_status_type new_sta
 			ESP_LOGI(__func__, "Found URL query => %s", buf);
 			char param[64];
 			// Get value of expected key from query string
-			if (httpd_query_key_value(buf, "scenefile", param, sizeof(param)) == ESP_OK) {
-				ESP_LOGI(__func__, "query parameter: scenefile=%s", param);
-				new_status = SCENES_RUNNING;
+			char *paramname;
+
+			paramname = "file";
+			if (httpd_query_key_value(buf, paramname, param, sizeof(param)) == ESP_OK) {
+				ESP_LOGI(__func__, "query parameter: %s=%s", paramname, param);
 				// TODO: new scene file
+			}
+			paramname = "cmd";
+			if (httpd_query_key_value(buf, paramname, param, sizeof(param)) == ESP_OK) {
+				ESP_LOGI(__func__, "query parameter: %s=%s", paramname, param);
+				if ( param[0] == 'r' ) {
+					new_status = SCENES_RUNNING;
+				} else if (param[0] == 's' ) {
+					new_status = SCENES_STOPPED;
+				} else if (param[0] == 'p' ) {
+					new_status = SCENES_PAUSED;
+				}
 			}
 		}
 		free(buf);
@@ -646,69 +603,10 @@ static esp_err_t get_handler_status_do(httpd_req_t *req, run_status_type new_sta
 	return ESP_OK;
 }
 
-static esp_err_t get_handler_run(httpd_req_t *req) {
-	return get_handler_status_do(req, SCENES_RUNNING);
-}
-
-static esp_err_t get_handler_stop(httpd_req_t *req) {
-	return get_handler_status_do(req, SCENES_STOPPED);
-}
-
-static esp_err_t get_handler_pause(httpd_req_t *req) {
-	return get_handler_status_do(req, SCENES_PAUSED);
-}
-
-static esp_err_t get_handler_restart(httpd_req_t *req) {
-	return get_handler_status_do(req, SCENES_RESTART);
-}
-
-static esp_err_t get_handler_status(httpd_req_t *req) {
-	return get_handler_status_do(req, SCENES_NOTHING);
-}
 
 static esp_err_t get_handler_reset(httpd_req_t *req)
 {
-//	char*  buf;
 	size_t buf_len;
-
-//	extern T_CONFIG gConfig;
-
-	// Read URL query string length and allocate memory for length + 1,
-	// extra byte for null termination
-
-//	buf_len = httpd_req_get_url_query_len(req) + 1;
-//	if (buf_len > 1) {
-//		buf = malloc(buf_len);
-//		if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK) {
-//			ESP_LOGI(__func__, "Found URL query => %s", buf);
-//			char param[32];
-//			// Get value of expected key from query string
-//			if (httpd_query_key_value(buf, "autoplay", param, sizeof(param)) == ESP_OK) {
-//				ESP_LOGI(__func__, "query parameter: autoplay=%s", param);
-//				gConfig.flags &= !CFG_AUTOPLAY;
-//				gConfig.flags |= trufal(param);
-//			}
-//			if (httpd_query_key_value(buf, "scenefile", param, sizeof(param)) == ESP_OK) {
-//				ESP_LOGI(__func__, "query parameter: scenefile=%s", param);
-//				snprintf(gConfig.scenefile, sizeof(gConfig.scenefile), "%s", param);
-//			}
-//			if (httpd_query_key_value(buf, "repeat", param, sizeof(param)) == ESP_OK) {
-//				ESP_LOGI(__func__, "query parameter: repeat=%s", param);
-//				gConfig.flags &= !CFG_REPEAT;
-//				gConfig.flags |= trufal(param);
-//			}
-//			if (httpd_query_key_value(buf, "numleds", param, sizeof(param)) == ESP_OK) {
-//				ESP_LOGI(__func__, "query parameter: numleds=%s", param);
-//				gConfig.numleds = atoi(param);
-//				strip_setup(gConfig.numleds);
-//			}
-//			if (httpd_query_key_value(buf, "cycle", param, sizeof(param)) == ESP_OK) {
-//				ESP_LOGI(__func__, "query parameter: cycle=%s", param);
-//				gConfig.cycle = atoi(param);
-//			}
-//		}
-//		free(buf);
-//	}
 
 	// clear nvs
 	nvs_flash_erase();
@@ -717,31 +615,7 @@ static esp_err_t get_handler_reset(httpd_req_t *req)
 	char resp_str[255];
 	snprintf(resp_str, sizeof(resp_str),"RESET done\n");
 
-
-//	if ( !strip_initialized()) {
-//		snprintf(resp_str, sizeof(resp_str),"NOT INITIALIZED\n");
-//	} else {
-//		strip_set_color(start_idx, end_idx, red, green, blue);
-//		strip_show();
-//		snprintf(resp_str, sizeof(resp_str),"done: %d-%d rgb=%d/%d/%d\n", start_idx, end_idx, red,green,blue);
-//	}
-
-	// Set some custom headers
-	//httpd_resp_set_hdr(req, "Custom-Header-1", "Custom-Value-1");
-	//httpd_resp_set_hdr(req, "Custom-Header-2", "Custom-Value-2");
-
-	// Send response with custom headers and body set as the
-	// string passed in user context
-	//const char* resp_str = (const char*) "done\n";
-
-	//config2txt(resp_str, sizeof(resp_str));
 	httpd_resp_send(req, resp_str, HTTPD_RESP_USE_STRLEN);
-
-	// After sending the HTTP response the old HTTP request
-	// headers are lost. Check if HTTP request headers can be read now.
-//	if (httpd_req_get_hdr_value_len(req, "Host") == 0) {
-//		ESP_LOGI(__func__, "Request headers lost");
-//	}
 
 	return ESP_OK;
 }
@@ -782,7 +656,7 @@ esp_err_t start_rest_server(const char *base_path)
     }
 
     // Install URI Handler
-    // URI handler for fetching system info
+    /* / URI handler for fetching system info
     httpd_uri_t system_info_get_uri = {
         .uri = "/api/v1/system/info",
         .method = HTTP_GET,
@@ -790,12 +664,13 @@ esp_err_t start_rest_server(const char *base_path)
         .user_ctx = rest_context
     };
     httpd_register_uri_handler(server, &system_info_get_uri);
+    // */
 
     // vconfig
     httpd_uri_t strip_setup = {
         .uri       = "/api/v1/config",
         .method    = HTTP_GET,
-        .handler   = get_handler_strip_config, // get_handler_strip_setup,
+        .handler   = get_handler_strip_config,
         .user_ctx  = rest_context
     };
     httpd_register_uri_handler(server, &strip_setup);
@@ -803,15 +678,15 @@ esp_err_t start_rest_server(const char *base_path)
     httpd_uri_t reset_uri = {
         .uri       = "/api/v1/reset",
         .method    = HTTP_GET,
-        .handler   = get_handler_reset, // get_handler_strip_setup,
+        .handler   = get_handler_reset,
         .user_ctx  = rest_context
     };
     httpd_register_uri_handler(server, &reset_uri);
 
     httpd_uri_t status_uri = {
-        .uri       = "/api/v1/status",
+        .uri       = "/api/v1/scene",
         .method    = HTTP_GET,
-        .handler   = get_handler_status,
+        .handler   = get_handler_scene,
         .user_ctx  = rest_context
     };
     httpd_register_uri_handler(server, &status_uri);

@@ -146,8 +146,8 @@ esp_err_t init_storage() {
 
     } else if ( ret == ESP_ERR_NVS_NOT_FOUND ) {
     	// has to initialized
-    	snprintf(gConfig.scenefile, LEN_SCENEFILE, "%s", "scenes");
-    	gConfig.flags = CFG_AUTOPLAY | CFG_REPEAT;
+    	snprintf(gConfig.autoplayfile, LEN_SCENEFILE, "%s", "autoplay");
+    	gConfig.flags = CFG_AUTOPLAY;
     	gConfig.cycle = 100;
     	gConfig.numleds = 60;
 
@@ -170,14 +170,12 @@ char *config2txt(char *txt, size_t sz) {
 	snprintf(txt, sz,
 			"config:\n" \
 			"numleds=%d\n" \
-			"scenefile=%s\n" \
-			"autostart=%s\n" \
-			"repeat=%s\n" \
-			"cycle=%d\n",
+			"autoplayfile=%s\n" \
+			"autoplay=%s\n" \
+			"cycle=%d\n" ,
 			gConfig.numleds,
-			gConfig.scenefile,
+			gConfig.autoplayfile,
 			(gConfig.flags & CFG_AUTOPLAY ? "true" : "false"),
-			(gConfig.flags & CFG_REPEAT ? "true" : "false"),
 			gConfig.cycle
 	);
 	return txt;
