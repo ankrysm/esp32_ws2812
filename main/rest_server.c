@@ -14,7 +14,7 @@
 #include "esp_log.h"
 #include "esp_vfs.h"
 #include "cJSON.h"
-
+#include "math.h"
 #include "driver/gpio.h"
 #include "esp_vfs_semihost.h"
 #include "esp_vfs_fat.h"
@@ -26,21 +26,21 @@
 #include "esp_log.h"
 #include "mdns.h"
 #include "lwip/apps/netbiosns.h"
-//#include "protocol_examples_common.h"
-//#if CONFIG_EXAMPLE_WEB_DEPLOY_SD
-//#include "driver/sdmmc_host.h"
-//#endif
 #include "esp_chip_info.h"
 #include "local.h"
 #include "config.h"
 #include "timer_events.h"
 #include "led_strip_proto.h"
+#include "color.h"
 
 #define MDNS_INSTANCE "esp home web server"
 
 
 #define FILE_PATH_MAX (ESP_VFS_PATH_MAX + 128)
 #define SCRATCH_BUFSIZE (10240)
+
+extern T_CONFIG gConfig;
+
 
 typedef struct rest_server_context {
     char base_path[ESP_VFS_PATH_MAX + 1];
@@ -344,103 +344,353 @@ static esp_err_t get_handler_strip_rotate(httpd_req_t *req)
 }
 */
 
+static esp_err_t process_effect_solid(uint32_t start, uint32_t len, T_COLOR_HSV *hsv) {
+    T_COLOR_RGB rgb;
+    c_hsv2rgb( hsv,  &rgb );
+
+    ESP_LOGI(__func__,"start=%d, len=%d hsv=%d/%d/%d rgb=%d/%d/%d",
+    		start, len, hsv->h, hsv->s, hsv->v, rgb.r, rgb.g, rgb.b
+    );
+	strip_set_color(start, start+len-1, rgb.r, rgb.g, rgb.b);
+
+	return ESP_OK;
+}
+
+void process_fade_exp(
+		uint32_t *pos,
+		uint32_t fade_in,
+		int32_t delta_pos, // 1 or -1
+		T_COLOR_RGB *rgb1, // from
+		T_COLOR_RGB *rgb2  // to
+) {
+	if ( fade_in < 1)
+		return;
+
+	//T_COLOR_RGB rgb;
+	double dr,dg,db,r,g,b;
+
+	double dd = 1.0 / pow(2.0, fade_in);
+
+//	rgb.r = rgb1->r;
+//	rgb.g = rgb1->g;
+//	rgb.b = rgb1->b;
+	r = rgb1->r;
+	g = rgb1->g;
+	b = rgb1->b;
+
+	for (int i=0; i < fade_in; i++) {
+		dr = (rgb2->r - rgb1->r) * dd;
+		dg = (rgb2->g - rgb1->g) * dd;
+		db = (rgb2->b - rgb1->b) * dd;
+
+//		rgb.r += dr;
+//		rgb.g += dg;
+//		rgb.b += db;
+		r += dr;
+		g += dg;
+		b += db;
+		ESP_LOGI(__func__, "fade_in %d at %d, delta=%d: dd=%.6f drgb=%d/%d/%d d=%.4f/%.4f/%.4f rgb=%.2f/%.2f/%.2f" //rgb=%d/%d/%d"
+				,i, *pos, delta_pos, dd
+				,(rgb2->r - rgb1->r),(rgb2->g - rgb1->g),(rgb2->b - rgb1->b)
+				,dr,dg,db
+				,r,g,b//,rgb.r, rgb.g, rgb.b
+				);
+
+		T_COLOR_RGB rgb;
+		rgb.r = r; rgb.g = g; rgb.b = b;
+		c_checkrgb(&rgb, rgb1, rgb2);
+
+		strip_set_pixel_rgb(*pos, &rgb);
+		dd = dd*2.0;
+		(*pos)+=delta_pos;
+	}
+}
+
+static esp_err_t process_effect_smooth(
+		uint32_t start,
+		uint32_t p_len,
+		uint32_t fade_in,
+		uint32_t fade_out,
+		T_COLOR_HSV *hsv1,
+		T_COLOR_HSV *hsv2,
+		T_COLOR_HSV *hsv3
+) {
+	//int32_t dr,dg,db;
+	T_COLOR_RGB rgb1 = {.r=0,.g=0,.b=0};
+	T_COLOR_RGB rgb2 = {.r=0,.g=0,.b=0};
+	T_COLOR_RGB rgb3 = {.r=0,.g=0,.b=0};
+//	T_COLOR_RGB rgb;
+
+	// convert all hsv to rgb
+	c_hsv2rgb( hsv1, &rgb1 );
+	c_hsv2rgb( hsv2, &rgb2 );
+	c_hsv2rgb( hsv3, &rgb3 );
+
+    ESP_LOGI(__func__,"start=%d, len=%d, fade_in=%d, fade_out=%d, 1: hsv=%d/%d/%d rgb=%d/%d/%d, 2: hsv=%d/%d/%d rgb=%d/%d/%d, 3: hsv=%d/%d/%d rgb=%d/%d/%d",
+    		start, p_len, fade_in, fade_out,
+			hsv1->h, hsv1->s, hsv1->v, rgb1.r, rgb1.g, rgb1.b,
+			hsv2->h, hsv2->s, hsv2->v, rgb2.r, rgb2.g, rgb2.b,
+			hsv3->h, hsv3->s, hsv3->v, rgb3.r, rgb3.g, rgb3.b
+    );
+
+	uint32_t pos = start;
+
+	process_fade_exp(&pos, fade_in, +1, &rgb1, &rgb2);
+
+//	if ( fade_in > 0 ) {
+//		// better to use a quadratic funkction instead of linear
+//		double dd = 1.0 / pow(2.0, fade_in);
+//		rgb.r = rgb1.r;
+//		rgb.g = rgb1.g;
+//		rgb.b = rgb1.b;
+//		for (int i=0; i < fade_in; i++) {
+//			dr = (rgb2.r - rgb1.r) * dd;
+//			dg = (rgb2.g - rgb1.g) * dd;
+//			db = (rgb2.b - rgb1.b) * dd;
+//
+//			rgb.r += dr;
+//			rgb.g += dg;
+//			rgb.b += db;
+//			ESP_LOGI(__func__, "fade_in %d at %d: dd=%.6f drgb=%d/%d/%d d=%d/%d/%d rgb=%d/%d/%d",i, pos, dd,
+//					(rgb2.r - rgb1.r),(rgb2.g - rgb1.g),(rgb2.b - rgb1.b),
+//					dr,dg,db,
+//					rgb.r, rgb.g, rgb.b);
+//
+//			c_checkrgb(&rgb, &rgb1, &rgb2);
+//
+//			strip_set_pixel_rgb(pos, &rgb);
+//			dd = dd*2.0;
+//			pos++;
+//		}
+//	}
+
+	int32_t len = p_len - fade_in - fade_out;
+	uint32_t l_fade_out = fade_out;
+	if ( len < 0) {
+		// fade out parameter to big. ignore it
+		len = p_len - fade_in;
+		l_fade_out=0;
+	}
+
+	strip_set_color_rgb(pos, pos+len, &rgb2);
+	ESP_LOGI(__func__, "middle %d-%d: rgb=%d/%d/%d",pos, pos+len, rgb2.r, rgb2.g, rgb2.b);
+
+	pos = start + p_len;
+
+	process_fade_exp(&pos, l_fade_out, -1, &rgb3, &rgb2);
+
+//	if ( l_fade_out > 0 ) {
+//		double dd = 1.0 / pow(2.0, l_fade_out);
+//		// start from the end
+//		rgb.r = rgb3.r;
+//		rgb.g = rgb3.g;
+//		rgb.b = rgb3.b;
+//
+//		// set pos to the end
+//		pos = start + p_len;
+//
+//		for (int i=0; i < l_fade_out; i++) {
+//			dr = (rgb2.r - rgb3.r) * dd;
+//			dg = (rgb2.g - rgb3.g) * dd;
+//			db = (rgb2.b - rgb3.b) * dd;
+//
+//			rgb.r += dr;
+//			rgb.g += dg;
+//			rgb.b += db;
+//			ESP_LOGI(__func__, "fade_out %d at %d: rgb=%d/%d/%d",i, pos, rgb.r, rgb.g, rgb.b);
+//			c_checkrgb(&rgb, &rgb3, &rgb2);
+//
+//			strip_set_pixel_rgb(pos, &rgb);
+//			dd = dd*2.0;
+//			pos--;
+//		}
+//	}
+
+	return ESP_OK;
+}
+
+/**
+ * expected param:
+ * 'smooth,start,len,fade_in,fade_out,h1,s1,v1,h2,s2,v2,h3,s3,v3'
+ * or
+ * 'smooth,start,len,fade_in,fade_out,h2,s2,v2' (hsv1, hsv3 assumed black)
+ */
+static esp_err_t process_effect(char *param) {
+
+	char *str = strdup(param);
+	char *typ, *tok, *l;
+	esp_err_t ret = ESP_OK;
+
+	const size_t maxp = 32;
+	uint32_t p[maxp];
+	memset(p,0, sizeof(p));
+
+	typ=strtok_r(str,",",&l);
+	int n=0;
+	for ( n=0; n<maxp; n++) {
+		if ( ! (tok=strtok_r(NULL,",", &l)))
+			break;
+		p[n] = atoi(tok);
+		ESP_LOGI(__func__, "parameter %d = %d (%s)", n, p[n], tok);
+	}
+	ESP_LOGI(__func__, "n=%d", n);
+
+	T_COLOR_HSV hsv1, hsv2, hsv3;
+	if ( !strcmp(typ, "solid")) {
+		hsv1.h = p[2]; hsv1.s = p[3];  hsv1.v = p[4];
+		ret = process_effect_solid(
+				p[0], // start
+				p[1] >0 ? p[1] : gConfig.numleds, //length
+				&hsv1
+		);
+
+	} else if ( !strcmp(typ, "smooth")) {
+		if ( n < 4) {
+			ESP_LOGI(__func__,"not enough parameters");
+			ret = ESP_FAIL;
+		} else {
+			if ( n<=7 ) {
+				hsv1.h = hsv1.s = hsv1.v = 0;
+				hsv2.h = p[4];  hsv2.s = p[5];   hsv2.v = p[6];
+				hsv3.h = hsv3.s = hsv3.v = 0;
+			} else {
+				hsv1.h = p[4];  hsv1.s = p[5];   hsv1.v = p[6];
+				hsv2.h = p[7];  hsv2.s = p[8];   hsv2.v = p[9];
+				hsv3.h = p[10]; hsv3.s = p[11];  hsv3.v = p[12];
+			}
+			ret = process_effect_smooth(
+					p[0], // start
+					p[1], //length
+					p[2], // fade_in
+					p[3], // fade out
+					&hsv1, // start hsv
+					&hsv2, // middle hsv
+					&hsv3  // end hsv
+			);
+		}
+	} else {
+		ESP_LOGI(__func__, "cannot process '%s'", param);
+		ret = ESP_FAIL;
+	}
+	free(str);
+	return ret;
+}
 
 static esp_err_t get_handler_strip_setcolor(httpd_req_t *req)
 {
     char*  buf;
     size_t buf_len;
+    char resp_str[160];
 
     // Read URL query string length and allocate memory for length + 1,
     // extra byte for null termination
-    uint32_t red=0;
-    uint32_t green=0;
-    uint32_t blue=0;
+//    uint32_t red=0;
+//    uint32_t green=0;
+//    uint32_t blue=0;
     uint32_t start_idx=1;
     uint32_t end_idx=2; //strip_numleds()-1;
 
+    T_COLOR_HSV hsv = {.h=0, .s=0, .v=0};
+    T_COLOR_RGB rgb = {.r=0, .g=0, .b=0};
+
+    if ( !strip_initialized()) {
+         snprintf(resp_str, sizeof(resp_str),"NOT INITIALIZED\n");
+         ESP_LOGI(__func__,"response=%s", resp_str);
+         httpd_resp_send(req, resp_str, HTTPD_RESP_USE_STRLEN);
+         return ESP_OK;
+    }
+
     buf_len = httpd_req_get_url_query_len(req) + 1;
     if (buf_len > 1) {
-        buf = malloc(buf_len);
-        if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK) {
-            ESP_LOGI(__func__, "Found URL query => %s", buf);
-            char param[32];
-            char *paramname = "range";
-            char *tok1, *tok2, *tok3, *s, *l;
+    	buf = malloc(buf_len);
+    	if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK) {
+    		ESP_LOGI(__func__, "Found URL query => %s", buf);
+    		char param[128];
+    		char *paramname;
+    		char *tok1, *tok2, *tok3, *s, *l;
 
-            // Get value of expected key from query string
-            if (httpd_query_key_value(buf, paramname, param, sizeof(param)) == ESP_OK) {
-                 ESP_LOGI(__func__, "Found URL query parameter => %s=%s", paramname, param);
-                 // expected "start,end"
-                 s=strdup(param);
-                 tok1=strtok_r(s,   ",", &l);
-                 tok2=strtok_r(NULL,",", &l);
-                 start_idx = atoi(tok1);
-                 if (tok2) {
-                	 end_idx = atoi(tok2);
-                 } else {
-                	 end_idx = start_idx +1;
-                 }
-                 free(s);
+    		// Get value of expected key from query string
+    		paramname = "range";
+    		if (httpd_query_key_value(buf, paramname, param, sizeof(param)) == ESP_OK) {
+    			ESP_LOGI(__func__, "Found URL query parameter => %s=%s", paramname, param);
+    			// expected start,end
+    			s=strdup(param);
+    			tok1=strtok_r(s,   ",", &l);
+    			tok2=strtok_r(NULL,",", &l);
+    			start_idx = atoi(tok1);
+    			if (tok2) {
+    				end_idx = atoi(tok2);
+    			} else {
+    				end_idx = start_idx +1;
+    			}
+    			free(s);
+    		}
+
+    		paramname = "rgb";
+    		if (httpd_query_key_value(buf, paramname, param, sizeof(param)) == ESP_OK) {
+    			ESP_LOGI(__func__, "Found URL query parameter => %s=%s", paramname, param);
+    			// expected r,g,b
+    			s=strdup(param);
+    			tok1=strtok_r(s,   ",", &l);
+    			tok2=strtok_r(NULL,",", &l);
+    			tok3=tok2 ? strtok_r(NULL,",", &l) : NULL;
+    			rgb.r = atoi(tok1);
+    			if (tok2) {
+    				rgb.g = atoi(tok2);
+    			}
+    			if (tok3) {
+    				rgb.b = atoi(tok3);
+    			}
+    			free(s);
+    			strip_set_color_rgb(start_idx, end_idx, &rgb);
+    			strip_show();
+    			snprintf(resp_str, sizeof(resp_str),"done: %d-%d rgb=%d/%d/%d\n",
+    					start_idx, end_idx, rgb.r, rgb.g, rgb.b);
+    		}
+
+    		paramname = "hsv";
+    		if (httpd_query_key_value(buf, paramname, param, sizeof(param)) == ESP_OK) {
+    			ESP_LOGI(__func__, "Found URL query parameter => %s=%s", paramname, param);
+    			// expected h,s,v
+    			s=strdup(param);
+    			tok1=strtok_r(s,   ",", &l);
+    			tok2=strtok_r(NULL,",", &l);
+    			tok3=tok2 ? strtok_r(NULL,",", &l) : NULL;
+    			hsv.h = atoi(tok1);
+    			if (tok2) {
+    				hsv.s = atoi(tok2);
+    			}
+    			if (tok3) {
+    				hsv.v = atoi(tok3);
+    			}
+    			free(s);
+    			c_hsv2rgb(&hsv, &rgb);
+    			strip_set_color_rgb(start_idx, end_idx, &rgb);
+    			strip_show();
+    			snprintf(resp_str, sizeof(resp_str),"done: %d-%d hsv=%d/%d/%d rgb=%d/%d/%d\n",
+    					start_idx, end_idx, hsv.h, hsv.s, hsv.v, rgb.r, rgb.g, rgb.b);
+    		}
+
+    		paramname="effect";
+    		if (httpd_query_key_value(buf, paramname, param, sizeof(param)) == ESP_OK) {
+    			ESP_LOGI(__func__, "Found URL query parameter => %s=%s", paramname, param);
+    			// expected typ,parameter,parameter ...
+    			// type 'solid' parameter: startpixel, #pixel, h,s,v
+    			// type 'smooth' parameter: startpixel, #pixel, fade in pixel, fade out pixel, start-h,s,v, middle-h,s,v, end-h,s,v
+    			if (process_effect(param) == ESP_OK) {
+    				snprintf(resp_str, sizeof(resp_str),"done: %s\n", param);
+        			strip_show();
+    			} else {
+    				snprintf(resp_str, sizeof(resp_str),"FAILED: %s\n", param);
+    			}
             }
-
-            paramname = "rgb";
-            if (httpd_query_key_value(buf, paramname, param, sizeof(param)) == ESP_OK) {
-                 ESP_LOGI(__func__, "Found URL query parameter => %s=%s", paramname, param);
-                 // expected "start,end"
-                 s=strdup(param);
-                 tok1=strtok_r(s,   ",", &l);
-                 tok2=strtok_r(NULL,",", &l);
-                 tok3=tok2 ? strtok_r(NULL,",", &l) : NULL;
-                 red = atoi(tok1);
-                 if (tok2) {
-                	 green = atoi(tok2);
-                 }
-                 if (tok3) {
-                	 blue = atoi(tok3);
-                 }
-                 free(s);
-            }
-
-            paramname = "hsv";
-            if (httpd_query_key_value(buf, paramname, param, sizeof(param)) == ESP_OK) {
-                 ESP_LOGI(__func__, "Found URL query parameter => %s=%s", paramname, param);
-                 // expected "start,end"
-                 s=strdup(param);
-                 tok1=strtok_r(s,   ",", &l);
-                 tok2=strtok_r(NULL,",", &l);
-                 tok3=tok2 ? strtok_r(NULL,",", &l) : NULL;
-                 uint32_t hh,ss,vv;
-                 hh=ss=vv=0;
-                 hh = atoi(tok1);
-                 if (tok2) {
-                	 ss = atoi(tok2);
-                 }
-                 if (tok3) {
-                	 vv = atoi(tok3);
-                 }
-                 free(s);
-                 led_strip_hsv2rgb(hh, ss, vv, &red, &green, &blue);
-
-            }
-
         }
         free(buf);
     }
 
-    char resp_str[64];
-    if ( !strip_initialized()) {
-        snprintf(resp_str, sizeof(resp_str),"NOT INITIALIZED\n");
-    } else {
-    	strip_set_color(start_idx, end_idx, red, green, blue);
-    	strip_show();
-        snprintf(resp_str, sizeof(resp_str),"done: %d-%d rgb=%d/%d/%d\n", start_idx, end_idx, red,green,blue);
-    }
     ESP_LOGI(__func__,"response=%s", resp_str);
 
-    // Send response with custom headers and body set as the
-    // string passed in user context
     httpd_resp_send(req, resp_str, HTTPD_RESP_USE_STRLEN);
-
 
     return ESP_OK;
 }
@@ -453,7 +703,6 @@ static esp_err_t get_handler_strip_config(httpd_req_t *req)
 	char*  buf;
 	size_t buf_len;
 
-	extern T_CONFIG gConfig;
 
 	// Read URL query string length and allocate memory for length + 1,
 	// extra byte for null termination
@@ -606,7 +855,7 @@ static esp_err_t get_handler_scene(httpd_req_t *req)
 
 static esp_err_t get_handler_reset(httpd_req_t *req)
 {
-	size_t buf_len;
+	//size_t buf_len;
 
 	// clear nvs
 	nvs_flash_erase();

@@ -11,6 +11,14 @@
 #include "color.h"
 #include "led_strip.h"
 
+#ifndef MIN
+#define MIN(a,b) (a<b?a:b)
+#endif
+
+#ifndef MAX
+#define MAX(a,b) (a>b?a:b)
+#endif
+
 void init_restservice();
 void server_stop();
 void initialise_mdns(void);

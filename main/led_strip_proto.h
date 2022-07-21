@@ -21,6 +21,7 @@ void firstled(int red, int green, int blue);
 void strip_show();
 uint32_t strip_get_numleds();
 int strip_initialized();
-
+void strip_set_pixel_rgb(uint32_t idx, T_COLOR_RGB *rgb);
+void strip_set_color_rgb(uint32_t start_idx, uint32_t end_idx, T_COLOR_RGB *rgb);
 
 #endif /* MAIN_LED_STRIP_H_ */

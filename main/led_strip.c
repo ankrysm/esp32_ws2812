@@ -13,7 +13,7 @@
 #include "driver/rmt.h"
 #include "led_strip.h"
 #include "config.h"
-
+#include "color.h"
 #define RMT_TX_CHANNEL RMT_CHANNEL_0
 #define LED_STRIP_PIN 13
 
@@ -31,6 +31,7 @@ static uint32_t s_numleds;
  * Wiki: https://en.wikipedia.org/wiki/HSL_and_HSV
  *
  */
+/*
 void led_strip_hsv2rgb(uint32_t h, uint32_t s, uint32_t v, uint32_t *r, uint32_t *g, uint32_t *b)
 {
     h %= 360; // h -> [0,360]
@@ -76,7 +77,7 @@ void led_strip_hsv2rgb(uint32_t h, uint32_t s, uint32_t v, uint32_t *r, uint32_t
         break;
     }
 }
-
+*/
 
 int strip_initialized() {
 	return gVstrip ? 1 : 0;
@@ -149,6 +150,9 @@ esp_err_t strip_setup(int numleds) {
 	return ret;
 }
 
+/**
+ * sets the color for a pixel range
+ */
 void strip_set_color(uint32_t start_idx, uint32_t end_idx, uint32_t red, uint32_t green, uint32_t blue) {
 	if (!strip_initialized()) {
 		ESP_LOGE(__func__, "%s: not initalized", __func__);
@@ -164,6 +168,23 @@ void strip_set_color(uint32_t start_idx, uint32_t end_idx, uint32_t red, uint32_
 	}
 }
 
+void strip_set_color_rgb(uint32_t start_idx, uint32_t end_idx, T_COLOR_RGB *rgb) {
+	if (!strip_initialized()) {
+		ESP_LOGE(__func__, "%s: not initalized", __func__);
+		return;
+	}
+	if ( start_idx >= s_numleds || end_idx < start_idx || end_idx >= s_numleds) {
+		ESP_LOGE(__func__, "%s: idx %d - %d out of range", __func__, start_idx, end_idx);
+		return;
+	}
+	for(int i = start_idx; i <= end_idx; i++) {
+		ESP_ERROR_CHECK(gVstrip->set_pixel(gVstrip, i, rgb->r, rgb->g, rgb->b));
+	}
+}
+
+/**
+ * set the color of a single pixel
+ */
 void strip_set_pixel(uint32_t idx, uint32_t red, uint32_t green, uint32_t blue) {
 	if (!strip_initialized()) {
 		ESP_LOGE(__func__, "%s: not initalized", __func__);
@@ -174,6 +195,18 @@ void strip_set_pixel(uint32_t idx, uint32_t red, uint32_t green, uint32_t blue) 
 		return;
 	}
 	ESP_ERROR_CHECK(gVstrip->set_pixel(gVstrip, idx, red, green, blue));
+}
+
+void strip_set_pixel_rgb(uint32_t idx, T_COLOR_RGB *rgb) {
+	if (!strip_initialized()) {
+		ESP_LOGE(__func__, "%s: not initalized", __func__);
+		return;
+	}
+	if ( idx >= s_numleds) {
+		ESP_LOGE(__func__, "%s: idx %d out of range", __func__, idx);
+		return;
+	}
+	ESP_ERROR_CHECK(gVstrip->set_pixel(gVstrip, idx, rgb->r, rgb->g, rgb->b));
 }
 
 /**
@@ -197,10 +230,16 @@ void strip_set_pixel_lvl(uint32_t idx, uint32_t red, uint32_t green, uint32_t bl
 	ESP_ERROR_CHECK(gVstrip->set_pixel(gVstrip, idx, r, g, b));
 }
 
+/**
+ * clears the strip
+ */
 void strip_clear()  {
 	ESP_ERROR_CHECK(gVstrip->clear(gVstrip, 100));
 }
 
+/**
+ * flush the pixel buffer to the strip
+ */
 void strip_show() {
 	if (!strip_initialized()) {
 		ESP_LOGE(__func__, "%s: not initalized", __func__);
@@ -209,10 +248,16 @@ void strip_show() {
 	ESP_ERROR_CHECK(gVstrip->refresh(gVstrip, 100));
 }
 
+/**
+ * rotates the strip by one led left or right
+ */
 void strip_rotate(int32_t dir)  {
 	ESP_ERROR_CHECK(gVstrip->rotate(gVstrip, dir));
 }
 
+/**
+ * sets the color of the first led
+ */
 void firstled(int red, int green, int blue) {
 	int pos = 0;
 	strip_set_color(pos, pos, red, green, blue);

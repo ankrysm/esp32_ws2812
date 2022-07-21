@@ -15,6 +15,7 @@
 #include "freertos/task.h"
 #include "freertos/event_groups.h"
 #include "sdkconfig.h"
+#include "local.h"
 
 #include "color.h"
 
@@ -24,15 +25,19 @@
  * Wiki: https://en.wikipedia.org/wiki/HSL_and_HSV
  *
  */
-void c_hsv2rgb( T_COLOR_HSV hsv, T_COLOR_RGB *rgb )
-		//uint32_t h, uint32_t s, uint32_t v, uint32_t *r, uint32_t *g, uint32_t *b)
+void c_hsv2rgb( T_COLOR_HSV *hsv, T_COLOR_RGB *rgb )
 {
-    hsv.h %= 360; // h -> [0,360]
-    uint32_t rgb_max = hsv.v * 2.55f;
-    uint32_t rgb_min = rgb_max * (100 - hsv.s) / 100.0f;
 
-    uint32_t i = hsv.h / 60;
-    uint32_t diff = hsv.h % 60;
+	if ( hsv->v == 0) {
+		rgb->r = rgb->g = rgb->b = 0;
+		return;
+	}
+    hsv->h %= 360; // h -> [0,360]
+    uint32_t rgb_max = hsv->v * 2.55f;
+    uint32_t rgb_min = rgb_max * (100 - hsv->s) / 100.0f;
+
+    uint32_t i = hsv->h / 60;
+    uint32_t diff = hsv->h % 60;
 
     // RGB adjustment amount by hue
     uint32_t rgb_adj = (rgb_max - rgb_min) * diff / 60;
@@ -71,3 +76,22 @@ void c_hsv2rgb( T_COLOR_HSV hsv, T_COLOR_RGB *rgb )
     }
 }
 
+void c_checkrgb(T_COLOR_RGB *rgb, T_COLOR_RGB *rgbmin, T_COLOR_RGB *rgbmax) {
+	if ( rgb->r < MIN(rgbmin->r, rgbmax->r)) {
+		rgb->r = MIN(rgbmin->r, rgbmax->r);
+	} else if ( rgb->r > MAX(rgbmax->r, rgbmin->r) ) {
+		rgb->r = MAX(rgbmax->r, rgbmin->r);
+	}
+
+	if ( rgb->g < MIN(rgbmin->g, rgbmax->g)) {
+		rgb->g = MIN(rgbmin->g, rgbmax->g);
+	} else if ( rgb->g > MAX(rgbmax->g, rgbmin->g) ) {
+		rgb->g = MAX(rgbmax->g, rgbmin->g);
+	}
+
+	if ( rgb->b < MIN(rgbmin->b, rgbmax->b)) {
+		rgb->b = MIN(rgbmin->b, rgbmax->b);
+	} else if ( rgb->b > MAX(rgbmax->b, rgbmin->b) ) {
+		rgb->b = MAX(rgbmax->b, rgbmin->b);
+	}
+}
