@@ -14,8 +14,8 @@
 #include "local.h"
 #include "color.h"
 #include "config.h"
-#include "timer_events.h"
-#include "create_events.h"
+//#include "timer_events.h"
+//#include "create_events.h"
 
 /*
 void start_demo1() {
@@ -80,6 +80,7 @@ void start_demo1() {
 void build_demo2(
 		T_COLOR_RGB *fg_color // foreground color
 ) {
+	/*
 	int pos = 1;
 	int len = 20;
 
@@ -107,11 +108,11 @@ void build_demo2(
 	sp1 = calloc(1, sizeof(T_SCENE_PARAMETER));
 	l_br->sp_list = sp1;
 
-	/* Brightness
+	/ * Brightness
 	   /------\
 	  /        \
 	 /          \
-	*/
+	* /
 	// ramp up
 	sp1->v_start = 0;
 	sp1->v_end = 100;
@@ -142,7 +143,7 @@ void build_demo2(
 	sp1->type_a = 0;// doesn't matter here
 	sp1->type_m = 0; // doesn't matter here
 
-
+*/
 }
 
 

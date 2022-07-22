@@ -24,112 +24,98 @@
 
 extern T_EVENT *s_event_list;
 
-/**
- * calculates the real values for pos and len
- */
-void real_pos_len(T_EVENT *evt, int32_t *pos, int32_t *len) {
-	int32_t p_end = evt->w_pos + evt->w_len;
-	*len = -1;
-	*pos = evt->w_pos < 0 ? 0 : evt->w_pos > strip_get_numleds() ? -1 : evt->w_pos;
-	if ( *pos < 0 || p_end < 0)
-		return ; // out of range
-	*len = *pos - p_end;
-}
+// to lock access to eveent-List
+static  SemaphoreHandle_t xSemaphore = NULL;
 
-// clear strip a needed
-void check_clear_strip(T_EVENT *evt) {
-	if ( evt->w_flags & EVENT_FLAG_BIT_STRIP_CLEARED)
-		return; // already cleared
-	strip_set_color(0, strip_get_numleds(), 0, 0, 0);
-	evt->w_flags |= EVENT_FLAG_BIT_STRIP_SHOW_NEEDED | EVENT_FLAG_BIT_STRIP_CLEARED;
-}
+static int32_t exclusiveAccess = 0;
 
-/**
- * frees scene parameter list
- */
-void scene_parameter_list_free(T_SCENE_PARAMETER_LIST **list) {
-	if ( !*list)
-		return;
+static 	TickType_t xSemDelay = 5000 / portTICK_PERIOD_MS;
 
-	T_SCENE_PARAMETER *nxt, *sp;
-	sp = (*list)->sp_list;
-	if (sp) {
-		while (sp) {
-			nxt =sp->nxt;
-			free(sp);
-			sp = nxt;
-		}
+
+esp_err_t obtain_eventlist_lock() {
+	if( xSemaphoreTake( xSemaphore, xSemDelay ) == pdTRUE ) {
+		return ESP_OK;
 	}
-
-	free(*list);
-	*list = NULL;
+	ESP_LOGE(__func__, "xSemaphoreTake failed");
+	return ESP_FAIL;
 }
 
-T_SCENE_PARAMETER_LIST *scene_parameter_list_create(int32_t pos, int32_t len, int32_t repeat) {
-	T_SCENE_PARAMETER_LIST *list= calloc(1, sizeof(T_SCENE_PARAMETER_LIST));
-	list->pos = pos;
-	list->len = len;
-	list->repeat = repeat;
-	return list;
-}
-
-void scene_parameter_list_add_parameter(T_SCENE_PARAMETER_LIST *list, T_SCENE_PARAMETER *sp) {
-	if ( list->sp_list) {
-		T_SCENE_PARAMETER *t;
-		for( t = list->sp_list; t->nxt; t=t->nxt){}
-		t->nxt = sp;
-	} else {
-		list->sp_list = sp;
+esp_err_t release_eventlist_lock(){
+	if (xSemaphoreGive( xSemaphore ) == pdTRUE) {
+		return ESP_OK;
 	}
+	ESP_LOGE(__func__, "xSemaphoreGive failed");
+	return ESP_FAIL;
 }
 
+esp_err_t set_exclusive_access(int flag) {
+	if (obtain_eventlist_lock() != ESP_OK) {
+		ESP_LOGE(__func__, "couldn't get lock");
+		return ESP_FAIL;
+	}
+	exclusiveAccess = flag;
+	return release_eventlist_lock();
+}
+
+int32_t has_exclusive_access() {
+	if (obtain_eventlist_lock() != ESP_OK) {
+		ESP_LOGE(__func__, "couldn't get lock");
+		return -1;
+	}
+	int32_t val = exclusiveAccess;
+	release_eventlist_lock();
+	return val;
+
+}
 
 /**
  * frees the event list
  */
-void event_list_free() {
-	if ( !s_event_list)
-		return;
-
-	T_EVENT *nxt;
-	while (s_event_list) {
-		nxt = s_event_list->nxt;
-		//if ( s_event_list->movement) free(s_event_list->movement);
-		scene_parameter_list_free(&(s_event_list->l_brightness));
-		scene_parameter_list_free(&(s_event_list->l_color));
-		scene_parameter_list_free(&(s_event_list->t_moving));
-		scene_parameter_list_free(&(s_event_list->t_brightness));
-		scene_parameter_list_free(&(s_event_list->t_color));
-		scene_parameter_list_free(&(s_event_list->t_size));
-		if ( s_event_list->data) free(s_event_list->data);
-		//if ( s_event_list->bg_color) free(s_event_list->bg_color);
-		free(s_event_list);
-		s_event_list = nxt;
+esp_err_t event_list_free() {
+	if (obtain_eventlist_lock() != ESP_OK) {
+		ESP_LOGE(__func__, "couldn't get lock");
+		return ESP_FAIL;
+	}
+	if ( s_event_list)  {
+		T_EVENT *nxt;
+		while (s_event_list) {
+			nxt = s_event_list->nxt;
+			free(s_event_list);
+			s_event_list = nxt;
+		}
 	}
 	// after this s_event_list is NULL
+	return release_eventlist_lock();
 }
 
 /**
  * adds an event
  */
-void event_list_add(T_EVENT *evt) {
-	if ( s_event_list) {
-		// add at the end of the list
-		T_EVENT *t;
-		for (t=s_event_list; t->nxt; t=t->nxt){}
-		evt->lfd = t->lfd +1;
-		t->nxt = evt;
-	} else {
-		// first entry
-		evt->lfd = 1;
-		s_event_list = evt;
+esp_err_t event_list_add(T_EVENT *pevt) {
+	if (obtain_eventlist_lock() != ESP_OK) {
+		ESP_LOGE(__func__, "couldn't get lock");
+		return ESP_FAIL;
 	}
+	T_EVENT *evt = calloc(1,sizeof(T_EVENT));
+	if ( evt)  {
+		memcpy(evt,pevt,sizeof(T_EVENT));
+		if ( s_event_list) {
+			// add at the end of the list
+			T_EVENT *t;
+			for (t=s_event_list; t->nxt; t=t->nxt){}
+			evt->lfd = t->lfd +1;
+			t->nxt = evt;
+		} else {
+			// first entry
+			evt->lfd = 1;
+			s_event_list = evt;
+		}
+	} else {
+		ESP_LOGE(__func__,"couldn't allocate memory for event");
+	}
+	return release_eventlist_lock();
 }
 
-/**
- * process location base brightness
- */
-void process_l_brightness(T_EVENT *evt ) {
-
+void init_eventlist_utils() {
+	xSemaphore = xSemaphoreCreateMutex();
 }
-

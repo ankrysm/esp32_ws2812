@@ -19,8 +19,107 @@
 #include "config.h"
 #include "color.h"
 #include "timer_events.h"
+//#include "location_based_events.h"
+//#include "move_events.h"
 
 extern T_CONFIG gConfig;
+
+
+
+/**
+ * different types of effects can be in list, separated by ';'
+ */
+esp_err_t decode_effect_list(char *param, T_EVENT *event ) {
+
+	memset(event, 0, sizeof(T_EVENT));
+
+	char *str = strdup(param);
+	char *typ, *tok, *ltok, *l, *ll;
+	esp_err_t ret = ESP_OK;
+
+	const size_t maxp = 32;
+	int32_t p[maxp];
+
+	for (ltok=strtok_r(str,";", &ll); ltok; ltok=strtok_r(NULL,";", &ll)) {
+
+		memset(p,0, sizeof(p));
+
+		typ=strtok_r(ltok,",",&l);
+		int n=0;
+		for ( n=0; n<maxp; n++) {
+			if ( ! (tok=strtok_r(NULL,",", &l)))
+				break;
+			p[n] = atoi(tok);
+			ESP_LOGI(__func__, "parameter %d = %d (%s)", n, p[n], tok);
+		}
+		ESP_LOGI(__func__, "n=%d", n);
+
+		T_COLOR_HSV hsv1, hsv2, hsv3;
+		int32_t start = p[0];
+
+
+		// ******* location based **********
+		if ( !strcmp(typ, "solid")) {
+			hsv1.h = p[2]; hsv1.s = p[3];  hsv1.v = p[4];
+			// no move is default
+			decode_effect_no_move(
+					&(event->mov_event),
+					start
+			);
+			ret = decode_effect_solid(
+					&(event->loc_event),
+					(p[1] >0 ? p[1] : gConfig.numleds), //length
+					&hsv1
+			);
+
+		} else if ( !strcmp(typ, "smooth")) {
+			if ( n < 4) {
+				ESP_LOGI(__func__,"not enough parameters");
+				ret = ESP_FAIL;
+			} else {
+				if ( n<=7 ) {
+					hsv1.h = hsv1.s = hsv1.v = 0;
+					hsv2.h = p[4];  hsv2.s = p[5];   hsv2.v = p[6];
+					hsv3.h = hsv3.s = hsv3.v = 0;
+				} else {
+					hsv1.h = p[4];  hsv1.s = p[5];   hsv1.v = p[6];
+					hsv2.h = p[7];  hsv2.s = p[8];   hsv2.v = p[9];
+					hsv3.h = p[10]; hsv3.s = p[11];  hsv3.v = p[12];
+				}
+				// no move is default
+				decode_effect_no_move(
+						&(event->mov_event),
+						start
+				);
+				ret = decode_effect_smooth(
+						&(event->loc_event),
+						p[1], //length
+						p[2], // fade_in
+						p[3], // fade out
+						&hsv1, // start hsv
+						&hsv2, // middle hsv
+						&hsv3  // end hsv
+				);
+			}
+
+		// ********* movements **********
+		} else if ( !strcmp(typ, "rotate")) {
+
+			decode_effect_rotate(
+					&(event->mov_event),
+					start,
+					p[1], // len
+					p[2] // speed in ms per tick
+					);
+		} else {
+			ESP_LOGI(__func__, "cannot process '%s'", param);
+			ret = ESP_FAIL;
+			break;
+		}
+	} // for
+	free(str);
+	return ret;
+}
 
 /*
 void create_solid(

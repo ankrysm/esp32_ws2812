@@ -22,6 +22,8 @@
 #include "math.h"
 #include "led_strip_proto.h"
 
+extern T_CONFIG gConfig;
+
 static esp_timer_handle_t s_periodic_timer;
 static uint64_t s_timer_period; // in ms
 static EventGroupHandle_t s_timer_event_group;
@@ -50,184 +52,12 @@ static volatile uint64_t s_scene_time = 0;
 T_EVENT *s_event_list = NULL;
 
 
-
-/*
-static void process_solid_set_pixel(T_EVENT *evt, double lvl) {
-	T_SOLID_DATA *d = (T_SOLID_DATA*) evt->data;
-	int32_t evt_pos, evt_len;
-
-	real_pos_len(evt, &evt_pos, &evt_len);
-
-	check_clear_strip(evt);
-
-	if ( evt_len < 1) {
-		return; // nothing visible
-	}
-
-	int32_t r,g,b,dr,dg,db;
-	uint32_t pos = evt_pos;
-	double f = lvl < 0.0 ? 0.0 : lvl > 1.0 ? 1.0 : lvl;
-
-	if ( d->inset > 0 ) {
-		// better to use a quadratic funkction instead of linear
-		double dd = 1.0 / pow(2.0, d->inset);
-		r = g = b = 0;
-		for (int i=0; i < d->inset; i++) {
-			dr = d->fg_color.r * dd;
-			dg = d->fg_color.g * dd;
-			db = d->fg_color.b * dd;
-
-			r += dr; if ( r > d->fg_color.r ) {r = d->fg_color.r;}
-			g += dg; if ( g > d->fg_color.g ) {g = d->fg_color.g;}
-			b += db; if ( b > d->fg_color.b ) {b = d->fg_color.b;}
-
-			strip_set_pixel_lvl(pos, r, g, b, f);
-			dd = dd*2.0;
-			pos++;
-		}
-	}
-	int32_t len = evt_len - d->inset - d->outset;
-	if ( len < 0) {
-		// outset parameter to big
-		len = evt->len - d->inset;
-	}
-
-	r = d->fg_color.r * f;
-	g = d->fg_color.g * f;
-	b = d->fg_color.b * f;
-	strip_set_color(pos, pos+len, r, g, b);
-	pos +=len;
-
-	if ( d->outset > 0 ) {
-		double dd = 1.0 / pow(2.0, d->outset);
-		r = g = b = 0;
-
-		pos = evt->pos + evt->len;
-		for (int i=0; i < d->inset; i++) {
-			dr = d->fg_color.r * dd;
-			dg = d->fg_color.g * dd;
-			db = d->fg_color.b * dd;
-
-			r += dr; if ( r > d->fg_color.r ) {r = d->fg_color.r;}
-			g += dg; if ( g > d->fg_color.g ) {g = d->fg_color.g;}
-			b += db; if ( b > d->fg_color.b ) {b = d->fg_color.b;}
-			strip_set_pixel_lvl(pos, r, g, b, f);
-			//ESP_LOGI(__func__, "[%d] outset %d/%d, %0.4f RGB=%d,%d,%d", evt->lfd, i, d->inset, dd,r,g,b);
-			pos--;
-		}
-	}
-	evt->w_flags |= EVENT_FLAG_BIT_STRIP_SHOW_NEEDED;
-
-}
-*/
-
-static void process_solid(T_EVENT *evt) {
-	//T_SOLID_DATA *d = (T_SOLID_DATA*) evt->data;
-	/*
-	double p;
-
-	switch (evt->status) {
-	case SCENE_IDLE:
-		if ( s_scene_time <= evt->t_start ) {
-			// not yet
-			//ESP_LOGI(__func__, "[%d] check start %lld <= %lld", evt->lfd, s_scene_time, evt->t_start);
-			break;
-		}
-		ESP_LOGI(__func__, "[%d] started", evt->lfd);
-		evt->w_t = 0;
-		if ( evt->t_fade_in > 0 ) {
-			//have to fade in
-			evt->status = SCENE_STARTED;
-		} else {
-			evt->status = SCENE_UP;
-			process_solid_set_pixel(evt, 1.0);
-		}
-		break;
-
-	case SCENE_STARTED:
-		p = 1.0 * evt->w_t / evt->t_fade_in;
-		process_solid_set_pixel(evt, p);
-		if ( p > 1.0 ) {
-			evt->status = SCENE_UP;
-			break;
-		}
-		break;
-	case SCENE_UP:
-		if ( evt->w_t < evt->duration) {
-			// not yet
-			break;
-		}
-		ESP_LOGI(__func__,"[%d] duration -> stop %lld, %lld", evt->lfd, evt->w_t, evt->duration);
-		evt->w_t = 0;
-		if ( evt->t_fade_out > 0 ) {
-			evt->status = SCENE_ENDED;
-		} else {
-			evt->status = SCENE_FINISHED;
-		}
-		break;
-	case SCENE_ENDED:
-		p = 1.0 - (1.0 * evt->w_t / evt->t_fade_out);
-		process_solid_set_pixel(evt, p);
-		if ( p < 0.0 ) {
-			evt->status = SCENE_FINISHED;
-			strip_set_color(evt->pos, evt->pos+ evt->len, 0, 0, 0);
-			evt->w_flags |= EVENT_FLAG_BIT_STRIP_SHOW_NEEDED;
-
-			ESP_LOGI(__func__, "[%d] done", evt->lfd);
-			break;
-		}
-		break;
-	case SCENE_FINISHED:
-		break;
-	}
-	evt->w_t += s_timer_period;
-*/
-}
-
-static void process_blank(T_EVENT *evt) {
-	/*
-
-	int32_t evt_len, evt_pos, evt_end;
-	switch (evt->status) {
-	case SCENE_IDLE:
-		if ( s_scene_time <= evt->t_start ) {
-			// not yet
-			//ESP_LOGI(__func__, "[%d] check start %lld <= %lld", evt->lfd, s_scene_time, evt->t_start);
-			break;
-		}
-		// scene starts
-		check_clear_strip(evt);
-		real_pos_len(evt, &evt_pos, &evt_len);
-		if ( evt_len > 0) {
-			strip_set_color(evt->pos, evt_len, 0, 0, 0);
-			evt->w_flags |= EVENT_FLAG_BIT_STRIP_SHOW_NEEDED;
-		}
-		evt->status = SCENE_UP;
-		ESP_LOGI(__func__, "[%d] started", evt->lfd);
-		break;
-	case SCENE_STARTED:
-		// do movement
-		break;
-	case SCENE_UP:
-		if ( evt->w_t < evt->duration) {
-			// not yet
-			break;
-		}
-		ESP_LOGI(__func__,"[%d] duration -> stop %lld, %lld", evt->lfd, evt->w_t, evt->duration);
-		//evt->w_flags |= EVENT_FLAG_BIT_STRIP_SHOW_NEEDED;
-		evt->status = SCENE_FINISHED;
-		ESP_LOGI(__func__, "[%d] done", evt->lfd);
-		break;
-	case SCENE_ENDED:
-		// nothing to do
-		break;
-	case SCENE_FINISHED:
-		// nothing to do
-		break;
-	}
-	evt->w_t += s_timer_period;
-*/
-
+static void reset_event( T_EVENT *evt) {
+	evt->isdirty = 1;
+	evt->w_t = 0;
+	evt->mov_event.w_pos = evt->mov_event.start;
+	evt->mov_event.w_status = SCENE_IDLE;
+	evt->mov_event.w_t = 0;
 }
 
 /**
@@ -280,50 +110,51 @@ static void periodic_timer_callback(void* arg)
 
 	xEventGroupClearBits(s_timer_event_group, EVENT_BITS_ALL);
 
+	if (obtain_eventlist_lock() != ESP_OK) {
+		ESP_LOGE(__func__, "couldn't get lock on eventlist");
+		return;
+	}
 	if ( !s_event_list) {
 		//ESP_LOGI(__func__,"event list is empty");
+		// clear the strip except first led
+		strip_set_color(1, gConfig.numleds - 1, 0, 0, 0);
+		strip_show();
 		s_run_status = SCENES_NOTHING;
 		s_scene_time = 0;
+		release_eventlist_lock();
 		return;
 	}
 
 	if ( s_run_status != SCENES_RUNNING ) {
 		// nothing to do at this time
+		release_eventlist_lock();
 		return;
 	}
 
 	if ( do_reset) {
-		// reset all events
+		// reset all events, set isdirty on true;
 		for ( T_EVENT *evt= s_event_list; evt; evt = evt->nxt) {
-			evt->w_flags = 0;
-			evt->w_t = 0;
-			evt->status = SCENE_IDLE;
-			evt->w_pos = evt->pos;
-			evt->w_len = evt->len > 0 ? evt->len : strip_get_numleds();
+			reset_event(evt);
 		}
 	}
 
 	/// play scenes
 	s_scene_time += s_timer_period;
 	int n_paint=0;
-	int n_cleared = 0;
 	for ( T_EVENT *evt= s_event_list; evt; evt = evt->nxt) {
-		evt->w_flags &= ~ EVENT_FLAG_BIT_STRIP_SHOW_NEEDED;
-		evt->w_flags |= n_cleared;
-		switch(evt->type) {
-		case EVT_SOLID:
-			process_solid(evt);
-			break;
-		case EVT_BLANK:
-			process_blank(evt);
-			break;
-		default:
-			ESP_LOGI(__func__,"Event %d NYI", evt->type);
+		// first: move
+		process_move_events(evt,s_timer_period);
+		// next: time events
+		// TODO
+		// then: location
+		if ( evt->isdirty) {
+			process_loc_event(evt);
+			n_paint++;
+			evt->isdirty=0;
 		}
-		n_paint |= evt->w_flags & EVENT_FLAG_BIT_STRIP_SHOW_NEEDED ? 1 : 0;
-		n_cleared |= evt->w_flags & EVENT_FLAG_BIT_STRIP_CLEARED ? 1 : 0;
-
 	}
+	release_eventlist_lock();
+
 	if (n_paint ) {
 		ESP_LOGI(__func__, "strip_show");
 		strip_show();
@@ -391,10 +222,12 @@ void set_timer_cycle(int new_delta_ms) {
 void init_timer_events(int delta_ms) {
 	ESP_LOGI(__func__, "Start, delta=%d ms", delta_ms);
 
+	// initialize eventlist handling
+	init_eventlist_utils();
+
 	s_timer_period = delta_ms;
 	s_timer_event_group = xEventGroupCreate();
 	xEventGroupClearBits(s_timer_event_group, EVENT_BITS_ALL);
-
 
     const esp_timer_create_args_t periodic_timer_args = {
             .callback = &periodic_timer_callback,

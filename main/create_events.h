@@ -8,6 +8,20 @@
 #ifndef MAIN_CREATE_EVENTS_H_
 #define MAIN_CREATE_EVENTS_H_
 
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+#include "esp_timer.h"
+#include "esp_log.h"
+#include "esp_sleep.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/event_groups.h"
+#include "sdkconfig.h"
+#include "config.h"
+
+esp_err_t decode_effect_list(char *param, T_EVENT *event );
+
 /*
 void create_solid(
 		int32_t pos, // start position
