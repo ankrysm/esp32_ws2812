@@ -88,270 +88,6 @@ static uint32_t trufal(char *txt) {
 	}
 }
 
-/* Simple handler for light brightness control */
-/*
-static esp_err_t light_brightness_post_handler(httpd_req_t *req)
-{
-    int total_len = req->content_len;
-    int cur_len = 0;
-    char *buf = ((rest_server_context_t *)(req->user_ctx))->scratch;
-    int received = 0;
-    if (total_len >= SCRATCH_BUFSIZE) {
-        // Respond with 500 Internal Server Error
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "content too long");
-        return ESP_FAIL;
-    }
-    while (cur_len < total_len) {
-        received = httpd_req_recv(req, buf + cur_len, total_len);
-        if (received <= 0) {
-            // Respond with 500 Internal Server Error
-            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to post control value");
-            return ESP_FAIL;
-        }
-        cur_len += received;
-    }
-    buf[total_len] = '\0';
-
-    cJSON *root = cJSON_Parse(buf);
-    int red = cJSON_GetObjectItem(root, "red")->valueint;
-    int green = cJSON_GetObjectItem(root, "green")->valueint;
-    int blue = cJSON_GetObjectItem(root, "blue")->valueint;
-    ESP_LOGI(__func__, "Light control: red = %d, green = %d, blue = %d", red, green, blue);
-    cJSON_Delete(root);
-    httpd_resp_sendstr(req, "Post control value successfully");
-    return ESP_OK;
-}
-*/
-/* Simple handler for getting system handler * /
-static esp_err_t system_info_get_handler(httpd_req_t *req)
-{
-    httpd_resp_set_type(req, "application/json");
-    cJSON *root = cJSON_CreateObject();
-    esp_chip_info_t chip_info;
-    esp_chip_info(&chip_info);
-    cJSON_AddStringToObject(root, "version", IDF_VER);
-    cJSON_AddNumberToObject(root, "cores", chip_info.cores);
-    const char *sys_info = cJSON_Print(root);
-    httpd_resp_sendstr(req, sys_info);
-    free((void *)sys_info);
-    cJSON_Delete(root);
-    return ESP_OK;
-}
-/// */
-
-/*
-static int process_commands(char *buf) {
-	char *l,*t, *p1, *p2, *p3, *p4, *p5, *ll;
-	const char *tr=";\r\n";
-	for(t=strtok_r(buf,tr,&l); t; t=strtok_r(NULL,tr,&l)) {
-		p1=p2=p3=p4=p5=NULL;
-
-		int initialized =  strip_initialized();
-
-		p1=strtok_r(t,", ", &ll);
-		if ( !strcasecmp(p1,"c")) {
-			if ( !initialized) {
-				ESP_LOGE(__func__, "cmd '%s' not initialized",p1);
-				return -1;
-			}
-			strip_clear();
-			ESP_LOGI(__func__, "cmd '%s' (clear)", p1);
-
-		} else if ( !strcasecmp(p1,"i")) {
-			// init i,numleds;
-			p2=strtok_r(NULL,", ", &ll);
-			int numleds = atoi(p2);
-	    	strip_setup(numleds);
-
-			ESP_LOGI(__func__, "cmd '%s' (init %d)", p1, numleds);
-
-		} else if ( !strcasecmp(p1,"p")) {
-			// p,pos,r,g,b
-			if ( !initialized) {
-				ESP_LOGE(__func__, "cmd '%s' not initialized",p1);
-				return -1;
-			}
-			do {
-				if ( !(p2=strtok_r(NULL,", ", &ll))) break;
-				if ( !(p3=strtok_r(NULL,", ", &ll))) break;
-				if ( !(p4=strtok_r(NULL,", ", &ll))) break;
-				if ( !(p5=strtok_r(NULL,", ", &ll))) break;
-			} while(0);
-			int pos = p2 ? atoi(p2) : 0;
-			int red = p3 ? atoi(p3) : 0;
-			int green = p4 ? atoi(p4) : 0;
-			int blue = p5 ? atoi(p5) : 0;
-			strip_set_color(pos, pos, red, green, blue);
-			ESP_LOGI(__func__, "cmd '%s' (%d,%d,%d,%d)", p1, pos,red,green,blue);
-
-		} else if ( !strcasecmp(p1,"h")) {
-			// p,pos,h,s,v
-			if ( !initialized) {
-				ESP_LOGE(__func__, "cmd '%s' not initialized",p1);
-				return -1;
-			}
-			do {
-				if ( !(p2=strtok_r(NULL,", ", &ll))) break;
-				if ( !(p3=strtok_r(NULL,", ", &ll))) break;
-				if ( !(p4=strtok_r(NULL,", ", &ll))) break;
-				if ( !(p5=strtok_r(NULL,", ", &ll))) break;
-			} while(0);
-			int pos = p2 ? atoi(p2) : 0;
-			int hue = p3 ? atoi(p3) : 0;
-			int sat = p4 ? atoi(p4) : 0;
-			int val = p5 ? atoi(p5) : 0;
-			uint32_t red;
-			uint32_t green;
-			uint32_t blue;
-			led_strip_hsv2rgb(hue, sat, val, &red, &green, &blue);
-
-			strip_set_color(pos, pos, red, green, blue);
-			//ESP_LOGI(__func__, "cmd '%s' (%d,%d,%d,%d)", p1, pos,red,green,blue);
-
-		} else if ( !strcasecmp(p1,"r")) {
-			// rotate
-			// r,n  -n < 0 oder > 0 die Richtung und stepweite
-			if ( !initialized) {
-				ESP_LOGE(__func__, "cmd '%s' not initialized",p1);
-				return -1;
-			}
-			do {
-				if ( !(p2=strtok_r(NULL,", ", &ll))) break;
-			} while(0);
-			int32_t dir = p2 ? atoi(p2) : 0;
-			strip_rotate(dir);
-
-		} else {
-			ESP_LOGI(__func__, "ignored cmd => '%s'", p1);
-		}
-	}
- 	strip_show();
- 	return 0;
-}
-*/
-
-/*
-static esp_err_t post_handler_strip_file(httpd_req_t *req)
-{
-    int total_len = req->content_len;
-    int cur_len = 0;
-    char *buf = ((rest_server_context_t *)(req->user_ctx))->scratch;
-    int received = 0;
-    if (total_len >= SCRATCH_BUFSIZE) {
-        // Respond with 500 Internal Server Error
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "content too long");
-        return ESP_FAIL;
-    }
-    while (cur_len < total_len) {
-        received = httpd_req_recv(req, buf + cur_len, total_len);
-        if (received <= 0) {
-            // Respond with 500 Internal Server Error
-            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to post control value");
-            return ESP_FAIL;
-        }
-        cur_len += received;
-    }
-    //ESP_LOGI(__func__, "%s: received %d total %d bytes", __func__, cur_len, total_len);
-
-    buf[total_len] = '\0';
-    int res = process_commands(buf);
-    if ( res) {
-    	httpd_resp_sendstr(req, "NOT INITIALIZED\n");
-    } else {
-    	httpd_resp_sendstr(req, "POST-Request successfully\n");
-    }
-    return ESP_OK;
-}
-*/
-
-
-/* An HTTP GET handler */
-
-/*
-static esp_err_t get_handler_strip_setup(httpd_req_t *req)
-{
-    char*  buf;
-    size_t buf_len;
-
-
-    // Read URL query string length and allocate memory for length + 1,
-    //  extra byte for null termination
-    int numleds=0;
-
-    buf_len = httpd_req_get_url_query_len(req) + 1;
-    if (buf_len > 1) {
-        buf = malloc(buf_len);
-        if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK) {
-            ESP_LOGI(__func__, "Found URL query => %s", buf);
-            char param[32];
-            // Get value of expected key from query string
-            if (httpd_query_key_value(buf, "n", param, sizeof(param)) == ESP_OK) {
-                 ESP_LOGI(__func__, "Found URL query parameter => n=%s", param);
-                 numleds = atoi(param);
-             }
-        }
-        free(buf);
-    }
-
-    // TODO do_led1();
-    char resp_str[64];
-    if ( strip_initialized()) {
-        snprintf(resp_str, sizeof(resp_str),"INITIALIZED\n");
-    } else {
-    	strip_setup(numleds);
-        snprintf(resp_str, sizeof(resp_str),"done. numleds=%d\n", numleds);
-    }
-
-    // Response-String
-    httpd_resp_send(req, resp_str, HTTPD_RESP_USE_STRLEN);
-
-    return ESP_OK;
-}
-*/
-
-/*
-static esp_err_t get_handler_strip_rotate(httpd_req_t *req)
-{
-    char*  buf;
-    size_t buf_len;
-
-
-    // Read URL query string length and allocate memory for length + 1,
-    //  extra byte for null termination
-    int32_t dir=0;
-
-    buf_len = httpd_req_get_url_query_len(req) + 1;
-    if (buf_len > 1) {
-        buf = malloc(buf_len);
-        if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK) {
-            ESP_LOGI(__func__, "Found URL query => %s", buf);
-            char param[32];
-            // Get value of expected key from query string
-            if (httpd_query_key_value(buf, "d", param, sizeof(param)) == ESP_OK) {
-                 ESP_LOGI(__func__, "Found URL query parameter => d=%s", param);
-                 dir = atoi(param);
-             }
-        }
-        free(buf);
-    }
-
-    char resp_str[64];
-    if ( !strip_initialized()) {
-        snprintf(resp_str, sizeof(resp_str),"NOT INITIALIZED\n");
-    } else {
-    	strip_rotate(dir);
-    	strip_show();
-        snprintf(resp_str, sizeof(resp_str),"done: %d\n", dir);
-    }
-
-    // Response-String
-    httpd_resp_send(req, resp_str, HTTPD_RESP_USE_STRLEN);
-
-    return ESP_OK;
-}
-*/
-
-
 static esp_err_t get_handler_strip_setcolor(httpd_req_t *req)
 {
     char*  buf;
@@ -495,6 +231,7 @@ static esp_err_t get_handler_strip_config(httpd_req_t *req)
 {
 	char*  buf;
 	size_t buf_len;
+	int restart_needed = 0;
 
 
 	// Read URL query string length and allocate memory for length + 1,
@@ -528,9 +265,7 @@ static esp_err_t get_handler_strip_config(httpd_req_t *req)
 				int numleds = atoi(param);
 				gConfig.numleds = numleds;
 
-				// stop playing when numleds changed
-				scenes_stop();
-				strip_setup(numleds);
+				restart_needed  = 1;
 			}
 			paramname = "cycle";
 			if (httpd_query_key_value(buf, paramname, param, sizeof(param)) == ESP_OK) {
@@ -568,11 +303,23 @@ static esp_err_t get_handler_strip_config(httpd_req_t *req)
 
     // led strip configuration
     const char *resp = cJSON_PrintUnformatted(root);
-    httpd_resp_sendstr(req, resp);
+    ESP_LOGI(__func__,"resp=%s", resp?resp:"nix");
+	httpd_resp_send_chunk(req, resp, strlen(resp));
+	httpd_resp_send_chunk(req, "\n", 1);
+
     free((void *)resp);
     cJSON_Delete(root);
 
+	// End response
+	httpd_resp_send_chunk(req, NULL, 0);
 
+	if ( restart_needed ) {
+		ESP_LOGI(__func__,"Restarting in a second...\n");
+		vTaskDelay(1000 / portTICK_PERIOD_MS);
+	    ESP_LOGI(__func__, "Restarting now.\n");
+	    fflush(stdout);
+	    esp_restart();
+	}
 	return ESP_OK;
 }
 
@@ -737,10 +484,7 @@ esp_err_t start_rest_server(const char *base_path)
 		return ESP_FAIL;
 	}
 
-    //REST_CHECK(base_path, "wrong base path", err);
-
 	rest_server_context_t *rest_context = (rest_server_context_t*) calloc(1, sizeof(rest_server_context_t));
-    //REST_CHECK(rest_context, "No memory for rest context", err);
 	if ( !rest_context) {
 		ESP_LOGE(__func__, "No memory for rest context" );
 		return ESP_FAIL;
@@ -755,7 +499,6 @@ esp_err_t start_rest_server(const char *base_path)
     config.uri_match_fn = httpd_uri_match_wildcard;
 
     ESP_LOGI(__func__, "Starting HTTP Server");
-    //REST_CHECK
     if ( httpd_start(&server, &config) != ESP_OK ) {
     	ESP_LOGE(__func__, "Start server failed");
         free(rest_context);
@@ -763,17 +506,8 @@ esp_err_t start_rest_server(const char *base_path)
     }
 
     // Install URI Handler
-    /* / URI handler for fetching system info
-    httpd_uri_t system_info_get_uri = {
-        .uri = "/api/v1/system/info",
-        .method = HTTP_GET,
-        .handler = system_info_get_handler,
-        .user_ctx = rest_context
-    };
-    httpd_register_uri_handler(server, &system_info_get_uri);
-    // */
 
-    // vconfig
+    // config
     httpd_uri_t strip_setup = {
         .uri       = "/api/v1/config",
         .method    = HTTP_GET,
@@ -798,41 +532,6 @@ esp_err_t start_rest_server(const char *base_path)
     };
     httpd_register_uri_handler(server, &status_uri);
 
-    /*
-    httpd_uri_t run_uri = {
-        .uri       = "/api/v1/run",
-        .method    = HTTP_GET,
-        .handler   = get_handler_run,
-        .user_ctx  = rest_context
-    };
-    httpd_register_uri_handler(server, &run_uri);
-
-    httpd_uri_t pause_uri = {
-         .uri       = "/api/v1/pause",
-         .method    = HTTP_GET,
-         .handler   = get_handler_pause,
-         .user_ctx  = rest_context
-     };
-     httpd_register_uri_handler(server, &pause_uri);
-
-     httpd_uri_t stop_uri = {
-         .uri       = "/api/v1/stop",
-         .method    = HTTP_GET,
-         .handler   = get_handler_stop,
-         .user_ctx  = rest_context
-     };
-     httpd_register_uri_handler(server, &stop_uri);
-
-     httpd_uri_t restart_uri = {
-         .uri       = "/api/v1/restart",
-         .method    = HTTP_GET,
-         .handler   = get_handler_restart,
-         .user_ctx  = rest_context
-     };
-     httpd_register_uri_handler(server, &restart_uri);
-	*/
-
-
     httpd_uri_t strip_setcolor = {
         .uri       = "/api/v1/setcolor",
         .method    = HTTP_GET,
@@ -841,28 +540,7 @@ esp_err_t start_rest_server(const char *base_path)
     };
     httpd_register_uri_handler(server, &strip_setcolor);
 
-    /**
-    httpd_uri_t strip_rotate = {
-        .uri       = "/api/v1/rotate",
-        .method    = HTTP_GET,
-        .handler   = get_handler_strip_rotate,
-        .user_ctx  = rest_context
-    };
-    httpd_register_uri_handler(server, &strip_rotate);
-
-    httpd_uri_t strip_file = {
-        .uri       = "/api/v1/file",
-        .method    = HTTP_POST,
-        .handler   = post_handler_strip_file,
-        .user_ctx  = rest_context
-    };
-    httpd_register_uri_handler(server, &strip_file);
-*/
     return ESP_OK;
-//err_start:
-//    free(rest_context);
-//err:
-//    return ESP_FAIL;
 }
 
 void server_stop() {
@@ -872,16 +550,11 @@ void server_stop() {
 	        ESP_LOGI(__func__, "HTTP Server STOPP");
 	        server=NULL;
 	    }
-
 }
-
-
 
 void init_restservice() {
 
-//	ESP_ERROR_CHECK(example_connect());
 	ESP_ERROR_CHECK(start_rest_server(CONFIG_EXAMPLE_WEB_MOUNT_POINT));
-	//ESP_LOGI(__func__, "ohne HTTP Server start");
 
 }
 

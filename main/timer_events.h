@@ -8,10 +8,8 @@
 #ifndef MAIN_TIMER_EVENTS_H_
 #define MAIN_TIMER_EVENTS_H_
 
-#include "timer_event_types.h"
 #include "color.h"
-//#include "location_based_events.h"
-//#include "move_events.h"
+
 /**********************************************
  * status of a single scene
  ***********************************************/
@@ -75,11 +73,6 @@ typedef struct MOV_EVENT {
 	uint64_t w_t; // for timing, contains some ms
 } T_MOV_EVENT;
 
-
-
-
-
-// run status
 /**********************************************
  * status of a play list
  ***********************************************/
@@ -100,19 +93,6 @@ typedef enum {
 
 
 
-/*
-typedef enum {
-	AL_LEFT,
-	AL_RIGHT,
-	AL_CENTER
-} alignement_type;
-*/
-
-// a process function has changed the display data
-//#define EVENT_FLAG_BIT_STRIP_SHOW_NEEDED BIT0
-// a process function has cleared the strip data
-//#define EVENT_FLAG_BIT_STRIP_CLEARED BIT1
-
 typedef struct EVENT{
 	uint32_t lfd; // for logging
 	int32_t pos; // start position on strip, negative values - before the beginning
@@ -131,26 +111,4 @@ typedef struct EVENT{
 	struct EVENT *nxt;
 } T_EVENT;
 
-/*
-// some prototyped
-void init_timer_events(int delta_ms);
-void set_timer_cycle(int new_delta_ms);
-void scenes_start();
-void scenes_stop();
-void scenes_pause();
-void scenes_restart();
-run_status_type get_scene_status();
-run_status_type set_scene_status(run_status_type new_status);
-uint64_t get_event_timer_period();
-uint64_t get_scene_time();
-esp_err_t event_list_free();
-esp_err_t event_list_add(T_EVENT *evt);
-esp_err_t obtain_eventlist_lock();
-esp_err_t release_eventlist_lock();
-void init_eventlist_utils();
-
-esp_err_t process_loc_event(T_EVENT *evt);
-esp_err_t process_move_events(T_EVENT *evt, uint64_t timer_period);
-
-*/
 #endif /* MAIN_TIMER_EVENTS_H_ */

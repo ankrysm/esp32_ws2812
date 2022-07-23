@@ -15,8 +15,6 @@
 #include "color.h"
 #include "led_strip.h"
 #include "wifi_config.h"
-#include "location_based_events.h"
-#include "move_events.h"
 #include "timer_events.h"
 
 // useful definitions

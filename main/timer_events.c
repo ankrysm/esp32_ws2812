@@ -7,26 +7,8 @@
  *      Author: ankrysm
  */
 
-/*
-#include <stdio.h>
-#include <string.h>
-#include <unistd.h>
-#include "esp_timer.h"
-#include "esp_log.h"
-#include "esp_sleep.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "freertos/event_groups.h"
-#include "sdkconfig.h"
-#include "timer_events.h"
-#include "local.h"
-#include "math.h"
-#include "led_strip_proto.h"
-*/
-
 #include "esp32_ws2812.h"
 
-extern T_CONFIG gConfig;
 
 static esp_timer_handle_t s_periodic_timer;
 static uint64_t s_timer_period; // in ms
@@ -37,11 +19,6 @@ static const int EVENT_BIT_STOP = BIT1;
 static const int EVENT_BIT_PAUSE = BIT2;
 static const int EVENT_BIT_NEW_SCENE = BIT3;
 static const int EVENT_BIT_RESTART = BIT4;
-
-// processing flags
-//static const uint32_t EVENT_BIT_STRIP_SHOW_NEEDED = BIT0;
-//static const uint32_t EVENT_BIT_END_OF_SCENE = BIT1;
-
 
 static const int EVENT_BITS_ALL = EVENT_BIT_START | \
 		EVENT_BIT_STOP | \
@@ -121,7 +98,7 @@ static void periodic_timer_callback(void* arg)
 	if ( !s_event_list) {
 		//ESP_LOGI(__func__,"event list is empty");
 		// clear the strip except first led
-		strip_set_color(1, gConfig.numleds - 1, 0, 0, 0);
+		strip_set_color(1, strip_get_numleds() - 1, 0, 0, 0);
 		strip_show();
 		s_run_status = RUN_STATUS_IDLE;
 		s_scene_time = 0;

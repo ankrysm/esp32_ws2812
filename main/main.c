@@ -49,7 +49,7 @@ void app_main() {
 	ESP_ERROR_CHECK(init_storage());
 
 	// init led-strip
-	ESP_ERROR_CHECK(strip_setup(gConfig.numleds));
+	ESP_ERROR_CHECK(strip_init(gConfig.numleds));
 
 	// start timer
 	init_timer_events(50); // TODO config time

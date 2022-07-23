@@ -161,8 +161,7 @@ static esp_err_t ws2812_rotate(led_strip_t *strip, int32_t direction)
     uint32_t dest_pos    = ( direction >= 0 ? 0                    : 1 )* 3;
     uint32_t sz = (ws2812->strip_len -1) *3;
 
-    // In thr order of GRB
-
+    // In the order of GRB
     uint32_t green = ws2812->buffer[save_pos + 0];
     uint32_t red  = ws2812->buffer[save_pos + 1];
     uint32_t blue = ws2812->buffer[save_pos + 2];
@@ -175,28 +174,6 @@ static esp_err_t ws2812_rotate(led_strip_t *strip, int32_t direction)
     return ret;
 }
 
-led_strip_t *led_strip_resize_rmt_ws2812(led_strip_t *strip, uint32_t new_numleds)
-{
-    led_strip_t *ret = NULL;  // neede for macro
-    ws2812_t *ws2812 = __containerof(strip, ws2812_t, parent);
-    if ( new_numleds == ws2812->strip_len ) {
-    	// new = old, nothing todo
-    	return strip;
-    }
-
-    // 24 bits per led
-    uint32_t new_ws2812_size = sizeof(ws2812_t) + new_numleds * 3;
-    ws2812_t *new_ws2812 = realloc(ws2812, new_ws2812_size);
-    STRIP_CHECK(new_ws2812, "realloc for ws2812 failed", err, NULL);
-
-    ws2812->strip_len = new_numleds;
-
-    // Write zero to turn off all leds
-    memset(ws2812->buffer, 0, ws2812->strip_len * 3);
-    return &ws2812->parent;
-err:
-    return NULL;
-}
 
 led_strip_t *led_strip_new_rmt_ws2812(const led_strip_config_t *config)
 {
@@ -236,43 +213,4 @@ err:
     return ret;
 }
 
-
-
-/*
-led_strip_t * led_strip_init(uint8_t channel, uint8_t gpio, uint16_t led_num)
-{
-    static led_strip_t *pStrip;
-
-    rmt_config_t config = RMT_DEFAULT_CONFIG_TX(gpio, channel);
-    // set counter clock to 40MHz
-    config.clk_div = 2;
-
-    ESP_ERROR_CHECK(rmt_config(&config));
-    ESP_ERROR_CHECK(rmt_driver_install(config.channel, 0, 0));
-
-    // install ws2812 driver
-    led_strip_config_t strip_config = LED_STRIP_DEFAULT_CONFIG(led_num, (led_strip_dev_t)config.channel);
-
-    pStrip = led_strip_new_rmt_ws2812(&strip_config);
-
-    if ( !pStrip ) {
-        ESP_LOGE(TAG, "install WS2812 driver failed");
-        return NULL;
-    }
-
-    // Clear LED strip (turn off all LEDs)
-    ESP_ERROR_CHECK(pStrip->clear(pStrip, 100));
-
-    return pStrip;
-}
-*/
-
-/*
-esp_err_t led_strip_denit(led_strip_t *strip)
-{
-    ws2812_t *ws2812 = __containerof(strip, ws2812_t, parent);
-    ESP_ERROR_CHECK(rmt_driver_uninstall(ws2812->rmt_channel));
-    return strip->del(strip);
-}
-*/
 

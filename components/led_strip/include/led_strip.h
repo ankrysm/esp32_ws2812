@@ -129,17 +129,6 @@ typedef struct {
 */
 led_strip_t *led_strip_new_rmt_ws2812(const led_strip_config_t *config);
 
-/**
- * @brief Resize the LED strip
- *
- * @param strip: LED strip instance
- * @param new_numleds: new number of LED's
- *
- * @return
- *      LED strip instance or NULL
- */
-led_strip_t *led_strip_resize_rmt_ws2812(led_strip_t *strip, uint32_t new_numleds);
-
 
 /**
  * @brief Init the RMT peripheral and LED strip configuration.

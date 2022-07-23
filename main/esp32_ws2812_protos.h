@@ -20,8 +20,6 @@ void c_checkrgb(T_COLOR_RGB *rgb, T_COLOR_RGB *rgbmin, T_COLOR_RGB *rgbmax);
 
 // from led_strip.c
 esp_err_t strip_init(int numleds);
-esp_err_t strip_resize(int numleds);
-esp_err_t strip_setup(int numleds);
 void strip_set_color(uint32_t start_idx, uint32_t end_idx, uint32_t red, uint32_t green, uint32_t blue);
 void strip_set_pixel(uint32_t idx, uint32_t red, uint32_t green, uint32_t blue);
 void strip_set_pixel_lvl(uint32_t idx, uint32_t red, uint32_t green, uint32_t blue, double lvl);

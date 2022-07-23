@@ -63,40 +63,6 @@ esp_err_t strip_init(int numleds) {
 
 }
 
-esp_err_t strip_resize(int numleds) {
-	if (numleds <1 || numleds>1000) {
-		ESP_LOGE(__func__, "numleds %d out of range", numleds);
-		return ESP_FAIL;
-	}
-	s_numleds = numleds;
-	gVstrip = led_strip_resize_rmt_ws2812(gVstrip, numleds);
-	if (!gVstrip) {
-		ESP_LOGE(__func__, "resize WS2812 LED strip failed");
-		return ESP_FAIL;
-	}
-    ESP_LOGI(__func__, "resize done with numleds %d",numleds );
-
-    return ESP_OK;
-}
-
-/**
- * setup or change numleds
- */
-esp_err_t strip_setup(int numleds) {
-	esp_err_t ret;
-
-	if ( ! gVstrip) {
-		// Init needed
-		ret = strip_init(numleds);
-		ESP_LOGI(__func__, "setup done with numleds %d", numleds );
-	} else {
-		// resize strip
-		ret = strip_resize(numleds);
-		ESP_LOGI(__func__, "resize done with numleds %d", numleds );
-	}
-	return ret;
-}
-
 /**
  * sets the color for a pixel range
  */
