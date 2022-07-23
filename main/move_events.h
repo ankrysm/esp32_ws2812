@@ -8,6 +8,7 @@
 #ifndef MAIN_MOVE_EVENTS_H_
 #define MAIN_MOVE_EVENTS_H_
 
+/*
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -41,5 +42,6 @@ esp_err_t decode_effect_rotate(T_MOV_EVENT *evt, int32_t start, uint32_t len, ui
 void calc_pos(T_MOV_EVENT *evt, int32_t *pos, int32_t *delta);
 void mov_event2string(T_MOV_EVENT *evt, char *buf, size_t sz_buf);
 
+*/
 
 #endif /* MAIN_MOVE_EVENTS_H_ */

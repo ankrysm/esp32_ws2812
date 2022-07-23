@@ -5,6 +5,7 @@
  *      Author: ankrysm
  */
 
+/*
 #include "sdkconfig.h"
 #include <string.h>
 #include <fcntl.h>
@@ -33,10 +34,16 @@
 #include "color.h"
 #include "location_based_events.h"
 #include "move_events.h"
+*/
+
+#include "esp32_ws2812.h"
 
 extern T_CONFIG gConfig;
 
-
+/******************************************************
+ * decoding text strings for location based events
+ * called from create_events.c
+ ******************************************************/
 esp_err_t decode_effect_solid(T_LOC_EVENT *evt, uint32_t len, T_COLOR_HSV *hsv) {
 	memset(evt,0,sizeof(T_LOC_EVENT));
 
@@ -79,23 +86,28 @@ esp_err_t decode_effect_smooth(
     return ESP_OK;
 }
 
+/******************************************************
+ * process location based events
+ ******************************************************/
 
-esp_err_t process_effect_solid(T_EVENT *evt) {
+/*
+ * solid
+ */
+static esp_err_t process_effect_solid(T_EVENT *evt) {
 
 	T_LOC_EVENT *levt = &(evt->loc_event);
 	T_MOV_EVENT *mevt = &(evt->mov_event);
 
 	int32_t start = evt->mov_event.w_pos;
 
-    ESP_LOGI(__func__,"start=%d, len=%d rgb=%d/%d/%d",
-    		start, levt->len, levt->rgb1.r, levt->rgb1.g, levt->rgb1.b
-    );
+    //ESP_LOGI(__func__,"start=%d, len=%d rgb=%d/%d/%d", start, levt->len, levt->rgb1.r, levt->rgb1.g, levt->rgb1.b);
 
 	int32_t delta_pos = 1;
 	int32_t pos = start;
 	for ( int i = 0; i < levt->len; i++) {
 		if ( pos > 0 && pos < gConfig.numleds) {
 			strip_set_pixel_rgb(pos, &(levt->rgb1));
+		    //ESP_LOGI(__func__,"i=%d: pos=%d", i, pos);
 		}
 		calc_pos(mevt, &pos, &delta_pos);
 	}
@@ -105,6 +117,9 @@ esp_err_t process_effect_solid(T_EVENT *evt) {
 	return ESP_OK;
 }
 
+/*
+ * smooth, with different fade types
+ */
 static void process_fade_lin(
 		int32_t *pos,
 		T_MOV_EVENT *mevt,
@@ -200,21 +215,24 @@ static void process_fade_exp(
 	}
 }
 
-
-esp_err_t process_effect_smooth(T_EVENT *evt) {
+/*
+ * smooth main
+ */
+static esp_err_t process_effect_smooth(T_EVENT *evt) {
 
 	T_LOC_EVENT *levt = &(evt->loc_event);
 	T_MOV_EVENT *mevt = &(evt->mov_event);
 
 	int32_t start = evt->mov_event.w_pos;
-	//uint32_t move_len = evt->mov_event.len;
 
+	/*
 	ESP_LOGI(__func__,"start=%d, len=%d, fade_in=%d, fade_out=%d, 1: rgb=%d/%d/%d, 2: rgb=%d/%d/%d, 3: rgb=%d/%d/%d",
     		start, levt->len, levt->fade_in, levt->fade_out,
 			levt->rgb1.r, levt->rgb1.g, levt->rgb1.b,
 			levt->rgb2.r, levt->rgb2.g, levt->rgb2.b,
 			levt->rgb3.r, levt->rgb3.g, levt->rgb3.b
     );
+    */
 
 	int32_t pos = start;
 
@@ -239,10 +257,7 @@ esp_err_t process_effect_smooth(T_EVENT *evt) {
 		}
 		calc_pos(mevt, &pos, &delta_pos);
 	}
-//	strip_set_color_rgb(pos, pos+len, &(levt->rgb2));
 	//ESP_LOGI(__func__, "middle %d-%d: rgb=%d/%d/%d",pos, pos+len, levt->rgb2.r, levt->rgb2.g, levt->rgb2.b);
-
-	//pos = start + levt->len;
 
 	if ( (levt->flags ) & fade_out_exp ) {
 		process_fade_exp(&pos, mevt, l_fade_out, &(levt->rgb2), &(levt->rgb3));
@@ -252,12 +267,10 @@ esp_err_t process_effect_smooth(T_EVENT *evt) {
 	return ESP_OK;
 }
 
-esp_err_t process_loc_event(
-		T_EVENT *evt
-) {
-	if ( !evt->isdirty) {
-		return ESP_OK; // mothing to do
-	}
+/******************************************************
+ * process location based events, main entry
+ ******************************************************/
+esp_err_t process_loc_event( T_EVENT *evt) {
 	switch(evt->loc_event.type) {
 	case LOC_EVENT_SOLID:
 		return process_effect_solid(evt);

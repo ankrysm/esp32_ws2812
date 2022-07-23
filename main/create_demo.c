@@ -6,16 +6,7 @@
  */
 
 
-
-#include <stdio.h>
-#include "sdkconfig.h"
-#include "esp_event.h"
-#include "esp_log.h"
-#include "local.h"
-#include "color.h"
-#include "config.h"
-//#include "timer_events.h"
-//#include "create_events.h"
+#include "esp32_ws2812.h"
 
 /*
 void start_demo1() {

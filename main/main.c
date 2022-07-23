@@ -22,6 +22,7 @@
 //#if CONFIG_EXAMPLE_WEB_DEPLOY_SD
 //#include "driver/sdmmc_host.h"
 //#endif
+/*
 #include "local.h"
 #include <stdio.h>
 
@@ -29,9 +30,10 @@
 #include "wifi_config.h"
 #include "timer_events.h"
 #include "led_strip_proto.h"
+*/
 
-
-esp_err_t init_fs(void);
+#include "esp32_ws2812.h"
+//esp_err_t init_fs(void);
 
 //void start_demo1();
 

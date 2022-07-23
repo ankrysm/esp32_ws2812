@@ -20,10 +20,6 @@ typedef enum {
 	WIFI_CONNECTION_FAILED, // connect failed
 } wifi_status_type;
 
-void initialise_wifi();
-esp_err_t waitforConnect();
-wifi_status_type wifi_connect_status();
-char *wifi_connect_status2text(wifi_status_type status);
 
 
 #endif /* MAIN_WIFI_CONFIG_H_ */

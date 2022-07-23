@@ -7,6 +7,8 @@
 
 #ifndef MAIN_LOCATION_BASED_EVENTS_H_
 #define MAIN_LOCATION_BASED_EVENTS_H_
+
+/*
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -20,7 +22,9 @@
 #include "config.h"
 #include "color.h"
 #include "timer_events.h"
+*/
 
+/*
 typedef enum {
 	LOC_EVENT_SOLID,
 	LOC_EVENT_SMOOTH
@@ -44,25 +48,6 @@ typedef struct LOC_EVENT{
 	T_COLOR_RGB rgb3;
 
 } T_LOC_EVENT;
-
-esp_err_t decode_effect_solid(T_LOC_EVENT *evt, uint32_t len, T_COLOR_HSV *hsv);
-
-//esp_err_t process_effect_solid(uint32_t start, T_LOC_EVENT *evt);
-
-esp_err_t decode_effect_smooth(
-		T_LOC_EVENT *evt,
-		uint32_t len,
-		uint32_t fade_in,
-		uint32_t fade_out,
-		T_COLOR_HSV *hsv1,
-		T_COLOR_HSV *hsv2,
-		T_COLOR_HSV *hsv3
-);
-
-void loc_event2string(T_LOC_EVENT *evt, char *buf, size_t sz_buf);
-
-//esp_err_t process_effect_smooth( uint32_t start, T_LOC_EVENT *evt);
-
-//esp_err_t process_loc_event(T_EVENT *evt);
+*/
 
 #endif /* MAIN_LOCATION_BASED_EVENTS_H_ */

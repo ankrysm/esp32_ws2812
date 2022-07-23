@@ -14,7 +14,6 @@
 
 // flag values
 #define CFG_AUTOPLAY 0x0001
-//#define CFG_REPEAT   0x0002
 
 #define LEN_SCENEFILE 32
 
@@ -26,10 +25,5 @@ typedef struct {
 } T_CONFIG;
 
 
-// prototypes
-esp_err_t store_config();
-esp_err_t store_wifi_config(char *ssid, char *pw);
-esp_err_t init_storage();
-char *config2txt(char *txt, size_t sz);
 
 #endif /* CONFIG_H_ */

@@ -28,7 +28,5 @@ typedef struct {
 	int32_t v;
 } T_COLOR_HSV;
 
-void c_hsv2rgb( T_COLOR_HSV *hsv, T_COLOR_RGB *rgb );
-void c_checkrgb(T_COLOR_RGB *rgb, T_COLOR_RGB *rgbmin, T_COLOR_RGB *rgbmax);
 
 #endif /* MAIN_COLOR_H_ */

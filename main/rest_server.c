@@ -6,6 +6,8 @@
    software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
    CONDITIONS OF ANY KIND, either express or implied.
 */
+
+/*
 #include "sdkconfig.h"
 #include <string.h>
 #include <fcntl.h>
@@ -34,6 +36,9 @@
 #include "color.h"
 #include "location_based_events.h"
 #include "create_events.h"
+*/
+
+#include "esp32_ws2812.h"
 
 #define MDNS_INSTANCE "esp home web server"
 
@@ -586,8 +591,8 @@ static esp_err_t get_handler_scene(httpd_req_t *req)
 	// Read URL query string length and allocate memory for length + 1,
 	// extra byte for null termination
 
-	run_status_type old_status = SCENES_NOTHING;
-	run_status_type new_status = SCENES_NOTHING;
+	run_status_type old_status = RUN_STATUS_IDLE;
+	run_status_type new_status = RUN_STATUS_IDLE;
 
 	char resp_str[255];
 
@@ -597,8 +602,8 @@ static esp_err_t get_handler_scene(httpd_req_t *req)
 		if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK) {
 			ESP_LOGI(__func__, "Found URL query => %s", buf);
 
-			//                   0     1      2       3       4
-			char *paramnames[]={"cmd","new","add","finished","list",""};
+			//                   0     1
+			char *paramnames[]={"cmd","add",""};
 			for (int i=0; strlen(paramnames[i]); i++) {
 				char param[256];
 				if (httpd_query_key_value(buf, paramnames[i], param, sizeof(param)) != ESP_OK) {
@@ -608,35 +613,65 @@ static esp_err_t get_handler_scene(httpd_req_t *req)
 				case 0: // cmd
 				{
 					if ( param[0] == 'r' ) {
-						new_status = SCENES_RUNNING;
+						new_status = RUN_STATUS_RUNNING;
 					} else if (param[0] == 's' ) {
-						new_status = SCENES_STOPPED;
+						new_status = RUN_STATUS_STOPPED;
 					} else if (param[0] == 'p' ) {
-						new_status = SCENES_PAUSED;
+						new_status = RUN_STATUS_PAUSED;
+					} else if (param[0] == 'l' ) {
+						// list events
+						{
+							extern T_EVENT *s_event_list;
+							if (obtain_eventlist_lock() != ESP_OK) {
+								ESP_LOGE(__func__, "couldn't get lock on eventlist");
+								break;
+							}
+							char buf[100];
+							if ( !s_event_list) {
+								snprintf(buf,sizeof(buf),"no events in list\n");
+								httpd_resp_send_chunk(req, buf, strlen(buf));
+							} else {
+								for ( T_EVENT *evt= s_event_list; evt; evt = evt->nxt) {
+									snprintf(resp_str,sizeof(resp_str),"event %d\n", evt->lfd);
+									httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
+
+									loc_event2string(&(evt->loc_event), buf, sizeof(buf));
+									snprintf(resp_str,sizeof(resp_str),"  loc_evt=%s\n", buf);
+									httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
+
+									mov_event2string(&(evt->mov_event), buf, sizeof(buf));
+									snprintf(resp_str,sizeof(resp_str),"  mov_evt=%s\n", buf);
+									httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
+								}
+							}
+							release_eventlist_lock();
+						}
+					} else if (param[0] == 'c' ) {
+						// clear
+						new_status = RUN_STATUS_STOPPED;
+						if (event_list_free() == ESP_OK) {
+							snprintf(resp_str,sizeof(resp_str),"event list cleared");
+						} else {
+							snprintf(resp_str,sizeof(resp_str),"clear event list failed");
+						}
+						httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
 					}
-					if (new_status != SCENES_NOTHING) {
+
+					if (new_status != RUN_STATUS_IDLE) {
 						old_status = set_scene_status(new_status);
-						ESP_LOGI(__func__,"New status %s -> %s\nTimer cycle=%lld ms\nScene time=%lld\n",
+						snprintf(resp_str,sizeof(resp_str),"New status %s -> %s\nTimer cycle=%lld ms\nScene time=%lld\n",
 								RUN_STATUS_TYPE2TEXT(old_status), RUN_STATUS_TYPE2TEXT(new_status),
 								get_event_timer_period(), get_scene_time());
 					} else {
 						old_status = get_scene_status();
-						ESP_LOGI(__func__,"Status %s\nTimer cycle=%lld ms\nScene time=%lld\n",
+						snprintf(resp_str,sizeof(resp_str),"Status %s\nTimer cycle=%lld ms\nScene time=%lld\n",
 								RUN_STATUS_TYPE2TEXT(old_status),
 								get_event_timer_period(), get_scene_time());
 					}
+					httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
 				}
 					break;
-				case 1: //new - starts a new scene block
-					set_scene_status(SCENES_STOPPED);
-					if (event_list_free() == ESP_OK) {
-						ESP_LOGI(__func__,"event list cleared");
-					} else {
-						ESP_LOGE(__func__,"clear event list failed");
-					}
-					break;
-
-				case 2: // add
+				case 1: // add
 				{
 					// expected typ,parameter,parameter ...
 					// type 'solid' parameter: startpixel, #pixel, h,s,v
@@ -658,40 +693,9 @@ static esp_err_t get_handler_scene(httpd_req_t *req)
 				}
 				break;
 
-				case 3: // finished - scene block complete
-					// nothing to do yet
-					break;
-				case 4:
-					// list
-				{
-					extern T_EVENT *s_event_list;
-					if (obtain_eventlist_lock() != ESP_OK) {
-						ESP_LOGE(__func__, "couldn't get lock on eventlist");
-						break;
-					}
-				    char buf[100];
-					if ( !s_event_list) {
-						snprintf(buf,sizeof(buf),"no events in list\n");
-						httpd_resp_send_chunk(req, buf, strlen(buf));
-					} else {
-						for ( T_EVENT *evt= s_event_list; evt; evt = evt->nxt) {
-							snprintf(resp_str,sizeof(resp_str),"event %d\n", evt->lfd);
-							httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
-
-							loc_event2string(&(evt->loc_event), buf, sizeof(buf));
-							snprintf(resp_str,sizeof(resp_str),"  loc_evt=%s\n", buf);
-							httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
-
-							mov_event2string(&(evt->mov_event), buf, sizeof(buf));
-							snprintf(resp_str,sizeof(resp_str),"  mov_evt=%s\n", buf);
-							httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
-						}
-					}
-					release_eventlist_lock();
-				}
-					break;
 				default:
-					ESP_LOGW(__func__,"%d NYI",i);
+					snprintf(resp_str,sizeof(resp_str),"%d NYI",i);
+					httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
 				}
 			}
 			free(buf);

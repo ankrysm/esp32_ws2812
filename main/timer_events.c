@@ -7,6 +7,7 @@
  *      Author: ankrysm
  */
 
+/*
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -21,6 +22,9 @@
 #include "local.h"
 #include "math.h"
 #include "led_strip_proto.h"
+*/
+
+#include "esp32_ws2812.h"
 
 extern T_CONFIG gConfig;
 
@@ -46,7 +50,7 @@ static const int EVENT_BITS_ALL = EVENT_BIT_START | \
 		EVENT_BIT_RESTART \
 		;
 
-static volatile run_status_type s_run_status = SCENES_NOTHING;
+static volatile run_status_type s_run_status = RUN_STATUS_IDLE;
 static volatile uint64_t s_scene_time = 0;
 
 T_EVENT *s_event_list = NULL;
@@ -79,31 +83,31 @@ static void periodic_timer_callback(void* arg)
 		// TODO switch to new scenes
 	}
 	if ( uxBits & EVENT_BIT_START ) {
-		if ( s_run_status != SCENES_RUNNING ) {
+		if ( s_run_status != RUN_STATUS_RUNNING ) {
 			ESP_LOGI(__func__, "Start scenes");
-			s_run_status = SCENES_RUNNING;
+			s_run_status = RUN_STATUS_RUNNING;
 			do_reset = true;
 		}
 	}
 	if ( uxBits & EVENT_BIT_STOP ) {
-		if ( s_run_status != SCENES_STOPPED ) {
+		if ( s_run_status != RUN_STATUS_STOPPED ) {
 			ESP_LOGI(__func__, "Stop scenes");
-			s_run_status = SCENES_STOPPED;
+			s_run_status = RUN_STATUS_STOPPED;
 			s_scene_time = 0; // stop resets the time
 			//flags |= EVENT_BIT_RESET; // set reset bit
 		}
 	}
 	if ( uxBits & EVENT_BIT_PAUSE ) {
-		if ( s_run_status != SCENES_PAUSED ) {
+		if ( s_run_status != RUN_STATUS_PAUSED ) {
 			ESP_LOGI(__func__, "Pause scenes");
-			s_run_status = SCENES_PAUSED;
+			s_run_status = RUN_STATUS_PAUSED;
 			// TODO do pause
 		}
 	}
 
 	if ( uxBits & EVENT_BIT_RESTART ) {
 			ESP_LOGI(__func__, "Restart scenes");
-			s_run_status = SCENES_RUNNING;
+			s_run_status = RUN_STATUS_RUNNING;
 			s_scene_time = 0; // stop resets the time
 			do_reset = true;
 	}
@@ -119,13 +123,13 @@ static void periodic_timer_callback(void* arg)
 		// clear the strip except first led
 		strip_set_color(1, gConfig.numleds - 1, 0, 0, 0);
 		strip_show();
-		s_run_status = SCENES_NOTHING;
+		s_run_status = RUN_STATUS_IDLE;
 		s_scene_time = 0;
 		release_eventlist_lock();
 		return;
 	}
 
-	if ( s_run_status != SCENES_RUNNING ) {
+	if ( s_run_status != RUN_STATUS_RUNNING ) {
 		// nothing to do at this time
 		release_eventlist_lock();
 		return;
@@ -141,24 +145,27 @@ static void periodic_timer_callback(void* arg)
 	/// play scenes
 	s_scene_time += s_timer_period;
 	int n_paint=0;
+	// first check: is something to paint?
 	for ( T_EVENT *evt= s_event_list; evt; evt = evt->nxt) {
 		// first: move
 		process_move_events(evt,s_timer_period);
-		// next: time events
-		// TODO
-		// then: location
 		if ( evt->isdirty) {
-			process_loc_event(evt);
 			n_paint++;
 			evt->isdirty=0;
 		}
+		// next: time events
+		// TODO
 	}
-	release_eventlist_lock();
 
-	if (n_paint ) {
-		ESP_LOGI(__func__, "strip_show");
+	if ( n_paint > 0) {
+		// i have something to paint
+		for ( T_EVENT *evt= s_event_list; evt; evt = evt->nxt) {
+			process_loc_event(evt);
+		}
+		//ESP_LOGI(__func__, "strip_show");
 		strip_show();
 	}
+	release_eventlist_lock();
 
     //int64_t time_since_boot = esp_timer_get_time();
     //ESP_LOGI(__func__, "Periodic timer called, time since boot: %lld us", time_since_boot);
@@ -196,10 +203,10 @@ run_status_type set_scene_status(run_status_type new_status) {
 	ESP_LOGI(__func__, "start %d",new_status);
 	run_status_type ret = s_run_status;
 	switch(new_status) {
-	case SCENES_STOPPED: scenes_stop(); break;
-	case SCENES_RUNNING: scenes_start(); break;
-	case SCENES_PAUSED:  scenes_pause(); break;
-	case SCENES_RESTART: scenes_restart(); break;
+	case RUN_STATUS_STOPPED: scenes_stop(); break;
+	case RUN_STATUS_RUNNING: scenes_start(); break;
+	case RUN_STATUS_PAUSED:  scenes_pause(); break;
+	case RUN_STATUS_RESTART: scenes_restart(); break;
 	default:
 		ESP_LOGE(__func__, "unexpected status %d", new_status);
 	}

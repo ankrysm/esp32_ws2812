@@ -6,6 +6,8 @@
    software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
    CONDITIONS OF ANY KIND, either express or implied.
 */
+
+/*
 #include "sdkconfig.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -14,70 +16,15 @@
 #include "led_strip.h"
 #include "config.h"
 #include "color.h"
+*/
+#include "esp32_ws2812.h"
+
 #define RMT_TX_CHANNEL RMT_CHANNEL_0
 #define LED_STRIP_PIN 13
 
-#define EXAMPLE_CHASE_SPEED_MS (200)
-
-//static int gVnumleds = 0;
 static led_strip_t *gVstrip = NULL;
 
 static uint32_t s_numleds;
-//extern T_CONFIG gConfig;
-
-/**
- * @brief Simple helper function, converting HSV color space to RGB color space
- *
- * Wiki: https://en.wikipedia.org/wiki/HSL_and_HSV
- *
- */
-/*
-void led_strip_hsv2rgb(uint32_t h, uint32_t s, uint32_t v, uint32_t *r, uint32_t *g, uint32_t *b)
-{
-    h %= 360; // h -> [0,360]
-    uint32_t rgb_max = v * 2.55f;
-    uint32_t rgb_min = rgb_max * (100 - s) / 100.0f;
-
-    uint32_t i = h / 60;
-    uint32_t diff = h % 60;
-
-    // RGB adjustment amount by hue
-    uint32_t rgb_adj = (rgb_max - rgb_min) * diff / 60;
-
-    switch (i) {
-    case 0:
-        *r = rgb_max;
-        *g = rgb_min + rgb_adj;
-        *b = rgb_min;
-        break;
-    case 1:
-        *r = rgb_max - rgb_adj;
-        *g = rgb_max;
-        *b = rgb_min;
-        break;
-    case 2:
-        *r = rgb_min;
-        *g = rgb_max;
-        *b = rgb_min + rgb_adj;
-        break;
-    case 3:
-        *r = rgb_min;
-        *g = rgb_max - rgb_adj;
-        *b = rgb_max;
-        break;
-    case 4:
-        *r = rgb_min + rgb_adj;
-        *g = rgb_min;
-        *b = rgb_max;
-        break;
-    default:
-        *r = rgb_max;
-        *g = rgb_min;
-        *b = rgb_max - rgb_adj;
-        break;
-    }
-}
-*/
 
 int strip_initialized() {
 	return gVstrip ? 1 : 0;
@@ -268,64 +215,3 @@ uint32_t strip_get_numleds() {
 	return s_numleds;
 }
 
-/*
-void led_strip_main(void)
-{
-	uint32_t red = 0;
-	uint32_t green = 0;
-	uint32_t blue = 0;
-	uint16_t hue = 0;
-	uint16_t start_rgb = 0;
-
-	//   int derpin=13;
-	int numleds=12;
-
-	strip_setup(numleds);
-
-	//    rmt_config_t config = RMT_DEFAULT_CONFIG_TX(derpin, //CONFIG_EXAMPLE_RMT_TX_GPIO,
-	//    		RMT_TX_CHANNEL);
-	//    // set counter clock to 40MHz
-	//    config.clk_div = 2;
-	//
-	//    ESP_ERROR_CHECK(rmt_config(&config));
-	//    ESP_ERROR_CHECK(rmt_driver_install(config.channel, 0, 0));
-	//
-	//    // install ws2812 driver
-	//    led_strip_config_t strip_config = LED_STRIP_DEFAULT_CONFIG(numleds //CONFIG_EXAMPLE_STRIP_LED_NUMBER
-	//    		, (led_strip_dev_t)config.channel);
-	//    led_strip_t *strip = led_strip_new_rmt_ws2812(&strip_config);
-	//    if (!strip) {
-	//        ESP_LOGE(__func__, "install WS2812 driver failed");
-	//    }
-	//    // Clear LED strip (turn off all LEDs)
-	//    ESP_ERROR_CHECK(strip->clear(strip, 100));
-	// Show simple rainbow chasing pattern
-
-	ESP_LOGI(__func__, "LED Rainbow Chase Start");
-	int base=0;
-	while (true) {
-		for (int j = 0; j < numleds; j++) {
-			if ( (j+base) % 3 == 0) {
-				// Build RGB values
-				hue = (j+base) * 360 / numleds + start_rgb;
-				led_strip_hsv2rgb(hue, 100, 50, &red, &green, &blue);
-			} else {
-				led_strip_hsv2rgb(hue, 100, 10, &red, &green, &blue);
-			}
-			// Write RGB values to strip driver
-			strip_set_color(j, j, red, green, blue);
-			//ESP_ERROR_CHECK(gVstrip->set_pixel(gVstrip, j, red, green, blue));
-		}
-		base = (base+1) % numleds;
-
-		// Flush RGB values to LEDs
-		strip_show();
-		//ESP_ERROR_CHECK(gVstrip->refresh(gVstrip, 100));
-
-		vTaskDelay(pdMS_TO_TICKS(EXAMPLE_CHASE_SPEED_MS));
-		//strip->clear(strip, 50);
-		//vTaskDelay(pdMS_TO_TICKS(EXAMPLE_CHASE_SPEED_MS));
-		start_rgb += 60;
-	}
-}
-/// */

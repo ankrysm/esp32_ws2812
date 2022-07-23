@@ -5,6 +5,7 @@
  *      Author: andreas
  */
 
+/*
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -20,6 +21,9 @@
 #include "color.h"
 #include "led_strip.h"
 #include "led_strip_proto.h"
+*/
+
+#include "esp32_ws2812.h"
 
 
 extern T_EVENT *s_event_list;

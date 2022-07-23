@@ -7,6 +7,7 @@
    CONDITIONS OF ANY KIND, either express or implied.
 */
 
+/*
 #include <string.h>
 #include <stdlib.h>
 #include "freertos/FreeRTOS.h"
@@ -22,6 +23,8 @@
 #include "esp_smartconfig.h"
 #include "mdns.h"
 #include "lwip/apps/netbiosns.h"
+*/
+#include "esp32_ws2812_basic.h"
 #include "wifi_config.h"
 
 //void firstled(int red, int green, int blue);

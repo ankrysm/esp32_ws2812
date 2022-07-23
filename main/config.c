@@ -7,6 +7,7 @@
 
 
 
+/*
 #include "sdkconfig.h"
 #include "driver/gpio.h"
 #include "esp_vfs_semihost.h"
@@ -21,6 +22,9 @@
 #include "lwip/apps/netbiosns.h"
 #include "local.h"
 #include <stdio.h>
+*/
+
+#include "esp32_ws2812_basic.h"
 #include "config.h"
 
 
@@ -148,7 +152,7 @@ esp_err_t init_storage() {
     	// has to initialized
     	snprintf(gConfig.autoplayfile, LEN_SCENEFILE, "%s", "autoplay");
     	gConfig.flags = CFG_AUTOPLAY;
-    	gConfig.cycle = 100;
+    	gConfig.cycle = 50;
     	gConfig.numleds = 60;
 
     	ret = store_config();

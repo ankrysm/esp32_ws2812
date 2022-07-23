@@ -5,19 +5,9 @@
  *      Author: ankrysm
  */
 
-#include <stdio.h>
-#include <string.h>
-#include <unistd.h>
-#include "esp_timer.h"
-#include "esp_log.h"
-#include "esp_sleep.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "freertos/event_groups.h"
-#include "sdkconfig.h"
-#include "local.h"
-
+#include "esp32_ws2812_basic.h"
 #include "color.h"
+
 
 /**
  * @brief Simple helper function, converting HSV color space to RGB color space
