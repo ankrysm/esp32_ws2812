@@ -31,6 +31,7 @@ static volatile run_status_type s_run_status = RUN_STATUS_IDLE;
 static volatile uint64_t s_scene_time = 0;
 
 T_EVENT *s_event_list = NULL;
+extern T_CONFIG gConfig;
 
 
 static void reset_event( T_EVENT *evt) {
@@ -40,6 +41,32 @@ static void reset_event( T_EVENT *evt) {
 	evt->mov_event.w_status = SCENE_IDLE;
 	evt->mov_event.w_t = 0;
 }
+
+static void show_status() {
+	if ( gConfig.flags & CFG_SHOW_STATUS) {
+		if (gConfig.flags & CFG_WITH_WIFI) {
+			// green
+			firstled(0,32,0);
+		} else {
+			// red
+			firstled(32,0,0);
+		}
+	}
+
+}
+
+static int logcnt=0;
+static void periodic_timer_callback(void* arg);
+static void periodic_timer_callback_t(void* arg) {
+	int64_t t_start = esp_timer_get_time();
+	periodic_timer_callback(arg);
+	int64_t t_end = esp_timer_get_time();
+	if ( logcnt > 0 ) {
+		ESP_LOGI(__func__,"processing time %lld mikrosec", (t_end - t_start));
+		logcnt--;
+	}
+}
+
 
 /**
  * main timer function
@@ -60,6 +87,7 @@ static void periodic_timer_callback(void* arg)
 		// TODO switch to new scenes
 	}
 	if ( uxBits & EVENT_BIT_START ) {
+		logcnt = 10;
 		if ( s_run_status != RUN_STATUS_RUNNING ) {
 			ESP_LOGI(__func__, "Start scenes");
 			s_run_status = RUN_STATUS_RUNNING;
@@ -95,19 +123,23 @@ static void periodic_timer_callback(void* arg)
 		ESP_LOGE(__func__, "couldn't get lock on eventlist");
 		return;
 	}
-	if ( !s_event_list) {
-		//ESP_LOGI(__func__,"event list is empty");
-		// clear the strip except first led
-		strip_set_color(1, strip_get_numleds() - 1, 0, 0, 0);
-		strip_show();
-		s_run_status = RUN_STATUS_IDLE;
-		s_scene_time = 0;
+
+	if ( s_run_status != RUN_STATUS_RUNNING ) {
+		// nothing to do at this time
 		release_eventlist_lock();
 		return;
 	}
 
-	if ( s_run_status != RUN_STATUS_RUNNING ) {
-		// nothing to do at this time
+	if ( !s_event_list) {
+		//ESP_LOGI(__func__,"event list is empty");
+		// clear the strip
+		uint32_t n = strip_get_numleds();
+		ESP_LOGI(__func__,"reset numleds=%u", n);
+		strip_set_color(0, n - 1, 0, 0, 0);
+		show_status();
+		strip_show();
+		s_run_status = RUN_STATUS_IDLE;
+		s_scene_time = 0;
 		release_eventlist_lock();
 		return;
 	}
@@ -140,6 +172,7 @@ static void periodic_timer_callback(void* arg)
 			process_loc_event(evt);
 		}
 		//ESP_LOGI(__func__, "strip_show");
+		show_status();
 		strip_show();
 	}
 	release_eventlist_lock();
@@ -214,7 +247,7 @@ void init_timer_events(int delta_ms) {
 	xEventGroupClearBits(s_timer_event_group, EVENT_BITS_ALL);
 
     const esp_timer_create_args_t periodic_timer_args = {
-            .callback = &periodic_timer_callback,
+            .callback = &periodic_timer_callback_t,
             // name is optional, but may help identify the timer when debugging
             .name = "periodic"
     };

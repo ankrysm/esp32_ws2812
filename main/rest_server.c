@@ -7,36 +7,6 @@
    CONDITIONS OF ANY KIND, either express or implied.
 */
 
-/*
-#include "sdkconfig.h"
-#include <string.h>
-#include <fcntl.h>
-#include "esp_http_server.h"
-#include "esp_system.h"
-#include "esp_log.h"
-#include "esp_vfs.h"
-#include "cJSON.h"
-#include "math.h"
-#include "driver/gpio.h"
-#include "esp_vfs_semihost.h"
-#include "esp_vfs_fat.h"
-#include "esp_spiffs.h"
-#include "sdmmc_cmd.h"
-#include "nvs_flash.h"
-#include "esp_netif.h"
-#include "esp_event.h"
-#include "esp_log.h"
-#include "mdns.h"
-#include "lwip/apps/netbiosns.h"
-#include "esp_chip_info.h"
-#include "local.h"
-#include "config.h"
-#include "timer_events.h"
-#include "led_strip_proto.h"
-#include "color.h"
-#include "location_based_events.h"
-#include "create_events.h"
-*/
 
 #include "esp32_ws2812.h"
 
@@ -232,6 +202,7 @@ static esp_err_t get_handler_strip_config(httpd_req_t *req)
 	char*  buf;
 	size_t buf_len;
 	int restart_needed = 0;
+	int store_config_needed = 0;
 
 
 	// Read URL query string length and allocate memory for length + 1,
@@ -250,13 +221,17 @@ static esp_err_t get_handler_strip_config(httpd_req_t *req)
 			if (httpd_query_key_value(buf, paramname, param, sizeof(param)) == ESP_OK) {
 				ESP_LOGI(__func__, "query parameter: %s=%s", paramname, param);
 				gConfig.flags &= !CFG_AUTOPLAY;
-				gConfig.flags |= trufal(param);
+				if ( trufal(param)) {
+					gConfig.flags |= CFG_AUTOPLAY;
+				}
+				store_config_needed = 1;
 			}
 
 			paramname = "autoplayfile";
 			if (httpd_query_key_value(buf, paramname, param, sizeof(param)) == ESP_OK) {
 				ESP_LOGI(__func__, "query parameter: %s=%s", paramname, param);
 				snprintf(gConfig.autoplayfile, sizeof(gConfig.autoplayfile), "%s", param);
+				store_config_needed = 1;
 			}
 
 			paramname = "numleds";
@@ -265,6 +240,7 @@ static esp_err_t get_handler_strip_config(httpd_req_t *req)
 				int numleds = atoi(param);
 				gConfig.numleds = numleds;
 
+				store_config_needed = 1;
 				restart_needed  = 1;
 			}
 			paramname = "cycle";
@@ -274,11 +250,23 @@ static esp_err_t get_handler_strip_config(httpd_req_t *req)
 				// stop playing when cacle changed
 				scenes_stop();
 				set_timer_cycle(gConfig.cycle);
+				store_config_needed = 1;
+			}
+			paramname = "showstatus";
+			if (httpd_query_key_value(buf, paramname, param, sizeof(param)) == ESP_OK) {
+				ESP_LOGI(__func__, "query parameter: %s=%s", paramname, param);
+				gConfig.flags &= !CFG_SHOW_STATUS;
+				if ( trufal(param)) {
+					gConfig.flags |= CFG_SHOW_STATUS;
+				}
+				store_config_needed = 1;
 			}
 		}
 		free(buf);
-
-		store_config();
+		if (store_config_needed) {
+			ESP_LOGI(__func__, "store config");
+			store_config();
+		}
 	}
 
 
@@ -297,6 +285,16 @@ static esp_err_t get_handler_strip_config(httpd_req_t *req)
         cJSON_AddTrueToObject(root, "autoplay");
     } else {
         cJSON_AddFalseToObject(root, "autoplay");
+    }
+    if ( gConfig.flags & CFG_SHOW_STATUS ) {
+        cJSON_AddTrueToObject(root, "showstatus");
+    } else {
+        cJSON_AddFalseToObject(root, "showstatus");
+    }
+    if ( gConfig.flags & CFG_WITH_WIFI ) {
+        cJSON_AddTrueToObject(root, "with_wifi");
+    } else {
+        cJSON_AddFalseToObject(root, "with_wifi");
     }
     cJSON_AddNumberToObject(root, "cycle", gConfig.cycle);
 

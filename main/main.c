@@ -6,37 +6,11 @@
    software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
    CONDITIONS OF ANY KIND, either express or implied.
 */
-#include "sdkconfig.h"
-#include "driver/gpio.h"
-#include "esp_vfs_semihost.h"
-#include "esp_vfs_fat.h"
-#include "esp_spiffs.h"
-#include "sdmmc_cmd.h"
-#include "nvs_flash.h"
-#include "esp_netif.h"
-#include "esp_event.h"
-#include "esp_log.h"
-#include "mdns.h"
-#include "lwip/apps/netbiosns.h"
-//#include "protocol_examples_common.h"
-//#if CONFIG_EXAMPLE_WEB_DEPLOY_SD
-//#include "driver/sdmmc_host.h"
-//#endif
-/*
-#include "local.h"
-#include <stdio.h>
-
-#include "config.h"
-#include "wifi_config.h"
-#include "timer_events.h"
-#include "led_strip_proto.h"
-*/
 
 #include "esp32_ws2812.h"
-//esp_err_t init_fs(void);
 
-//void start_demo1();
 
+int main_flags=0;
 
 extern T_CONFIG gConfig;
 
@@ -51,8 +25,6 @@ void app_main() {
 	// init led-strip
 	ESP_ERROR_CHECK(strip_init(gConfig.numleds));
 
-	// start timer
-	init_timer_events(50); // TODO config time
 
 	firstled(32, 32, 32);
 
@@ -99,14 +71,22 @@ void app_main() {
 
 	if ( done == WIFI_CONNECTED ) {
 		init_restservice();
+		gConfig.flags |=CFG_WITH_WIFI;
 		// green
 		firstled(0,32,0);
 		ESP_LOGI(__func__, "with WIFI");
 	} else {
+		gConfig.flags &= ~CFG_WITH_WIFI;
 		// red
 		firstled(32,0,0);
 		ESP_LOGI(__func__, "without WIFI");
 	}
+	char buf[128];
+	config2txt(buf, sizeof(buf));
+	ESP_LOGI(__func__, "config=%s",buf);
+
+	// start timer
+	init_timer_events(50); // TODO config time
 
 	//start_demo1();
 	T_COLOR_RGB fg_color ={32,0,0};

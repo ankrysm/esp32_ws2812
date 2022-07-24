@@ -105,7 +105,7 @@ static esp_err_t process_effect_solid(T_EVENT *evt) {
 	int32_t delta_pos = 1;
 	int32_t pos = start;
 	for ( int i = 0; i < levt->len; i++) {
-		if ( pos > 0 && pos < gConfig.numleds) {
+		if ( pos >= 0 && pos < gConfig.numleds) {
 			strip_set_pixel_rgb(pos, &(levt->rgb1));
 		    //ESP_LOGI(__func__,"i=%d: pos=%d", i, pos);
 		}

@@ -13,7 +13,13 @@
 
 
 // flag values
-#define CFG_AUTOPLAY 0x0001
+#define CFG_PERSISTENCE_MASK 0x00FF
+#define CFG_AUTOPLAY         0x0001
+#define CFG_SHOW_STATUS      0x0002 // first led will show status, not include in scenes
+
+// transient flags
+#define CFG_TRANSIENT_MASK   0xFF00
+#define CFG_WITH_WIFI        0x0100
 
 #define LEN_SCENEFILE 32
 

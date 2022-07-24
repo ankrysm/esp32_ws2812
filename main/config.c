@@ -6,24 +6,6 @@
  */
 
 
-
-/*
-#include "sdkconfig.h"
-#include "driver/gpio.h"
-#include "esp_vfs_semihost.h"
-#include "esp_vfs_fat.h"
-#include "esp_spiffs.h"
-#include "sdmmc_cmd.h"
-#include "nvs_flash.h"
-#include "esp_netif.h"
-#include "esp_event.h"
-#include "esp_log.h"
-#include "mdns.h"
-#include "lwip/apps/netbiosns.h"
-#include "local.h"
-#include <stdio.h>
-*/
-
 #include "esp32_ws2812_basic.h"
 #include "config.h"
 
@@ -151,7 +133,7 @@ esp_err_t init_storage() {
     } else if ( ret == ESP_ERR_NVS_NOT_FOUND ) {
     	// has to initialized
     	snprintf(gConfig.autoplayfile, LEN_SCENEFILE, "%s", "autoplay");
-    	gConfig.flags = CFG_AUTOPLAY;
+    	gConfig.flags = CFG_AUTOPLAY | CFG_SHOW_STATUS;
     	gConfig.cycle = 50;
     	gConfig.numleds = 60;
 
@@ -165,7 +147,7 @@ esp_err_t init_storage() {
         ESP_LOGE(__func__, "nvs_get_blob() failed (%s)", esp_err_to_name(ret));
     	return ret;
     }
-
+    gConfig.flags &= CFG_PERSISTENCE_MASK;
     return ESP_OK;
 
 }
@@ -176,10 +158,14 @@ char *config2txt(char *txt, size_t sz) {
 			"numleds=%d\n" \
 			"autoplayfile=%s\n" \
 			"autoplay=%s\n" \
+			"showstatus=%s\n" \
+			"with_wifi=%s\n" \
 			"cycle=%d\n" ,
 			gConfig.numleds,
 			gConfig.autoplayfile,
 			(gConfig.flags & CFG_AUTOPLAY ? "true" : "false"),
+			(gConfig.flags & CFG_SHOW_STATUS ? "true" : "false"),
+			(gConfig.flags & CFG_WITH_WIFI ? "true" : "false"),
 			gConfig.cycle
 	);
 	return txt;

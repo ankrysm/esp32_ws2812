@@ -35,7 +35,7 @@ int strip_initialized() {
  */
 esp_err_t strip_init(int numleds) {
 	if (numleds <1 || numleds>1000) {
-		ESP_LOGE(__func__, "%s: numleds %d out of range", __func__, numleds);
+		ESP_LOGE(__func__, "numleds %d out of range",  numleds);
 		return ESP_FAIL;
 	}
 
@@ -68,11 +68,11 @@ esp_err_t strip_init(int numleds) {
  */
 void strip_set_color(uint32_t start_idx, uint32_t end_idx, uint32_t red, uint32_t green, uint32_t blue) {
 	if (!strip_initialized()) {
-		ESP_LOGE(__func__, "%s: not initalized", __func__);
+		ESP_LOGE(__func__, "not initalized");
 		return;
 	}
 	if ( start_idx >= s_numleds || end_idx < start_idx || end_idx >= s_numleds) {
-		ESP_LOGE(__func__, "%s: idx %d - %d out of range", __func__, start_idx, end_idx);
+		ESP_LOGE(__func__, "idx %u - %u out of range (rgb=%d/%d/%d)", start_idx, end_idx,red,green,blue);
 		return;
 	}
 	for(int i = start_idx; i <= end_idx; i++) {
@@ -83,11 +83,11 @@ void strip_set_color(uint32_t start_idx, uint32_t end_idx, uint32_t red, uint32_
 
 void strip_set_color_rgb(uint32_t start_idx, uint32_t end_idx, T_COLOR_RGB *rgb) {
 	if (!strip_initialized()) {
-		ESP_LOGE(__func__, "%s: not initalized", __func__);
+		ESP_LOGE(__func__, "not initalized");
 		return;
 	}
 	if ( start_idx >= s_numleds || end_idx < start_idx || end_idx >= s_numleds) {
-		ESP_LOGE(__func__, "%s: idx %d - %d out of range", __func__, start_idx, end_idx);
+		ESP_LOGE(__func__, "idx %u - %u out of range", start_idx, end_idx);
 		return;
 	}
 	for(int i = start_idx; i <= end_idx; i++) {
@@ -100,7 +100,7 @@ void strip_set_color_rgb(uint32_t start_idx, uint32_t end_idx, T_COLOR_RGB *rgb)
  */
 void strip_set_pixel(uint32_t idx, uint32_t red, uint32_t green, uint32_t blue) {
 	if (!strip_initialized()) {
-		ESP_LOGE(__func__, "%s: not initalized", __func__);
+		ESP_LOGE(__func__, "not initalized");
 		return;
 	}
 	if ( idx >= s_numleds) {
@@ -112,11 +112,11 @@ void strip_set_pixel(uint32_t idx, uint32_t red, uint32_t green, uint32_t blue) 
 
 void strip_set_pixel_rgb(uint32_t idx, T_COLOR_RGB *rgb) {
 	if (!strip_initialized()) {
-		ESP_LOGE(__func__, "%s: not initalized", __func__);
+		ESP_LOGE(__func__, "not initalized");
 		return;
 	}
 	if ( idx >= s_numleds) {
-		ESP_LOGE(__func__, "%s: idx %d out of range", __func__, idx);
+		ESP_LOGE(__func__, "idx %u out of range",  idx);
 		return;
 	}
 	ESP_ERROR_CHECK(gVstrip->set_pixel(gVstrip, idx, rgb->r, rgb->g, rgb->b));
@@ -127,11 +127,11 @@ void strip_set_pixel_rgb(uint32_t idx, T_COLOR_RGB *rgb) {
  */
 void strip_set_pixel_lvl(uint32_t idx, uint32_t red, uint32_t green, uint32_t blue, double lvl) {
 	if (!strip_initialized()) {
-		ESP_LOGE(__func__, "%s: not initalized", __func__);
+		ESP_LOGE(__func__, "not initalized");
 		return;
 	}
 	if ( idx >= s_numleds) {
-		ESP_LOGE(__func__, "%s: idx %d out of range", __func__, idx);
+		ESP_LOGE(__func__, "idx %u out of range", idx);
 		return;
 	}
 	int32_t r,g,b;
@@ -155,7 +155,7 @@ void strip_clear()  {
  */
 void strip_show() {
 	if (!strip_initialized()) {
-		ESP_LOGE(__func__, "%s: not initalized", __func__);
+		ESP_LOGE(__func__, "not initalized");
 		return;
 	}
 	ESP_ERROR_CHECK(gVstrip->refresh(gVstrip, 100));
