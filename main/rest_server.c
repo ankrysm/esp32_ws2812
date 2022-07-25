@@ -58,6 +58,7 @@ static uint32_t trufal(char *txt) {
 	}
 }
 
+/*
 static esp_err_t get_handler_strip_setcolor(httpd_req_t *req)
 {
     char*  buf;
@@ -530,6 +531,7 @@ esp_err_t start_rest_server(const char *base_path)
     };
     httpd_register_uri_handler(server, &status_uri);
 
+    /*
     httpd_uri_t strip_setcolor = {
         .uri       = "/api/v1/setcolor",
         .method    = HTTP_GET,
@@ -537,7 +539,7 @@ esp_err_t start_rest_server(const char *base_path)
         .user_ctx  = rest_context
     };
     httpd_register_uri_handler(server, &strip_setcolor);
-
+	*/
     return ESP_OK;
 }
 

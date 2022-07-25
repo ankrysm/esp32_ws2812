@@ -5,36 +5,6 @@
  *      Author: ankrysm
  */
 
-/*
-#include "sdkconfig.h"
-#include <string.h>
-#include <fcntl.h>
-#include "esp_http_server.h"
-#include "esp_system.h"
-#include "esp_log.h"
-#include "esp_vfs.h"
-#include "cJSON.h"
-#include "math.h"
-#include "driver/gpio.h"
-#include "esp_vfs_semihost.h"
-#include "esp_vfs_fat.h"
-#include "esp_spiffs.h"
-#include "sdmmc_cmd.h"
-#include "nvs_flash.h"
-#include "esp_netif.h"
-#include "esp_event.h"
-#include "esp_log.h"
-#include "mdns.h"
-#include "lwip/apps/netbiosns.h"
-#include "esp_chip_info.h"
-#include "local.h"
-#include "config.h"
-#include "timer_events.h"
-#include "led_strip_proto.h"
-#include "color.h"
-#include "location_based_events.h"
-#include "move_events.h"
-*/
 
 #include "esp32_ws2812.h"
 
@@ -44,6 +14,10 @@ extern T_CONFIG gConfig;
  * decoding text strings for location based events
  * called from create_events.c
  ******************************************************/
+
+/**
+ * a constant color over a range
+ */
 esp_err_t decode_effect_solid(T_LOC_EVENT *evt, uint32_t len, T_COLOR_HSV *hsv) {
 	memset(evt,0,sizeof(T_LOC_EVENT));
 
@@ -59,6 +33,10 @@ esp_err_t decode_effect_solid(T_LOC_EVENT *evt, uint32_t len, T_COLOR_HSV *hsv) 
 
 }
 
+
+/**
+ * a constant color with fade in and fade out
+ */
 esp_err_t decode_effect_smooth(
 		T_LOC_EVENT *evt,
 		uint32_t len,

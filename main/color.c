@@ -8,6 +8,24 @@
 #include "esp32_ws2812_basic.h"
 #include "color.h"
 
+T_NAMED_RGB_COLOR colortable[] = {
+		{.name="white",       .rgb={.r=255, .g=255, .b=255}, .hsv={.h=0,   .s=0,   .v=100}},
+		{.name="black",       .rgb={.r=0,   .g=0,   .b=0  }, .hsv={.h=0,   .s=0,   .v=0}},
+		{.name="red",         .rgb={.r=255, .g=0,   .b=0  }, .hsv={.h=0,   .s=100, .v=100}},
+		{.name="orange",      .rgb={.r=255, .g=128, .b=0  }, .hsv={.h=30,  .s=100, .v=100}},
+		{.name="yellow",      .rgb={.r=255, .g=255, .b=0  }, .hsv={.h=60,  .s=100, .v=100}},
+		{.name="yellowgreen", .rgb={.r=128, .g=255, .b=0  }, .hsv={.h=90,  .s=100, .v=100}},
+		{.name="green",       .rgb={.r=0,   .g=255, .b=0  }, .hsv={.h=120, .s=100, .v=100}},
+		{.name="bluegreen",   .rgb={.r=0,   .g=255, .b=128}, .hsv={.h=150, .s=100, .v=100}},
+		{.name="cyan",        .rgb={.r=0,   .g=255, .b=255}, .hsv={.h=180, .s=100, .v=100}},
+		{.name="greenblue",   .rgb={.r=0,   .g=128, .b=255}, .hsv={.h=210, .s=100, .v=100}},
+		{.name="blue",        .rgb={.r=0,   .g=0,   .b=255}, .hsv={.h=240, .s=100, .v=100}},
+		{.name="violett",     .rgb={.r=128, .g=0,   .b=255}, .hsv={.h=270, .s=100, .v=100}},
+		{.name="magenta",     .rgb={.r=255, .g=0,   .b=255}, .hsv={.h=300, .s=100, .v=100}},
+		{.name="bluered",     .rgb={.r=255, .g=0,   .b=128}, .hsv={.h=330, .s=100, .v=100}},
+		{.name="brown",       .rgb={.r=92, .g=46,   .b=23 }, .hsv={.h=20,  .s=50,  .v=23 }}
+};
+
 
 /**
  * @brief Simple helper function, converting HSV color space to RGB color space
@@ -84,4 +102,15 @@ void c_checkrgb(T_COLOR_RGB *rgb, T_COLOR_RGB *rgbmin, T_COLOR_RGB *rgbmax) {
 	} else if ( rgb->b > MAX(rgbmax->b, rgbmin->b) ) {
 		rgb->b = MAX(rgbmax->b, rgbmin->b);
 	}
+}
+
+// search color for a name
+T_NAMED_RGB_COLOR *color4name(char *name) {
+	for ( int i=0; i<CTIDX_END;i++) {
+		if ( !strcasecmp(name, colortable[i].name)) {
+			return &colortable[i];
+		}
+	}
+	// not found
+	return NULL;
 }

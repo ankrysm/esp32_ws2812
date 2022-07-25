@@ -10,6 +10,9 @@
 */
 #include "esp32_ws2812.h"
 
+/**
+ * fix position
+ */
 esp_err_t decode_effect_fix(T_MOV_EVENT *evt, int32_t start) {
 	memset(evt, 0, sizeof(T_MOV_EVENT));
 	evt->type = MOV_EVENT_FIX;
@@ -22,6 +25,9 @@ esp_err_t decode_effect_fix(T_MOV_EVENT *evt, int32_t start) {
 	return ESP_OK;
 }
 
+/**
+ * roation
+ */
 esp_err_t decode_effect_rotate(T_MOV_EVENT *evt, int32_t start, uint32_t len, uint64_t dt, int32_t dir, T_COLOR_HSV *bg_hsv) {
 	memset(evt, 0, sizeof(T_MOV_EVENT));
 	evt->type = MOV_EVENT_ROTATE;

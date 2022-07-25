@@ -28,5 +28,32 @@ typedef struct {
 	int32_t v;
 } T_COLOR_HSV;
 
+typedef struct {
+	char *name;
+	T_COLOR_RGB rgb;
+	T_COLOR_HSV hsv;
+} T_NAMED_RGB_COLOR;
+
+
+typedef enum {
+	CTIDX_WHITE,
+	CTIDX_BLACK,
+	CTIDX_RED,
+	CTIDX_ORANGE,
+	CTIDX_YELLOW,
+	CTIDX_YELLOWGREEN,
+	CTIDX_GREEN,
+	CTIDX_BLUEGREEN,
+	CTIDX_CYAN,
+	CTIDX_GREENBLUE,
+	CTIDX_BLUE,
+	CTIDX_VIOLETT,
+	CTIDX_MAGENTA,
+	CTIDX_BLUERED,
+	CTIDX_BROWN,
+	CTIDX_END
+} t_colortable_index;
+
+
 
 #endif /* MAIN_COLOR_H_ */

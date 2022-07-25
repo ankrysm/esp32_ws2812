@@ -7,16 +7,6 @@
    CONDITIONS OF ANY KIND, either express or implied.
 */
 
-/*
-#include "sdkconfig.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "esp_log.h"
-#include "driver/rmt.h"
-#include "led_strip.h"
-#include "config.h"
-#include "color.h"
-*/
 #include "esp32_ws2812.h"
 
 #define RMT_TX_CHANNEL RMT_CHANNEL_0
