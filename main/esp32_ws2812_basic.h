@@ -34,7 +34,7 @@
 #include "esp_netif.h"
 #include "esp_event.h"
 #include "esp_log.h"
-#include "mdns.h"
+//#include "mdns.h"
 #include "esp_smartconfig.h"
 #include "mdns.h"
 #include "lwip/apps/netbiosns.h"
