@@ -205,6 +205,7 @@ static esp_err_t get_handler_strip_config(httpd_req_t *req)
 	int restart_needed = 0;
 	int store_config_needed = 0;
 
+	ESP_LOGI(__func__,"running on core %d",xPortGetCoreID());
 
 	// Read URL query string length and allocate memory for length + 1,
 	// extra byte for null termination
@@ -333,6 +334,7 @@ static esp_err_t get_handler_scene(httpd_req_t *req)
 	size_t buf_len;
 
 	extern T_CONFIG gConfig;
+	ESP_LOGI(__func__,"running on core %d",xPortGetCoreID());
 
 	// Read URL query string length and allocate memory for length + 1,
 	// extra byte for null termination

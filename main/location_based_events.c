@@ -84,7 +84,7 @@ static esp_err_t process_effect_solid(T_EVENT *evt) {
 	int32_t pos = start;
 	for ( int i = 0; i < levt->len; i++) {
 		if ( pos >= 0 && pos < gConfig.numleds) {
-			strip_set_pixel_rgb(pos, &(levt->rgb1));
+			strip_set_pixel(pos, &(levt->rgb1));
 		    //ESP_LOGI(__func__,"i=%d: pos=%d", i, pos);
 		}
 		calc_pos(mevt, &pos, &delta_pos);
@@ -135,7 +135,7 @@ static void process_fade_lin(
 		c_checkrgb(&rgb, rgb1, rgb2);
 
 		if ( *pos > 0 && *pos < gConfig.numleds) {
-			strip_set_pixel_rgb(*pos, &rgb);
+			strip_set_pixel(*pos, &rgb);
 		}
 		calc_pos(mevt, pos, &delta_pos);
 	}
@@ -185,7 +185,7 @@ static void process_fade_exp(
 		c_checkrgb(&rgb, rgb1, rgb2);
 
 		if ( *pos > 0 && *pos < gConfig.numleds) {
-			strip_set_pixel_rgb(*pos, &rgb);
+			strip_set_pixel(*pos, &rgb);
 		}
 		calc_pos(mevt, pos, &delta_pos);
 
@@ -231,7 +231,7 @@ static esp_err_t process_effect_smooth(T_EVENT *evt) {
 	int32_t delta_pos = 1;
 	for ( int i = 0; i < len; i++) {
 		if ( pos > 0 && pos < gConfig.numleds) {
-			strip_set_pixel_rgb(pos, &(levt->rgb2));
+			strip_set_pixel(pos, &(levt->rgb2));
 		}
 		calc_pos(mevt, &pos, &delta_pos);
 	}

@@ -110,7 +110,8 @@ static esp_err_t process_effect_fix(T_EVENT *evt, uint64_t timer_period) {
 	T_MOV_EVENT *mevt = &(evt->mov_event);
 	mevt->w_status = SCENE_UP;
 	if ( evt->isdirty) {
-		strip_set_color(mevt->start, mevt->start + mevt->len - 1, 0, 0, 0);
+		T_COLOR_RGB bk={.r=0,.g=0,.b=0};
+		strip_set_color(mevt->start, mevt->start + mevt->len - 1, &bk);
 	}
 	return ESP_OK;
 }
@@ -139,7 +140,7 @@ static esp_err_t process_effect_rotate(T_EVENT *evt, uint64_t timer_period) {
 		}
 	}
 	if ( evt->isdirty) {
-		strip_set_color(mevt->start, mevt->start + mevt->len, mevt->bg_rgb.r, mevt->bg_rgb.g, mevt->bg_rgb.b);
+		strip_set_color(mevt->start, mevt->start + mevt->len, &(mevt->bg_rgb));
 	}
 	return ESP_OK;
 }

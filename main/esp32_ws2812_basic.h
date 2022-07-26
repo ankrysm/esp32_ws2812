@@ -17,6 +17,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/event_groups.h"
+#include "esp_timer.h"
 #include "esp_wifi.h"
 #include "esp_wpa2.h"
 #include "esp_http_server.h"

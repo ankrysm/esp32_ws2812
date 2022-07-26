@@ -5,27 +5,10 @@
  *      Author: ankrysm
  */
 
-/*
-#include <stdio.h>
-#include <string.h>
-#include <unistd.h>
-#include "esp_timer.h"
-#include "esp_log.h"
-#include "esp_sleep.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "freertos/event_groups.h"
-#include "sdkconfig.h"
-#include "config.h"
-#include "color.h"
-#include "timer_events.h"
-//#include "location_based_events.h"
-//#include "move_events.h"
-*/
 
 #include "esp32_ws2812.h"
 
-extern T_CONFIG gConfig;
+extern size_t s_numleds;
 
 
 
@@ -65,7 +48,7 @@ esp_err_t decode_effect_list(char *param, T_EVENT *event ) {
 		if ( !strcmp(typ, "solid")) {
 			// 0   1 2 3
 			// len,h,s,v
-			len = p[0] > 0 ? p[0] : strip_get_numleds() -1;
+			len = p[0] > 0 ? p[0] : s_numleds -1;
 			hsv1.h = p[1];
 			hsv1.s = p[2];
 			hsv1.v = p[3];
@@ -89,7 +72,7 @@ esp_err_t decode_effect_list(char *param, T_EVENT *event ) {
 				ESP_LOGI(__func__,"not enough parameters");
 				ret = ESP_FAIL;
 			} else {
-				len = p[0] > 0 ? p[0] : strip_get_numleds() -1;
+				len = p[0] > 0 ? p[0] : s_numleds -1;
 				if ( n<=7 ) {
 					hsv1.h = hsv1.s = hsv1.v = 0;
 					hsv2.h = p[3];  hsv2.s = p[4];   hsv2.v = p[5];
@@ -117,7 +100,7 @@ esp_err_t decode_effect_list(char *param, T_EVENT *event ) {
 			// 0     1   2     3   4  5   6
 			// start,len,speed,dir,bh,bgs,bgv
 			int32_t start = p[0];
-			len = p[1] > 0 ? p[1] : strip_get_numleds() - start - 1;
+			len = p[1] > 0 ? p[1] : s_numleds - start - 1;
 			// bg_hsv
 			hsv1.h = p[4];  hsv1.s = p[5];   hsv1.v = p[6];
 

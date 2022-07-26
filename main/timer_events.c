@@ -9,6 +9,8 @@
 
 #include "esp32_ws2812.h"
 
+extern size_t s_numleds;
+
 
 static esp_timer_handle_t s_periodic_timer;
 static uint64_t s_timer_period; // in ms
@@ -133,9 +135,10 @@ static void periodic_timer_callback(void* arg)
 	if ( !s_event_list) {
 		//ESP_LOGI(__func__,"event list is empty");
 		// clear the strip
-		uint32_t n = strip_get_numleds();
+		uint32_t n = s_numleds;
 		ESP_LOGI(__func__,"reset numleds=%u", n);
-		strip_set_color(0, n - 1, 0, 0, 0);
+		T_COLOR_RGB bk={.r=0,.g=0,.b=0};
+		strip_set_color(0, n - 1, &bk);
 		show_status();
 		strip_show();
 		s_run_status = RUN_STATUS_IDLE;
@@ -255,6 +258,7 @@ void init_timer_events(int delta_ms) {
 	ESP_ERROR_CHECK(esp_timer_create(&periodic_timer_args, &s_periodic_timer));
 
 	// start timer, time in microseconds
-    ESP_ERROR_CHECK(esp_timer_start_periodic(s_periodic_timer, s_timer_period*1000));
+    //ESP_ERROR_CHECK(esp_timer_start_periodic(s_periodic_timer, s_timer_period*1000));
+	ESP_LOGI(__func__,"##### NO TIMER STARTED FOR TEST");
 }
 

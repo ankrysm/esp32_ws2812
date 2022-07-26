@@ -38,7 +38,7 @@ void led_strip_init(uint32_t numleds)
     rmt_tx_channel_config_t tx_chan_config = {
         .clk_src = RMT_CLK_SRC_DEFAULT, // select source clock
         .gpio_num = RMT_LED_STRIP_GPIO_NUM,
-        .mem_block_symbols = 64, // increase the block size can make the LED less flickering
+        .mem_block_symbols = 512, //64, // increase the block size can make the LED less flickering
         .resolution_hz = RMT_LED_STRIP_RESOLUTION_HZ,
         .trans_queue_depth = 4, // set the number of transactions that can be pending in the background
     };
@@ -60,10 +60,13 @@ void led_strip_init(uint32_t numleds)
 }
 
 void led_strip_refresh() {
-	ESP_LOGI(__func__, "Start");
+	//ESP_LOGI(__func__, "Start");
 	// Flush RGB values to LEDs
-	ESP_ERROR_CHECK(rmt_transmit(led_chan, led_encoder, led_strip_pixels, sizeof(led_strip_pixels), &tx_config));
-
+	ESP_ERROR_CHECK(rmt_transmit(led_chan, led_encoder, led_strip_pixels, s_size_led_strip_pixels, &tx_config));
+	esp_err_t ret;
+	if ( (ret=rmt_tx_wait_all_done(led_chan, 100)) != ESP_OK){
+		ESP_LOGE(__func__, "rmt_tx_wait_all_done failed %d", ret);
+	}
 }
 
 void led_strip_firstled(int red, int green, int blue) {
