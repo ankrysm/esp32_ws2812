@@ -23,7 +23,8 @@ void app_main() {
 	ESP_ERROR_CHECK(init_storage());
 
 	// init led-strip
-	ESP_ERROR_CHECK(strip_init(gConfig.numleds));
+	led_strip_init(gConfig.numleds);
+	//ESP_ERROR_CHECK(strip_init(gConfig.numleds));
 
 
 	firstled(32, 32, 32);

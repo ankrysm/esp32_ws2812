@@ -20,18 +20,17 @@ void c_checkrgb(T_COLOR_RGB *rgb, T_COLOR_RGB *rgbmin, T_COLOR_RGB *rgbmax);
 T_NAMED_RGB_COLOR *color4name(char *name);
 
 // from led_strip.c
-esp_err_t strip_init(int numleds);
-void strip_set_color(uint32_t start_idx, uint32_t end_idx, uint32_t red, uint32_t green, uint32_t blue);
-void strip_set_pixel(uint32_t idx, uint32_t red, uint32_t green, uint32_t blue);
-void strip_set_pixel_lvl(uint32_t idx, uint32_t red, uint32_t green, uint32_t blue, double lvl);
+void strip_set_color(int32_t start_idx, int32_t end_idx,  T_COLOR_RGB *rgb);
+void strip_set_pixel(int32_t idx, T_COLOR_RGB *rgb);
 void strip_clear();
-void strip_rotate(int32_t dir);
-void firstled(int red, int green, int blue);
 void strip_show();
-uint32_t strip_get_numleds();
-int strip_initialized();
-void strip_set_pixel_rgb(uint32_t idx, T_COLOR_RGB *rgb);
-void strip_set_color_rgb(uint32_t start_idx, uint32_t end_idx, T_COLOR_RGB *rgb);
+void firstled(int red, int green, int blue);
+
+// from led_strip_util.c
+void led_strip_init(uint32_t numleds);
+void led_strip_refresh() ;
+void led_strip_firstled(int red, int green, int blue);
+
 
 // from timer_events.c
 void init_timer_events(int delta_ms);

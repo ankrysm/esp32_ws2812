@@ -560,7 +560,7 @@ void init_restservice() {
 
 void initialise_mdns(void)
 {
-    mdns_init();
+ /*   mdns_init();
     mdns_hostname_set(CONFIG_EXAMPLE_MDNS_HOST_NAME);
     mdns_instance_name_set(MDNS_INSTANCE);
 
@@ -571,9 +571,12 @@ void initialise_mdns(void)
 
     ESP_ERROR_CHECK(mdns_service_add("ESP32-WebServer", "_http", "_tcp", 80, serviceTxtData,
                                      sizeof(serviceTxtData) / sizeof(serviceTxtData[0])));
+ */
 }
 
 void initialise_netbios() {
+	/*
 	netbiosns_init();
 	netbiosns_set_name(CONFIG_EXAMPLE_MDNS_HOST_NAME);
+	*/
 }

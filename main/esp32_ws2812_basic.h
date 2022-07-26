@@ -24,7 +24,7 @@
 #include "cJSON.h"
 #include "esp_chip_info.h"
 #include "driver/gpio.h"
-#include "driver/rmt.h"
+//#include "driver/rmt.h"
 #include "esp_system.h"
 #include "esp_vfs_semihost.h"
 #include "esp_vfs_fat.h"
@@ -36,7 +36,7 @@
 #include "esp_log.h"
 //#include "mdns.h"
 #include "esp_smartconfig.h"
-#include "mdns.h"
+//#include "mdns.h"
 #include "lwip/apps/netbiosns.h"
 
 
