@@ -30,8 +30,8 @@ void strip_set_color(int32_t start_idx, int32_t end_idx,  T_COLOR_RGB *rgb) {
 			continue;
 		uint32_t pos = 3 * i;
 		led_strip_pixels[pos++] = rgb->g;
-		led_strip_pixels[pos++] = rgb->b;
-		led_strip_pixels[pos] = rgb->r;
+		led_strip_pixels[pos++] = rgb->r;
+		led_strip_pixels[pos] = rgb->b;
 	}
 }
 
@@ -48,8 +48,8 @@ void strip_set_pixel(int32_t idx, T_COLOR_RGB *rgb) {
 	}
 	uint32_t pos = 3 * idx;
 	led_strip_pixels[pos++] = rgb->g;
-	led_strip_pixels[pos++] = rgb->b;
-	led_strip_pixels[pos] = rgb->r;
+	led_strip_pixels[pos++] = rgb->r;
+	led_strip_pixels[pos] = rgb->b;
 }
 
 /**

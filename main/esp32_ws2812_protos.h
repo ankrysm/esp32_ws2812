@@ -80,7 +80,14 @@ esp_err_t process_loc_event(T_EVENT *evt);
 
 // from move_events.c
 esp_err_t decode_effect_fix(T_MOV_EVENT *evt, int32_t start);
-esp_err_t decode_effect_rotate(T_MOV_EVENT *evt, int32_t start, uint32_t len, uint64_t dt, int32_t dir, T_COLOR_HSV *bg_hsv);
+esp_err_t decode_effect_rotate(
+		T_MOV_EVENT *evt,
+		int32_t start,
+		uint32_t len,
+		int32_t start_pos,
+		uint64_t dt,
+		int32_t dir,
+		T_COLOR_HSV *bg_hsv);
 
 void calc_pos(T_MOV_EVENT *evt, int32_t *pos, int32_t *delta);
 

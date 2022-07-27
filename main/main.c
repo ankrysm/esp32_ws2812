@@ -12,14 +12,17 @@
 
 int main_flags=0;
 
+
+//uint64_t timmi_dt =22;
+
 extern T_CONFIG gConfig;
 
 void firstled(int red, int green, int blue) ;
 
-static uint64_t timtim=0;
-extern T_EVENT *s_event_list;
+//static uint64_t timtim=0;
+//extern T_EVENT *s_event_list;
 
-
+/*
 void timmi() {
 	if (obtain_eventlist_lock() != ESP_OK) {
 		ESP_LOGE(__func__, "couldn't get lock on eventlist");
@@ -35,13 +38,12 @@ void timmi() {
 	}
 
 	/// play scenes
-	uint64_t timperiod=50;
-	timtim += 50;
+	timtim += timmi_dt;
 	int n_paint=0;
 	// first check: is something to paint?
 	for ( T_EVENT *evt= s_event_list; evt; evt = evt->nxt) {
 		// first: move
-		process_move_events(evt,timperiod);
+		process_move_events(evt,timmi_dt);
 		if ( evt->isdirty) {
 			n_paint++;
 			evt->isdirty=0;
@@ -59,8 +61,8 @@ void timmi() {
 		strip_show();
 	}
 	release_eventlist_lock();
-
 }
+*/
 
 /*
 void timmi_task(void *para) {
@@ -164,10 +166,21 @@ void app_main() {
 	*/
 
 	ESP_LOGI(__func__,"running on core %d",xPortGetCoreID());
-	xDelay = 50 / portTICK_PERIOD_MS;
+	xDelay = 50000 / portTICK_PERIOD_MS;
+	int logcnt =0;
 	while(1) {
 		//printf("xxx\n");
+		/*
+		int64_t t_start = esp_timer_get_time();
+
 		timmi();
+		int64_t t_end = esp_timer_get_time();
+		if ( logcnt== 0 ) {
+			ESP_LOGI(__func__,"processing time %lld mikrosec", (t_end - t_start));
+			logcnt=20;
+		}
+		logcnt--;
+		 */
 		vTaskDelay(xDelay);
 	}
 }

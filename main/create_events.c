@@ -97,17 +97,19 @@ esp_err_t decode_effect_list(char *param, T_EVENT *event ) {
 
 		// ********* movements **********
 		} else if ( !strcmp(typ, "rotate")) {
-			// 0     1   2     3   4  5   6
-			// start,len,speed,dir,bh,bgs,bgv
+			// 0     1   2     3   4        5  6   7
+			// start,len,speed,dir,[startpos][,bh,bgs,bgv]]
 			int32_t start = p[0];
 			len = p[1] > 0 ? p[1] : s_numleds - start - 1;
 			// bg_hsv
-			hsv1.h = p[4];  hsv1.s = p[5];   hsv1.v = p[6];
+			int32_t startpos = p[4];
+			hsv1.h = p[5];  hsv1.s = p[6];   hsv1.v = p[7];
 
 			decode_effect_rotate(
 					&(event->mov_event),
 					start,
 					len,
+					startpos,
 					p[2], // speed in ms per tick
 					p[3],  // direction
 					&hsv1

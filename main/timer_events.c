@@ -58,14 +58,22 @@ static void show_status() {
 }
 
 static int logcnt=0;
+static int64_t t_sum=0;
 static void periodic_timer_callback(void* arg);
 static void periodic_timer_callback_t(void* arg) {
+
 	int64_t t_start = esp_timer_get_time();
 	periodic_timer_callback(arg);
 	int64_t t_end = esp_timer_get_time();
-	if ( logcnt > 0 ) {
-		ESP_LOGI(__func__,"processing time %lld mikrosec", (t_end - t_start));
-		logcnt--;
+
+	int64_t dt=(t_end - t_start);
+	t_sum+=dt;
+	logcnt++;
+	if ( logcnt >= 50 ) {
+		ESP_LOGI(__func__,"processing time %.3f mikrosec on core %d", (1.0*t_sum/logcnt), xPortGetCoreID());
+		ESP_LOGI(__func__,"raw data %lld, %d, %lld", dt, logcnt, t_sum);
+		logcnt = 0;
+		t_sum=0;
 	}
 }
 
@@ -258,7 +266,8 @@ void init_timer_events(int delta_ms) {
 	ESP_ERROR_CHECK(esp_timer_create(&periodic_timer_args, &s_periodic_timer));
 
 	// start timer, time in microseconds
-    //ESP_ERROR_CHECK(esp_timer_start_periodic(s_periodic_timer, s_timer_period*1000));
-	ESP_LOGI(__func__,"##### NO TIMER STARTED FOR TEST");
+    ESP_ERROR_CHECK(esp_timer_start_periodic(s_periodic_timer, s_timer_period*1000));
+    ESP_LOGI(__func__, "Timer started");
+//	ESP_LOGI(__func__,"##### NO TIMER STARTED FOR TEST");
 }
 

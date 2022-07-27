@@ -71,19 +71,28 @@ void start_demo1() {
 void build_demo2(
 		T_COLOR_RGB *fg_color // foreground color
 ) {
-	char *param="smooth,20,4,4,100,100,10;rotate,0,0,100,1";
-	T_EVENT evt;
-	if (decode_effect_list(param, &evt) == ESP_OK) {
-		ESP_LOGI(__func__,"done: %s\n", param);
-		if ( event_list_add(&evt) == ESP_OK) {
-			ESP_LOGI(__func__,"event '%s' stored", param);
-		} else {
-			ESP_LOGE(__func__,"could not store event '%s'", param);
-		}
-	} else {
-		ESP_LOGW(__func__,"decode FAILED: %s\n", param);
-	}
+	char *params[]={
+			"smooth,10,4,4,210,100,10;rotate,0,0,100,1,0",
+			"solid,1,0,100,10;rotate,0,0,100,-1,10",
+			"solid,1,240,100,10;rotate,0,0,100,1,40",
+			"solid,2,120,100,10;rotate,0,0,50,-1,30",
+			""
+	};
 
+	for(int i=0; strlen(params[i]); i++) {
+		T_EVENT evt;
+		char *param=params[i];
+		if (decode_effect_list(param, &evt) == ESP_OK) {
+			ESP_LOGI(__func__,"done: %s\n", param);
+			if ( event_list_add(&evt) == ESP_OK) {
+				ESP_LOGI(__func__,"event '%s' stored", param);
+			} else {
+				ESP_LOGE(__func__,"could not store event '%s'", param);
+			}
+		} else {
+			ESP_LOGW(__func__,"decode FAILED: %s\n", param);
+		}
+	}
 	/*
 	int pos = 1;
 	int len = 20;

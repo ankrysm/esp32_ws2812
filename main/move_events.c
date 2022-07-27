@@ -28,7 +28,14 @@ esp_err_t decode_effect_fix(T_MOV_EVENT *evt, int32_t start) {
 /**
  * roation
  */
-esp_err_t decode_effect_rotate(T_MOV_EVENT *evt, int32_t start, uint32_t len, uint64_t dt, int32_t dir, T_COLOR_HSV *bg_hsv) {
+esp_err_t decode_effect_rotate(
+		T_MOV_EVENT *evt,
+		int32_t start,
+		uint32_t len,
+		int32_t start_pos,
+		uint64_t dt,
+		int32_t dir,
+		T_COLOR_HSV *bg_hsv) {
 	memset(evt, 0, sizeof(T_MOV_EVENT));
 	evt->type = MOV_EVENT_ROTATE;
 	evt->start = start;
@@ -37,7 +44,15 @@ esp_err_t decode_effect_rotate(T_MOV_EVENT *evt, int32_t start, uint32_t len, ui
 	evt->dir = dir > 0 ? 1 : -1;
 	c_hsv2rgb( bg_hsv, &(evt->bg_rgb));
 
-	evt->w_pos = evt->start;
+	evt->w_pos = start_pos;
+	if ( evt->w_pos < evt->start) {
+		evt->w_pos = evt->start;
+	}
+
+	if ( evt->w_pos >= evt->start + evt->len) {
+		evt->w_pos = evt->start +evt->len-1;
+	}
+
 	evt->w_status = SCENE_IDLE;
 
 	ESP_LOGI(__func__,"start=%d, lden=%d, dt=%lld", evt->start, evt->len, evt->dt);
