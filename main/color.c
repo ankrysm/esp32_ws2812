@@ -5,8 +5,11 @@
  *      Author: ankrysm
  */
 
-#include "esp32_ws2812_basic.h"
-#include "color.h"
+#include "esp32_ws2812.h"
+//#include "color.h"
+
+//extern size_t s_numleds;
+
 
 T_NAMED_RGB_COLOR colortable[] = {
 		{.name="white",       .rgb={.r=255, .g=255, .b=255}, .hsv={.h=0,   .s=0,   .v=100}},
@@ -114,3 +117,4 @@ T_NAMED_RGB_COLOR *color4name(char *name) {
 	// not found
 	return NULL;
 }
+

@@ -26,7 +26,7 @@ typedef struct rest_server_context {
 
 #define CHECK_FILE_EXTENSION(filename, ext) (strcasecmp(&filename[strlen(filename) - strlen(ext)], ext) == 0)
 
-/* Set HTTP response content type according to file extension */
+/* Set HTTP response content type according to file extension * /
 static esp_err_t set_content_type_from_file(httpd_req_t *req, const char *filepath)
 {
     const char *type = "text/plain";
@@ -45,6 +45,7 @@ static esp_err_t set_content_type_from_file(httpd_req_t *req, const char *filepa
     }
     return httpd_resp_set_type(req, type);
 }
+// */
 
 
 /**
@@ -325,10 +326,9 @@ static esp_err_t get_handler_strip_config(httpd_req_t *req)
 
 
 /**
- * play scene
- * Parameter: cmd=run|stop|pause, file=fname
+ * play control: run stop pause add del ...
  */
-static esp_err_t get_handler_scene(httpd_req_t *req)
+static esp_err_t get_handler_ctrl(httpd_req_t *req)
 {
 	char*  buf;
 	size_t buf_len;
@@ -350,8 +350,8 @@ static esp_err_t get_handler_scene(httpd_req_t *req)
 		if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK) {
 			ESP_LOGI(__func__, "Found URL query => %s", buf);
 
-			//                   0     1
-			char *paramnames[]={"cmd","add",""};
+			//                   0     1     2
+			char *paramnames[]={"cmd","add","del", ""};
 			for (int i=0; strlen(paramnames[i]); i++) {
 				char param[256];
 				if (httpd_query_key_value(buf, paramnames[i], param, sizeof(param)) != ESP_OK) {
@@ -362,40 +362,42 @@ static esp_err_t get_handler_scene(httpd_req_t *req)
 				{
 					if ( param[0] == 'r' ) {
 						new_status = RUN_STATUS_RUNNING;
+
 					} else if (param[0] == 's' ) {
 						new_status = RUN_STATUS_STOPPED;
+
 					} else if (param[0] == 'p' ) {
 						new_status = RUN_STATUS_PAUSED;
+
 					} else if (param[0] == 'l' ) {
 						// list events
-						{
-							extern T_EVENT *s_event_list;
-							if (obtain_eventlist_lock() != ESP_OK) {
-								ESP_LOGE(__func__, "couldn't get lock on eventlist");
-								break;
-							}
-							char buf[100];
-							if ( !s_event_list) {
-								snprintf(buf,sizeof(buf),"no events in list\n");
-								httpd_resp_send_chunk(req, buf, strlen(buf));
-							} else {
-								for ( T_EVENT *evt= s_event_list; evt; evt = evt->nxt) {
-									snprintf(resp_str,sizeof(resp_str),"event %d\n", evt->lfd);
-									httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
-
-									loc_event2string(&(evt->loc_event), buf, sizeof(buf));
-									snprintf(resp_str,sizeof(resp_str),"  loc_evt=%s\n", buf);
-									httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
-
-									mov_event2string(&(evt->mov_event), buf, sizeof(buf));
-									snprintf(resp_str,sizeof(resp_str),"  mov_evt=%s\n", buf);
-									httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
-								}
-							}
-							release_eventlist_lock();
+						extern T_EVENT *s_event_list;
+						if (obtain_eventlist_lock() != ESP_OK) {
+							ESP_LOGE(__func__, "couldn't get lock on eventlist");
+							break;
 						}
+						char buf[100];
+						if ( !s_event_list) {
+							snprintf(buf,sizeof(buf),"no events in list\n");
+							httpd_resp_send_chunk(req, buf, strlen(buf));
+						} else {
+							for ( T_EVENT *evt= s_event_list; evt; evt = evt->nxt) {
+								snprintf(resp_str,sizeof(resp_str),"event %d\n", evt->lfd);
+								httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
+
+								loc_event2string(&(evt->loc_event), buf, sizeof(buf));
+								snprintf(resp_str,sizeof(resp_str),"  loc_evt=%s\n", buf);
+								httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
+
+								mov_event2string(&(evt->mov_event), buf, sizeof(buf));
+								snprintf(resp_str,sizeof(resp_str),"  mov_evt=%s\n", buf);
+								httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
+							}
+						}
+						release_eventlist_lock();
+
 					} else if (param[0] == 'c' ) {
-						// clear
+						// clear - sets status stop
 						new_status = RUN_STATUS_STOPPED;
 						if (event_list_free() == ESP_OK) {
 							snprintf(resp_str,sizeof(resp_str),"event list cleared");
@@ -440,7 +442,9 @@ static esp_err_t get_handler_scene(httpd_req_t *req)
 
 				}
 				break;
-
+				case 2: // del
+					// TODO
+					break;
 				default:
 					snprintf(resp_str,sizeof(resp_str),"%d NYI",i);
 					httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
@@ -510,7 +514,7 @@ esp_err_t start_rest_server(const char *base_path)
 
     // config
     httpd_uri_t strip_setup = {
-        .uri       = "/api/v1/config",
+        .uri       = "/config",
         .method    = HTTP_GET,
         .handler   = get_handler_strip_config,
         .user_ctx  = rest_context
@@ -518,20 +522,21 @@ esp_err_t start_rest_server(const char *base_path)
     httpd_register_uri_handler(server, &strip_setup);
 
     httpd_uri_t reset_uri = {
-        .uri       = "/api/v1/reset",
+        .uri       = "/reset",
         .method    = HTTP_GET,
         .handler   = get_handler_reset,
         .user_ctx  = rest_context
     };
     httpd_register_uri_handler(server, &reset_uri);
 
-    httpd_uri_t status_uri = {
-        .uri       = "/api/v1/scene",
+    // control
+    httpd_uri_t ctrl_uri = {
+        .uri       = "/ctrl",
         .method    = HTTP_GET,
-        .handler   = get_handler_scene,
+        .handler   = get_handler_ctrl,
         .user_ctx  = rest_context
     };
-    httpd_register_uri_handler(server, &status_uri);
+    httpd_register_uri_handler(server, &ctrl_uri);
 
     /*
     httpd_uri_t strip_setcolor = {

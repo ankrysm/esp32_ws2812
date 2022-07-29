@@ -6,9 +6,9 @@ include(FetchContent)
 
 FetchContent_Declare(
 	platform
-	SOURCE_DIR ../../esp-protocols
-	#GIT_REPOSITORY https://github.com/espressif/esp-protocols.git
-	#GIT_TAG origin/master
+	#SOURCE_DIR ../../esp-protocols
+	GIT_REPOSITORY https://github.com/espressif/esp-protocols.git
+	GIT_TAG origin/master
 )
 
 FetchContent_GetProperties(platform)

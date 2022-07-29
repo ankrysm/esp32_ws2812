@@ -9,7 +9,7 @@
 #include "esp32_ws2812.h"
 
 // from components/led_strip/led_strip_util.c
-extern size_t s_numleds;
+//extern size_t s_numleds;
 extern size_t s_size_led_strip_pixels;
 extern uint8_t *led_strip_pixels;
 

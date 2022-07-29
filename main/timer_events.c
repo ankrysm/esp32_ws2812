@@ -9,7 +9,7 @@
 
 #include "esp32_ws2812.h"
 
-extern size_t s_numleds;
+//extern size_t s_numleds;
 
 
 static esp_timer_handle_t s_periodic_timer;

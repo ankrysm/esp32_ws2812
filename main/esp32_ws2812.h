@@ -16,6 +16,7 @@
 //#include "led_strip.h"
 #include "wifi_config.h"
 #include "timer_events.h"
+#include "paint_pixel.h"
 
 // useful definitions
 #ifndef MIN
@@ -28,5 +29,10 @@
 
 #include "esp32_ws2812_protos.h"
 
+//#ifdef MAIN
+//size_t s_numleds;
+//#else
+extern size_t s_numleds;
+//#endif
 
 #endif /* MAIN_ESP32_WS2812_H_ */

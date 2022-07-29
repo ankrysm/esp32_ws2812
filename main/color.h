@@ -55,5 +55,4 @@ typedef enum {
 } t_colortable_index;
 
 
-
 #endif /* MAIN_COLOR_H_ */
