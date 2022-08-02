@@ -8,9 +8,6 @@
 
 #include "esp32_ws2812.h"
 
-//extern T_CONFIG gConfig;
-// extern size_t s_numleds;
-
 
 /******************************************************
  * decoding text strings for location based events
@@ -85,7 +82,7 @@ static esp_err_t process_effect_solid(T_EVENT *evt) {
 	int32_t delta_pos = 1;
 	int32_t pos = start;
 	for ( int i = 0; i < levt->len; i++) {
-		if ( pos >= 0 && pos < s_numleds) {
+		if ( pos >= 0 && pos < get_numleds()) {
 			strip_set_pixel(pos, &(levt->rgb1));
 		    //ESP_LOGI(__func__,"i=%d: pos=%d", i, pos);
 		}
@@ -136,7 +133,7 @@ static void process_fade_lin(
 		rgb.r = r; rgb.g = g; rgb.b = b;
 		c_checkrgb(&rgb, rgb1, rgb2);
 
-		if ( *pos > 0 && *pos < s_numleds) {
+		if ( *pos > 0 && *pos < get_numleds()) {
 			strip_set_pixel(*pos, &rgb);
 		}
 		calc_pos(mevt, pos, &delta_pos);
@@ -186,7 +183,7 @@ static void process_fade_exp(
 		rgb.r = r; rgb.g = g; rgb.b = b;
 		c_checkrgb(&rgb, rgb1, rgb2);
 
-		if ( *pos > 0 && *pos < s_numleds) {
+		if ( *pos > 0 && *pos < get_numleds()) {
 			strip_set_pixel(*pos, &rgb);
 		}
 		calc_pos(mevt, pos, &delta_pos);
@@ -232,7 +229,7 @@ static esp_err_t process_effect_smooth(T_EVENT *evt) {
 
 	int32_t delta_pos = 1;
 	for ( int i = 0; i < len; i++) {
-		if ( pos > 0 && pos < s_numleds) {
+		if ( pos > 0 && pos < get_numleds()) {
 			strip_set_pixel(pos, &(levt->rgb2));
 		}
 		calc_pos(mevt, &pos, &delta_pos);

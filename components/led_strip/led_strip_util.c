@@ -79,4 +79,6 @@ void led_strip_firstled(int red, int green, int blue) {
 
 }
 
-
+size_t get_numleds() {
+	return s_numleds;
+}

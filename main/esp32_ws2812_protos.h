@@ -25,6 +25,7 @@ void strip_set_pixel(int32_t idx, T_COLOR_RGB *rgb);
 void strip_clear();
 void strip_show();
 void firstled(int red, int green, int blue);
+size_t get_numleds();
 
 // from led_strip_util.c
 void led_strip_init(uint32_t numleds);

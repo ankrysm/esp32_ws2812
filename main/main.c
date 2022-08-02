@@ -167,7 +167,7 @@ void app_main() {
 
 	ESP_LOGI(__func__,"running on core %d",xPortGetCoreID());
 	xDelay = 50000 / portTICK_PERIOD_MS;
-	int logcnt =0;
+	//int logcnt =0;
 	while(1) {
 		//printf("xxx\n");
 		/*

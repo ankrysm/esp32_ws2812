@@ -6,10 +6,6 @@
  */
 
 #include "esp32_ws2812.h"
-//#include "color.h"
-
-//extern size_t s_numleds;
-
 
 T_NAMED_RGB_COLOR colortable[] = {
 		{.name="white",       .rgb={.r=255, .g=255, .b=255}, .hsv={.h=0,   .s=0,   .v=100}},

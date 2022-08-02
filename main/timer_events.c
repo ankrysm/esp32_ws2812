@@ -9,11 +9,10 @@
 
 #include "esp32_ws2812.h"
 
-//extern size_t s_numleds;
+uint64_t s_timer_period; // in ms
 
 
 static esp_timer_handle_t s_periodic_timer;
-static uint64_t s_timer_period; // in ms
 static EventGroupHandle_t s_timer_event_group;
 
 static const int EVENT_BIT_START = BIT0;
@@ -143,7 +142,7 @@ static void periodic_timer_callback(void* arg)
 	if ( !s_event_list) {
 		//ESP_LOGI(__func__,"event list is empty");
 		// clear the strip
-		uint32_t n = s_numleds;
+		uint32_t n = get_numleds();
 		ESP_LOGI(__func__,"reset numleds=%u", n);
 		T_COLOR_RGB bk={.r=0,.g=0,.b=0};
 		strip_set_color(0, n - 1, &bk);

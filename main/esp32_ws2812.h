@@ -32,7 +32,7 @@
 //#ifdef MAIN
 //size_t s_numleds;
 //#else
-extern size_t s_numleds;
+//extern size_t s_numleds;
 //#endif
 
 #endif /* MAIN_ESP32_WS2812_H_ */

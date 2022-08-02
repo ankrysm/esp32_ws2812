@@ -8,8 +8,6 @@
 
 #include "esp32_ws2812.h"
 
-// from components/led_strip/led_strip_util.c
-//extern size_t s_numleds;
 extern size_t s_size_led_strip_pixels;
 extern uint8_t *led_strip_pixels;
 
@@ -26,7 +24,7 @@ void strip_set_color(int32_t start_idx, int32_t end_idx,  T_COLOR_RGB *rgb) {
 	}
 
 	for(int i = start_idx; i <= end_idx; i++) {
-		if ( i<0 || i >= s_numleds)
+		if ( i<0 || i >= get_numleds())
 			continue;
 		uint32_t pos = 3 * i;
 		led_strip_pixels[pos++] = rgb->g;
@@ -36,20 +34,20 @@ void strip_set_color(int32_t start_idx, int32_t end_idx,  T_COLOR_RGB *rgb) {
 }
 
 /**
- * sets a single pixel
+ * sets a single pixel, black if rgb is NULL
  */
 void strip_set_pixel(int32_t idx, T_COLOR_RGB *rgb) {
 	if (!STRIP_INITIALIZED) {
 		ESP_LOGE(__func__, "not initalized");
 		return;
 	}
-	if ( idx < 0 || idx >= s_numleds) {
+	if ( idx < 0 || idx >= get_numleds()) {
 		return;
 	}
 	uint32_t pos = 3 * idx;
-	led_strip_pixels[pos++] = rgb->g;
-	led_strip_pixels[pos++] = rgb->r;
-	led_strip_pixels[pos] = rgb->b;
+	led_strip_pixels[pos++] = rgb ? rgb->g : 0;
+	led_strip_pixels[pos++] = rgb ? rgb->r : 0;
+	led_strip_pixels[pos]   = rgb ? rgb->b : 0;
 }
 
 /**
