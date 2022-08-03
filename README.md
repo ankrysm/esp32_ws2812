@@ -1,177 +1,71 @@
 # esp32_ws2812
-control a ws2812-lightstrip with an wsp32
 
-the plan to use a dastLED-Library was not successful because of timing troubles when integrating a web server.
+control a ws2812-lightstrip with an esp32. It works with the RMT driver, designed for remote control interfaces.
+Because it has to parallel with a web server it was necessary to set up some special settings.
 
-I've found some ws2812 code in the esp-idf examples. This works parallel with the http server.
+## hardware 
 
-## newer concepts
+There's a 74HCT14 as an interface between the 3,3 V esp32 interface and the led strip 5v data input.
+A resistor of 470 ohm is recommended in the data line.
+A capacitor of 1000 µF is used for stabilisation of the power supply.
+[schematics](assets/esp32_ws2812_schematics.png)
+
+## software
+
+A REST service is used for controlling the displayed scenes. 
+
+To bring the wifi interface up the esptouch framework version 1 is used, you need the esptouch app on a smartphone.
 
 ### API
 
-base path is */api/v1*
+#### /config
 
-
-#### config
-
-stores global parameters
+Stores global parameters, the setting is permanent stored in the ESP32 flash.
 
 true is 't','true' or '1'
 false is 'f', 'false' or '0'
 
 type: GET
 
-Parameter:
+parameter:
 
-* autoplay true|false - start immediately after reboot - true if theres no network connection, default: *true*
-* scenefile <name> - scenefile for play, default: *scenes*
-* repeat true|false - plays scenes once or forever, default *true*
-* numleds - number of leds, default 12
-* cycle - cycle time in ms, default 100 ms
+* numleds=number of leds, default 12, a reboot is triggered after changing this parameter
+* autoplay=true|false - start immediately after reboot - true if theres no network connection, default: *true*
+* autoplayfile=<name> - scenefile for autoplay, default: *scenes*
+* cycle=<cycletime> - cycle time in ms, default 100 ms
+* showstatus=true|false - the first led on the strip shows the status of the running software
 
-Response:
+response:
 
-actual key-value-list of parameters
+JSON object with the actual settings
 
-### status / run / pause /stop
+#### /reset
 
-sets or gets the status of played scenes
+Resets all settings in the ESP32 flash, and restart the system.
 
 type: GET
 
-Parameter:
-
-* scenefile <name> - optional, new scenefile name for play
-
-Response:
-
-* actual status: run/pause/stop
-* cycle count
-* elapsed time in seconds
-* actual scene file
-
-### scene
-
-show a single scene immediately, implies status stop
-
-type: POST
-
 parameter: none
 
-POST-data: scene definition
+response: "RESET done"
 
-### scenes
+#### /ctrl
 
-upload of a scene data and storage in a file on the controller.
-A scene file contains a list of scenes in JSON-format
+controls the status 
 
-type POST
+type: GET
 
-parameter:
+parameter: 
 
-* file name - used name for storage
+* cmd=r|s|p|l|c - sets the status
+    * r - run
+    * s - stop
+    * p - pause, continue with 'r'
+    * l - list active events
+    * c - stopps all events and clear all scene events 
+* add=<event specifikation> - adds an event
+* del=<event number> - deletes the event with a number
+* set=<event specification with event number> - replaces an event with a new one
 
-POST-data: JSON-Structure for list of scenes
-
-Response: OK/NOK
-
-Reason for NOK may be
-* format errors
-* not enough storage space
-* syntax errors
-
-
-## scene definitions
-
-### common parameter
-
-a scene definition consists of
-* common parameters
-    * "start":xx.yy - start time in seconds - scene will be activated xxx.yy seconds after cycle start - default 0
-    * "duration":xx.yy - duration of a scene in seconds - default 0 - means forever
-    * "pos":nn - start position - default 0
-    * "len":nn - number of leds affected by this scene - default number leds
-    * "type":"name" - name of the scene type
-    * "bg_color":{COLOR} - background color - default black
-    * "fadein"
-        * "t":sss.ss - fade in time in seconds - default 0
-        * "in":nn - fade in length (number of leds) - default 0
-        * "out":nn - fade out length - default 0
-    * "movement"
-        * "speed":nn - may be negative or positive, value = led steps per second
-        * "rotate":"true"|"false" - rotate or shift content, if content shift out, freed leds will be set to bg_color
-
-* special parameters - depends from the scene type
-
-Colors where specified as `"rgb":[rrr,ggg,bbb]` or `"hsv":[hhh,sss,vvv]` or `"color":"name"`. In this document mentions as *COLOR*
-
-### scene types
-
-#### blank
-
-description: all leds are switched off (set to black)
-
-parameters: none
-
-#### solid
-
-description: sets the range to specific color
-
-parameters:
-
-* "color"={COLOR}
-
-#### blinking
-
-description: color transition from *bg_color* to *color* and back
-
-parameters:
-* "color":{COLOR} - to color
-* ttime=nn - transition time in sec - default 0
-* ctime=nn - cycle time in sec - default 1.0 sec
-
-
-#### rainbow
-
-description: display rainbow colors
-
-parameters:
-* "min_brightness":nn - default 0%
-* "max_brightness":nn - default 100%
-* "cycles":nn - default 1
-
-
-#### sparkle
-
-description: shows some sparkling elements
-
-paramter:
-* "bg_color":{COLOR} - background color - default black
-* "colors":[{COLOR},..] - List of foreground colors
-* "size":n - n=0(small)..5(big) - size of a sparkle, default 3
-* "vary":n - n=0(few}..5(a lot) - varying of foreground color, default 3
-* "spped":n - n=0..10 - speed index
-* "num":n - number of sparkles
-
-#### move
-
-description: moves scenes
-
-parameters: none
-
-
-### examples
-
-```
-{
-  "start":1.5,"duration":3.5,"pos":0,"len":50,"type":"blinking",
-  "bg_color":{"color":"black"},"color":{"rgb":[128,255,128]},"ttime":0.25,"ctime":1.0
-}
-
-{
-  "start":1.5,"duration":3.5,"pos":0,"len":50,"type":"sparkle",
-  "bg_color":{"rgb":[255,0,0]},"colors":[{"rgb":[0,255,0]},{"hsv":[34,55,100]}],"ttime":0.25,"ctime":1.0
-}
-
-```
+Response: some message 
 

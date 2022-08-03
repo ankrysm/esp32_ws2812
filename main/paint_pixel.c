@@ -45,7 +45,7 @@
 //                 +-------------------------+---------------------------------+---------------+
 
 
-void led_sec_main(T_LED_SECTION *led_sec /*, int32_t sec_pos, uint32_t sec_len*/) {
+void led_sec_main(T_LED_SECTION *led_sec) {
 
 	const int32_t max_cnt = 999999;
 
@@ -70,7 +70,6 @@ void led_sec_main(T_LED_SECTION *led_sec /*, int32_t sec_pos, uint32_t sec_len*/
 
 	int32_t pos = 0; // (relative) position in the led section
 	int32_t led_pos = led_sec->sec_pos; // position on the strip
-	//int32_t d_led_pos = +1;
 	int32_t end_pos = led_sec->startpos + led_sec->len;
 
 	// transient values for level section
@@ -87,9 +86,8 @@ void led_sec_main(T_LED_SECTION *led_sec /*, int32_t sec_pos, uint32_t sec_len*/
 
 	// *** main loop ***
 	for ( pos = 0; pos < led_sec->len; pos++) {
-		// ************************
+		// ******************************************
 		// 1. ***  has to init? ***
-		// ************************
 
 		// *** color section init ***
 		if ( flags & init_col_sec ) {
@@ -132,8 +130,9 @@ void led_sec_main(T_LED_SECTION *led_sec /*, int32_t sec_pos, uint32_t sec_len*/
 					break;
 
 				case COL_SEC_SPARKLE:
-					// choose random position for a spot and a random color between hsv1 and hsv2
+					sparkle_init(w_col_sec);
 					break;
+
 				default:
 					ESP_LOGE(__func__, "NYI %d", w_lvl_sec->spec);
 					// todo some defaults
@@ -187,6 +186,7 @@ void led_sec_main(T_LED_SECTION *led_sec /*, int32_t sec_pos, uint32_t sec_len*/
 			flags &= ~init_lvl_sec;
 		}
 		// *** End of init ****************************************
+		// ********************************************************
 
 		// 2. *** make color and level for one pixel
 		// color from color section with brightness from level section
@@ -219,7 +219,7 @@ void led_sec_main(T_LED_SECTION *led_sec /*, int32_t sec_pos, uint32_t sec_len*/
 			break;
 
 		case COL_SEC_EXP:
-			// TODO another calculation for real exp instead of this linear needed
+			// TODO another calculation for real exponential values instead of this linear needed
 			w_col_h += w_col_dh;
 			w_col_s += w_col_ds;
 			w_col_v += w_col_dv;
@@ -234,6 +234,7 @@ void led_sec_main(T_LED_SECTION *led_sec /*, int32_t sec_pos, uint32_t sec_len*/
 		case COL_SEC_SPARKLE:
 			// choose random position for a spot and a random color between hsv1 and hsv2
 			// with a random life time
+			sparkle_get(w_col_sec, pos);
 			break;
 		default:
 			ESP_LOGE(__func__, "NYI %d", w_lvl_sec->spec);
@@ -333,6 +334,22 @@ void led_sec_main(T_LED_SECTION *led_sec /*, int32_t sec_pos, uint32_t sec_len*/
 
 	} // for
 }
+
+//  number of sparkles = 5
+//  width = 3: .|X|.
+//  .|X|.       .|X|.           .|X|.     .|X|.     .|X|.
+// |x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|
+//   |                 |                             |
+//  min pos        center pos                    max pos
+// timing: if a sparkle disappeared create a new one
+void sparkle_init(T_COLOR_SECTION *col_sec) {
+}
+
+void sparkle_get(T_COLOR_SECTION *col_sec, uint32_t pos, T_COLOR_HSV *hsv) {
+
+}
+
+
 
 
 /************************************************************************

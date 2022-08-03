@@ -72,28 +72,42 @@ typedef enum {
 typedef struct LEVEL_SECTION {
 	lvl_sec_spec spec;
 	int32_t len;  // length of the segment
+	
 	// special parameter
 	int32_t lvl1; // location based level in percent
 	int32_t lvl2; // optional second value in percent
-	// working data
-	//double w_f; // factor for everything
-	//double w_df; // another factor for everything
-	//double w_timf; // factor from timing control
-	//double w_lvl1;
-	//double w_lvl2;
+
 	// for list:
 	struct LEVEL_SECTION *nxt;
 } T_LEVEL_SECTION;
 
+
+//  number of sparkles = 5
+//  width = 3: .|X|.
+//  .|X|.       .|X|.           .|X|.     .|X|.     .|X|.
+// |x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|
+//   |                 |                             |
+//  min pos        center pos                    max pos
+// timing: if a sparkle disappeared create a new one
+typedef struct SPARKLE_SECTION {
+	uint32_t n; // number of sparkles
+	uitn32_t width;
+	uint32_t center_pos; // for moving effects
+	uint32_t min_pos; // for minimum sparkle position
+	uitn32_t max_pos; // fro maximum sparkle position
+	uint32_t *sp_pos; // array for sparkle positions
+	uint32_t *sp_time; // array display time of the sparkles
+} T_SPARKLE_SECTION;
+
 typedef struct COLOR_SECTION {
 	col_sec_spec spec;
 	uint32_t len; // Length of the section
+
 	// special parameter
+	void *para;
 	int32_t startpos;
 	T_COLOR_HSV hsv1;
 	T_COLOR_HSV hsv2;
-	
-	// working data
 	
 	// for build a list
 	struct COLOR_SECTION *nxt;
@@ -123,6 +137,7 @@ typedef struct TIMING_COL_SECTION {
 	// color definitions as HSV makes it easier to calculate new colors
 	T_COLOR_HSV hsv1;
 	T_COLOR_HSV hsv2;
+	
 	// working data
 	uint32_t w_repeat;
 	double w_f_h; // h factor for everything
@@ -134,26 +149,21 @@ typedef struct TIMING_COL_SECTION {
 	
 } T_TIMING_COL_SECTION;
 
-
+// main definition
 typedef struct LED_SECTION {
 	led_sec_spec spec;
 	uint32_t len; // Length of the section
 	int32_t startpos;
-//	T_COLOR_HSV hsv1;
-//	T_COLOR_HSV hsv2;
 	
 	// working data
 	int32_t sec_pos;
 	int32_t d_sec_pos;
-	//T_COLOR_HSV w_hsv1;
-	//T_COLOR_HSV w_hsv2;
-	//T_COLOR_RGB w_rgb1;
-	//T_COLOR_RGB w_rgb2;
 	
-	// level
+	// level + color sections
 	T_LEVEL_SECTION *lvl_sec_list; // list of lvl sections
 	T_COLOR_SECTION *col_sec_list; // list of color sections
-	// timing
+	
+	// level + color timing sections
 	T_TIMING_LVL_SECTION *tim_lvl_sec_list; // timing level section list
 	T_TIMING_COL_SECTION *tim_col_sec_list; // timing color section list
 } T_LED_SECTION;

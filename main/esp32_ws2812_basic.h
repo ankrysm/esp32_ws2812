@@ -22,6 +22,7 @@
 #include "esp_wpa2.h"
 #include "esp_http_server.h"
 #include "esp_vfs.h"
+#include "esp_random.h"
 #include "cJSON.h"
 #include "esp_chip_info.h"
 #include "driver/gpio.h"

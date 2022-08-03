@@ -350,8 +350,8 @@ static esp_err_t get_handler_ctrl(httpd_req_t *req)
 		if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK) {
 			ESP_LOGI(__func__, "Found URL query => %s", buf);
 
-			//                   0     1     2
-			char *paramnames[]={"cmd","add","del", ""};
+			//                   0     1     2     3
+			char *paramnames[]={"cmd","add","del", "set", ""};
 			for (int i=0; strlen(paramnames[i]); i++) {
 				char param[256];
 				if (httpd_query_key_value(buf, paramnames[i], param, sizeof(param)) != ESP_OK) {
@@ -445,6 +445,9 @@ static esp_err_t get_handler_ctrl(httpd_req_t *req)
 				case 2: // del
 					// TODO
 					break;
+				case 3: // set
+					// TODO
+					break;
 				default:
 					snprintf(resp_str,sizeof(resp_str),"%d NYI",i);
 					httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
@@ -475,6 +478,12 @@ static esp_err_t get_handler_reset(httpd_req_t *req)
 	snprintf(resp_str, sizeof(resp_str),"RESET done\n");
 
 	httpd_resp_send(req, resp_str, HTTPD_RESP_USE_STRLEN);
+
+	ESP_LOGI(__func__,"Restarting in a second...\n");
+	vTaskDelay(1000 / portTICK_PERIOD_MS);
+    ESP_LOGI(__func__, "Restarting now.\n");
+    fflush(stdout);
+    esp_restart();
 
 	return ESP_OK;
 }
