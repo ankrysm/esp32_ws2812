@@ -382,16 +382,16 @@ static esp_err_t get_handler_ctrl(httpd_req_t *req)
 							httpd_resp_send_chunk(req, buf, strlen(buf));
 						} else {
 							for ( T_EVENT *evt= s_event_list; evt; evt = evt->nxt) {
-								snprintf(resp_str,sizeof(resp_str),"event %d\n", evt->lfd);
+								snprintf(resp_str,sizeof(resp_str),"event %d\n", evt->id);
 								httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
 
-								loc_event2string(&(evt->loc_event), buf, sizeof(buf));
-								snprintf(resp_str,sizeof(resp_str),"  loc_evt=%s\n", buf);
-								httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
-
-								mov_event2string(&(evt->mov_event), buf, sizeof(buf));
-								snprintf(resp_str,sizeof(resp_str),"  mov_evt=%s\n", buf);
-								httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
+//								loc_event2string(&(evt->loc_event), buf, sizeof(buf));
+//								snprintf(resp_str,sizeof(resp_str),"  loc_evt=%s\n", buf);
+//								httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
+//
+//								mov_event2string(&(evt->mov_event), buf, sizeof(buf));
+//								snprintf(resp_str,sizeof(resp_str),"  mov_evt=%s\n", buf);
+//								httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
 							}
 						}
 						release_eventlist_lock();

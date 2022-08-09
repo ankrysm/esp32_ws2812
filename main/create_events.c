@@ -11,7 +11,7 @@
 
 /**
  * different types of effects can be in list, separated by ';'
- */
+ * /
 esp_err_t decode_effect_list(char *param, T_EVENT *event ) {
 
 	memset(event, 0, sizeof(T_EVENT));
@@ -127,6 +127,7 @@ esp_err_t decode_effect_list(char *param, T_EVENT *event ) {
 	free(str);
 	return ret;
 }
+// */
 
 /*
 void create_solid(

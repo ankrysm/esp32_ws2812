@@ -9,6 +9,13 @@
 #ifndef MAIN_ESP32_WS2812_PROTOS_H_
 #define MAIN_ESP32_WS2812_PROTOS_H_
 
+// from util.h
+int32_t get_random(int32_t min, uint32_t diff);
+
+// from process_events.c
+void process_event(T_EVENT *evt, uint64_t scene_time, uint64_t timer_period);
+void reset_event( T_EVENT *evt);
+
 // from config.c
 esp_err_t store_config();
 esp_err_t init_storage();
@@ -65,6 +72,7 @@ void initialise_netbios();
 // from create_events.c
 esp_err_t decode_effect_list(char *param, T_EVENT *event );
 
+/*
 // from location_based_events.c
 esp_err_t decode_effect_solid(T_LOC_EVENT *evt, uint32_t len, T_COLOR_HSV *hsv);
 esp_err_t decode_effect_smooth(
@@ -94,7 +102,7 @@ void calc_pos(T_MOV_EVENT *evt, int32_t *pos, int32_t *delta);
 
 esp_err_t process_move_events(T_EVENT *evt, uint64_t timer_period);
 void mov_event2string(T_MOV_EVENT *evt, char *buf, size_t sz_buf);
-
+*/
 // from create_demo
 void build_demo2(
 		T_COLOR_RGB *fg_color // foreground color

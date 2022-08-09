@@ -35,13 +35,6 @@ T_EVENT *s_event_list = NULL;
 extern T_CONFIG gConfig;
 
 
-static void reset_event( T_EVENT *evt) {
-	evt->isdirty = 1;
-	evt->w_t = 0;
-	evt->mov_event.w_pos = evt->mov_event.start;
-	evt->mov_event.w_status = SCENE_IDLE;
-	evt->mov_event.w_t = 0;
-}
 
 static void show_status() {
 	if ( gConfig.flags & CFG_SHOW_STATUS) {
@@ -59,6 +52,8 @@ static void show_status() {
 static int logcnt=0;
 static int64_t t_sum=0;
 static void periodic_timer_callback(void* arg);
+
+// callback with timing
 static void periodic_timer_callback_t(void* arg) {
 
 	int64_t t_start = esp_timer_get_time();
@@ -90,6 +85,7 @@ static void periodic_timer_callback(void* arg)
 	}
 	int do_reset = false;
 
+	// discover stauts of playback
 	EventBits_t uxBits = xEventGroupGetBits(s_timer_event_group);
 	if ( uxBits & EVENT_BIT_NEW_SCENE ) {
 		ESP_LOGI(__func__, "new scenes NYI");
@@ -155,7 +151,7 @@ static void periodic_timer_callback(void* arg)
 	}
 
 	if ( do_reset) {
-		// reset all events, set isdirty on true;
+		// reset all event data
 		for ( T_EVENT *evt= s_event_list; evt; evt = evt->nxt) {
 			reset_event(evt);
 		}
@@ -164,23 +160,22 @@ static void periodic_timer_callback(void* arg)
 	/// play scenes
 	s_scene_time += s_timer_period;
 	int n_paint=0;
+
 	// first check: is something to paint?
 	for ( T_EVENT *evt= s_event_list; evt; evt = evt->nxt) {
-		// first: move
-		process_move_events(evt,s_timer_period);
-		if ( evt->isdirty) {
+		process_event(evt, s_scene_time, s_timer_period);
+		if ( evt->flags & EVFL_ISDIRTY) {
 			n_paint++;
-			evt->isdirty=0;
 		}
 		// next: time events
 		// TODO
 	}
 
 	if ( n_paint > 0) {
-		// i have something to paint
-		for ( T_EVENT *evt= s_event_list; evt; evt = evt->nxt) {
-			process_loc_event(evt);
-		}
+//		// i have something to paint
+//		for ( T_EVENT *evt= s_event_list; evt; evt = evt->nxt) {
+//			process_loc_event(evt);
+//		}
 		//ESP_LOGI(__func__, "strip_show");
 		show_status();
 		strip_show();

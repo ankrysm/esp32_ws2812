@@ -44,6 +44,109 @@
 // color sections: |    col sec 1            |          col sec2               |   col sec 3   |
 //                 +-------------------------+---------------------------------+---------------+
 
+/******************************************************************************************
+typedef struct PAINT_STRUC {
+	double col_h, col_s, col_v;
+	double col_dh, col_ds, col_dv;
+	double lvl_f, lvl_df;
+	int32_t led_pos;
+	uint32_t flags;
+} T_PAINT_STRUC;
+
+
+void led_sec_init_col_sec(T_PAINT_STRUC *w, T_COLOR_SECTION *w_col_sec) {
+	col_sec_spec w_col_spec;
+	if (w_col_sec) {
+
+		// Start with HSV1
+		w->col_h = 1.0 * w_col_sec->hsv1.h;
+		w->col_s = 1.0 * w_col_sec->hsv1.s;
+		w->col_v = 1.0 * w_col_sec->hsv1.v;
+		w->col_dh = w->col_ds = w->col_dv = 0.0;
+
+		w_col_spec = w_col_sec->spec;
+		switch ( w_col_spec  & SEC_SPEC_MASK) {
+		case COL_SEC_CONSTANT:
+			break;
+
+		case COL_SEC_LINEAR:
+			w->col_dh = 1.0 * (w_col_sec->hsv2.h - w_col_sec->hsv1.h) / w_col_sec->len;
+			w->col_ds = 1.0 * (w_col_sec->hsv2.s - w_col_sec->hsv1.s) / w_col_sec->len;
+			w->col_dv = 1.0 * (w_col_sec->hsv2.v - w_col_sec->hsv1.v) / w_col_sec->len;
+			break;
+
+		case COL_SEC_EXP:
+			// TODO change from linear (this) to exp:
+			w->col_dh = 1.0 * (w_col_sec->hsv2.h - w_col_sec->hsv1.h) / w_col_sec->len;
+			w->col_ds = 1.0 * (w_col_sec->hsv2.s - w_col_sec->hsv1.s) / w_col_sec->len;
+			w->col_dv = 1.0 * (w_col_sec->hsv2.v - w_col_sec->hsv1.v) / w_col_sec->len;
+			break;
+
+		case COL_SEC_RAINBOW:
+			// saturation always 100%
+			w->col_s = 100.0;
+
+			// hue over 360 degrees
+			w->col_dh = 360.0 / w_col_sec->len;
+			// saturation and value constant
+			w->col_ds = 0.0;
+			w->col_dv = 0.0;
+			break;
+
+		case COL_SEC_SPARKLE:
+			sparkle_color_init(w_col_sec);
+			break;
+
+		default:
+			ESP_LOGE(__func__, "NYI %d", w_col_spec);
+			// todo some defaults
+		}
+	//} else {
+	//	w_col_spec = COL_SEC_CONSTANT;
+	}
+}
+
+
+void led_sec_init_lvl_sec(T_PAINT_STRUC *w, T_LEVEL_SECTION *w_lvl_sec) {
+	lvl_sec_spec w_lvl_spec;
+	if (w_lvl_sec) {
+		w_lvl_spec = w_lvl_sec->spec;
+		switch(w_lvl_spec & SEC_SPEC_MASK) {
+		case LVL_SEC_CONSTANT:
+			// w_f as constant factor
+			w->lvl_f = 1.0 * w_lvl_sec->lvl1 / 100.0;
+			w->lvl_df = 0.0; // not used
+			break;
+		case LVL_SEC_LINEAR:
+			// w_lvl_df as constant increment,
+			// example: if lvl2-lvl1 = 100 % and len = 4
+			// use 25% 50% 75% 100%, not start with 0%
+			w->lvl_df = 1.0 *(w_lvl_sec->lvl2 - w_lvl_sec->lvl1) / w_lvl_sec->len;
+			w->lvl_f = w_lvl_df;
+			break;
+		case LVL_SEC_EXP:
+			// w_f as increasing factor, doubled each cycle
+			// example: if lvl2 - lvl1 is 100% and len is 4
+			// use 12,5%, 25%, 50% 100%
+			w->lvl_f = 1.0 / pow(2.0, (w_lvl_sec->len-1));
+			w->lvl_df = 0.0; // not used
+			break;
+		case LVL_SEC_SPARKLE:
+			// TODO
+			w->lvl_f = 1.0;
+			w->lvl_df = 0.0;
+			break;
+		default:
+			ESP_LOGE(__func__, "NYI %d", w_lvl_sec->spec);
+			w->lvl_f = 1.0;
+			w->lvl_df = 0.0;
+		}
+	} else {
+		w_lvl_spec =  LVL_SEC_CONSTANT;
+		w->lvl_f = 1.0;
+		w->lvl_df = 0.0;
+	}
+}
 
 void led_sec_main(T_LED_SECTION *led_sec) {
 
@@ -52,138 +155,59 @@ void led_sec_main(T_LED_SECTION *led_sec) {
 	const uint32_t init_lvl_sec = 0x0001;
 	const uint32_t init_col_sec = 0x0002;
 
-	uint32_t flags = init_lvl_sec | init_col_sec;
+	T_PAINT_STRUC w;
+
+	w.flags = init_lvl_sec | init_col_sec;
 
 	// first level section
 	T_LEVEL_SECTION *w_lvl_sec=led_sec->lvl_sec_list; // start with this
 	int32_t lvl_sec_cnt = w_lvl_sec ? w_lvl_sec->len : max_cnt;
-	lvl_sec_spec w_lvl_spec = LVL_SEC_CONSTANT;
+//	lvl_sec_spec w_lvl_spec = LVL_SEC_CONSTANT;
 
 	// first color section
 	T_COLOR_SECTION *w_col_sec = led_sec->col_sec_list;
 	int32_t col_sec_cnt = w_col_sec ? w_col_sec->len : max_cnt;
-	col_sec_spec w_col_spec = COL_SEC_CONSTANT;
+	//col_sec_spec w_col_spec = COL_SEC_CONSTANT;
 
-	// position values
+	// d_sec_pos should be -1 or +1 not 0
 	if ( led_sec->d_sec_pos == 0)
 		led_sec->d_sec_pos = 1;
 
-	int32_t pos = 0; // (relative) position in the led section
-	int32_t led_pos = led_sec->sec_pos; // position on the strip
+
+	int32_t cnt = 0; //
+	w.led_pos = led_sec->sec_pos; // position on the strip
 	int32_t end_pos = led_sec->startpos + led_sec->len;
 
 	// transient values for level section
-	double w_lvl_f;
-	double w_lvl_df;
-	w_lvl_f = w_lvl_df = 0.0;
+	w.lvl_f = w.lvl_df = 0.0;
 
 	// transient values for color section
 	//T_COLOR_HSV w_col_hsv1={.h=0, .s=0, .v=0};
 	//T_COLOR_HSV w_col_hsv2={.h=0, .s=0, .v=0};
-	double w_col_h, w_col_s, w_col_v;
-	double w_col_dh, w_col_ds, w_col_dv;
-	w_col_h = w_col_s = w_col_v = w_col_dh = w_col_ds = w_col_dv = 0.0;
+	//double w_col_h, w_col_s, w_col_v;
+	//double w_col_dh, w_col_ds, w_col_dv;
+	w.col_h = w.col_s = w.col_v = w.col_dh = w.col_ds = w.col_dv = 0.0;
 
 	// *** main loop ***
-	for ( pos = 0; pos < led_sec->len; pos++) {
+	for ( cnt = 0; cnt < led_sec->len; cnt++) {
 		// ******************************************
-		// 1. ***  has to init? ***
+		// 1. *** init? ***
 
 		// *** color section init ***
-		if ( flags & init_col_sec ) {
+		// initiate color values: w.col_h, w.col_s, w.col_v
+		//           differences: w.col_dh, w.col_ds, w.col_dv
+		if ( w.flags & init_col_sec ) {
 			// init color section
-			if (w_col_sec) {
-
-				// Start with HSV1
-				w_col_h = 1.0 * w_col_sec->hsv1.h;
-				w_col_s = 1.0 * w_col_sec->hsv1.s;
-				w_col_v = 1.0 * w_col_sec->hsv1.v;
-				w_col_dh = w_col_ds = w_col_dv = 0.0;
-
-				w_col_spec = w_col_sec->spec;
-				switch ( w_col_spec  & SEC_SPEC_MASK) {
-				case COL_SEC_CONSTANT:
-					break;
-
-				case COL_SEC_LINEAR:
-					w_col_dh = 1.0 * (w_col_sec->hsv2.h - w_col_sec->hsv1.h) / w_col_sec->len;
-					w_col_ds = 1.0 * (w_col_sec->hsv2.s - w_col_sec->hsv1.s) / w_col_sec->len;
-					w_col_dv = 1.0 * (w_col_sec->hsv2.v - w_col_sec->hsv1.v) / w_col_sec->len;
-					break;
-
-				case COL_SEC_EXP:
-					// TODO change from linear (this) to exp:
-					w_col_dh = 1.0 * (w_col_sec->hsv2.h - w_col_sec->hsv1.h) / w_col_sec->len;
-					w_col_ds = 1.0 * (w_col_sec->hsv2.s - w_col_sec->hsv1.s) / w_col_sec->len;
-					w_col_dv = 1.0 * (w_col_sec->hsv2.v - w_col_sec->hsv1.v) / w_col_sec->len;
-					break;
-
-				case COL_SEC_RAINBOW:
-					// saturation always 100%
-					w_col_s = 100.0;
-
-					// hue over 360 degrees
-					w_col_dh = 360.0 / w_col_sec->len;
-					// saturation and value constant
-					w_col_ds = 0.0;
-					w_col_dv = 0.0;
-					break;
-
-				case COL_SEC_SPARKLE:
-					sparkle_init(w_col_sec);
-					break;
-
-				default:
-					ESP_LOGE(__func__, "NYI %d", w_lvl_sec->spec);
-					// todo some defaults
-				}
-			} else {
-				w_col_spec = COL_SEC_CONSTANT;
-			}
-
-			flags &= ~init_col_sec;
+			led_sec_init_col_sec(&w, w_col_sec);
+			w.flags &= ~init_col_sec;
 		}
 		// *** level section init ***
-		if ( flags & init_lvl_sec ) {
+		// initiate level factors: w_lvl_f
+		//            differences: w_lvl_df
+		if ( w.flags & init_lvl_sec ) {
 			// init level section
-			if (w_lvl_sec) {
-				w_lvl_spec = w_lvl_sec->spec;
-				switch(w_lvl_spec & SEC_SPEC_MASK) {
-				case LVL_SEC_CONSTANT:
-					// w_f as constant factor
-					w_lvl_f = 1.0 * w_lvl_sec->lvl1 / 100.0;
-					w_lvl_df = 0.0; // not used
-					break;
-				case LVL_SEC_LINEAR:
-					// w_lvl_df as constant increment,
-					// example: if lvl2-lvl1 = 100 % and len = 4
-					// use 25% 50% 75% 100%, not start with 0%
-					w_lvl_df = 1.0 *(w_lvl_sec->lvl2 - w_lvl_sec->lvl1) / w_lvl_sec->len;
-					w_lvl_f = w_lvl_df;
-					break;
-				case LVL_SEC_EXP:
-					// w_f as increasing factor, doubled each cycle
-					// example: if lvl2 - lvl1 is 100% and len is 4
-					// use 12,5%, 25%, 50% 100%
-					w_lvl_f = 1.0 / pow(2.0, (w_lvl_sec->len-1));
-					w_lvl_df = 0.0; // not used
-					break;
-				case LVL_SEC_SPARKLE:
-					// TODO
-					w_lvl_f = 1.0;
-					w_lvl_df = 0.0;
-					break;
-				default:
-					ESP_LOGE(__func__, "NYI %d", w_lvl_sec->spec);
-					w_lvl_f = 1.0;
-					w_lvl_df = 0.0;
-				}
-			} else {
-				w_lvl_spec =  LVL_SEC_CONSTANT;
-				w_lvl_f = 1.0;
-				w_lvl_df = 0.0;
-			}
-			flags &= ~init_lvl_sec;
+			led_sec_init_lvl_sec(&w, w_lvl_sec);
+			w.flags &= ~init_lvl_sec;
 		}
 		// *** End of init ****************************************
 		// ********************************************************
@@ -193,48 +217,50 @@ void led_sec_main(T_LED_SECTION *led_sec) {
 		// the color for a single pixel
 		T_COLOR_HSV hsv={.h=0, .s=0, .v=0};
 		T_COLOR_RGB rgb={.r=0,.g=0,.b=0};
-		hsv.h = w_col_h;
-		hsv.s = w_col_s;
-		hsv.v = w_col_v;
+		hsv.h = w.col_h;
+		hsv.s = w.col_s;
+		hsv.v = w.col_v;
 
 		c_hsv2rgb(&hsv, &rgb);
-		rgb.r = rgb.r * w_lvl_f;
-		rgb.r = rgb.r * w_lvl_f;
-		rgb.r = rgb.r * w_lvl_f;
+		rgb.r = rgb.r * w.lvl_f;
+		rgb.g = rgb.g * w.lvl_f;
+		rgb.b = rgb.b * w.lvl_f;
 
 		// 3. *** set the color
-		if ( led_pos >=0 && led_pos < get_numleds()) {
-			strip_set_pixel(led_pos, &rgb);
+		if ( w.led_pos >=0 && w.led_pos < get_numleds()) {
+			strip_set_pixel(w.led_pos, &rgb);
 		}
 
 		// 4. **** calculate color parameter for next cycle
+		// ********************************************************
+
 		switch ( w_col_spec  & SEC_SPEC_MASK) {
 		case COL_SEC_CONSTANT:
 			break;
 
 		case COL_SEC_LINEAR:
-			w_col_h += w_col_dh;
-			w_col_s += w_col_ds;
-			w_col_v += w_col_dv;
+			w.col_h += w.col_dh;
+			w.col_s += w.col_ds;
+			w.col_v += w.col_dv;
 			break;
 
 		case COL_SEC_EXP:
 			// TODO another calculation for real exponential values instead of this linear needed
-			w_col_h += w_col_dh;
-			w_col_s += w_col_ds;
-			w_col_v += w_col_dv;
+			w.col_h += w.col_dh;
+			w.col_s += w.col_ds;
+			w.col_v += w.col_dv;
 			break;
 
 		case COL_SEC_RAINBOW:
-			w_col_h += w_col_dh;
-			w_col_s += w_col_ds;
-			w_col_v += w_col_dv;
+			w.col_h += w.col_dh;
+			w.col_s += w.col_ds;
+			w.col_v += w.col_dv;
 			break;
 
 		case COL_SEC_SPARKLE:
 			// choose random position for a spot and a random color between hsv1 and hsv2
 			// with a random life time
-			sparkle_get(w_col_sec, pos);
+			sparkle_color_get(w_col_sec, led_pos);
 			break;
 		default:
 			ESP_LOGE(__func__, "NYI %d", w_lvl_sec->spec);
@@ -256,8 +282,8 @@ void led_sec_main(T_LED_SECTION *led_sec) {
 
 		case LVL_SEC_SPARKLE:
 			// TODO
-			//w_lvl_f = 1.0;
-			//w_lvl_df = 0.0;
+			w_lvl_f = 1.0;
+			w_lvl_df = 0.0;
 			break;
 		default:
 			ESP_LOGE(__func__, "NYI %d", w_lvl_sec->spec);
@@ -266,7 +292,7 @@ void led_sec_main(T_LED_SECTION *led_sec) {
 		// 6. *** next position
 		led_pos+= led_sec->d_sec_pos;
 
-		// 7. check for section border
+		// 7. *** check for section border and strategy
 		int stop_working = 0;
 		if ( led_pos >= end_pos ) {
 			switch (led_sec->spec & SEC_SPEC_MASK ) {
@@ -310,7 +336,7 @@ void led_sec_main(T_LED_SECTION *led_sec) {
 
 		// 8. *** check for a next section ***
 		// level section
-		if ( pos >= lvl_sec_cnt) {
+		if ( cnt >= lvl_sec_cnt) {
 			// take the next level section
 			w_lvl_sec = w_lvl_sec->nxt;
 			if ( w_lvl_sec) {
@@ -321,7 +347,7 @@ void led_sec_main(T_LED_SECTION *led_sec) {
 			flags |= init_lvl_sec;
 		}
 		// color section
-		if ( pos >= col_sec_cnt) {
+		if ( cnt >= col_sec_cnt) {
 			// take the next level section
 			w_col_sec = w_col_sec->nxt;
 			if ( w_col_sec) {
@@ -342,14 +368,63 @@ void led_sec_main(T_LED_SECTION *led_sec) {
 //   |                 |                             |
 //  min pos        center pos                    max pos
 // timing: if a sparkle disappeared create a new one
-void sparkle_init(T_COLOR_SECTION *col_sec) {
+void sparkle_color_init(T_COLOR_SECTION *col_sec) {
+	if ( ! col_sec->para ) {
+		ESP_LOGE(__func__, "data section needed");
+		return;
+	}
+	T_SPARKLE_SECTION *sec = (T_SPARKLE_SECTION*) col_sec->para;
+	if ( sec->n < 1 ) {
+		ESP_LOGE(__func__, "number of sparkles not set");
+		return;
+	}
+	uint32_t diff;
+	diff = sec->max_pos - sec->min_pos;
+	// check for new sparkles - depends on time
+	for( int i=0; i<sec->n; i++) {
+		if ( sec->sp_time[i] & SPARKLE_TIME_MASK > 0)
+			continue; // this slot is running
+
+		// create a new sparkle at a position
+		uint32_t t = get_random(sec->sp_start_delay, sec->sp_time_vary);
+		sec->sp_time[i] = t | SPARKLE_IDLE;
+		sec->sp_pos[i] = get_random(sec->min_pos, sec->pos_width);
+	}
 }
 
-void sparkle_get(T_COLOR_SECTION *col_sec, uint32_t pos, T_COLOR_HSV *hsv) {
+// get color for a position
+void sparkle_color_get(T_COLOR_SECTION *col_sec, uint32_t pos, T_COLOR_HSV *hsv) {
+	if ( ! col_sec->para ) {
+		ESP_LOGE(__func__, "data section needed");
+		return;
+	}
+	T_SPARKLE_SECTION *sec = (T_SPARKLE_SECTION*) col_sec->para;
+	if ( sec->n < 1 ) {
+		ESP_LOGE(__func__, "number of sparkles not set");
+		return;
+	}
 
+
+	for( int i=0; i<sec->n; i++) {
+		if ( sec->sp_time[i] & SPARKLE_TIME_MASK > 0)
+			continue; // this slot is running
+
+
+		uint32_t ph = sec->sp_time[i] & SPARKLE_PHASE_MASK;
+		switch ( ph ) {
+		case SPARKLE_START_UP:
+			break;
+		case SPARKLE_START:
+			break;
+		case SPARKLE_MID:
+			break;
+		case SPARKLE_END:
+			break;
+		}
+	}
 }
 
-
+*************************************************************************/
 
 
 /************************************************************************
@@ -979,7 +1054,7 @@ static void tim_col_sec_linear(T_COLOR_SECTION *col_sec) {
 	}
 }
 
-
+//
 // *************** main timing function ***************************************
 void tim_sec_main(T_COLOR_SECTION *col_sec, int32_t w_pos, int32_t w_len) {
 
@@ -1031,5 +1106,5 @@ void tim_sec_main(T_COLOR_SECTION *col_sec, int32_t w_pos, int32_t w_len) {
 
 	col_sec_main(col_sec, w_pos, w_len);
 }
-
 */
+

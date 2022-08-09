@@ -107,11 +107,11 @@ esp_err_t event_list_add(T_EVENT *pevt) {
 			// add at the end of the list
 			T_EVENT *t;
 			for (t=s_event_list; t->nxt; t=t->nxt){}
-			evt->lfd = t->lfd +1;
+			evt->id = t->id +1;
 			t->nxt = evt;
 		} else {
 			// first entry
-			evt->lfd = 1;
+			evt->id = 1;
 			s_event_list = evt;
 		}
 	} else {

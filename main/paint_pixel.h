@@ -8,6 +8,7 @@
 #ifndef MAIN_PAINT_PIXEL_H_
 #define MAIN_PAINT_PIXEL_H_
 
+/*
 #define SEC_SPEC_MASK 0x00FF
 #define SEC_FLAG_MASK 0xFF00
 
@@ -65,9 +66,9 @@ typedef enum {
 //typedef struct COLOR_SECTION T_COLOR_SECTION;
 //typedef struct LEVEL_SECTION T_LEVEL_SECTION;
 
-/*******************
+/ *******************
  section structures
-********************/
+******************** /
 
 typedef struct LEVEL_SECTION {
 	lvl_sec_spec spec;
@@ -82,6 +83,14 @@ typedef struct LEVEL_SECTION {
 } T_LEVEL_SECTION;
 
 
+#define SPARKLE_PHASE_MASK   0xF0000000
+#define SPARKLE_TIME_MASK    0x0FFFFFFF
+#define SPARKLE_IDLE         0x00000000
+#define SPARKLE_START_UP     0x10000000
+#define SPARKLE_START        0x20000000
+#define SPARKLE_MID          0x30000000
+#define SPARKLE_END          0x40000000
+
 //  number of sparkles = 5
 //  width = 3: .|X|.
 //  .|X|.       .|X|.           .|X|.     .|X|.     .|X|.
@@ -91,12 +100,19 @@ typedef struct LEVEL_SECTION {
 // timing: if a sparkle disappeared create a new one
 typedef struct SPARKLE_SECTION {
 	uint32_t n; // number of sparkles
-	uitn32_t width;
+	uint32_t width; // width of a sparkle
 	uint32_t center_pos; // for moving effects
 	uint32_t min_pos; // for minimum sparkle position
-	uitn32_t max_pos; // fro maximum sparkle position
+	uint32_t pos_width; // width for maximum sparkle position
+	
+	uint32_t sp_time_vary; // varying time in ms
+	uint32_t sp_start_delay; // min start delay (+ random vary)
+	uint32_t sp_start_duration;
+	uint32_t sp_duration; // default duration of a sparkle
+	uint32_t sp_end_duration;
+	
 	uint32_t *sp_pos; // array for sparkle positions
-	uint32_t *sp_time; // array display time of the sparkles
+	uint32_t *sp_time; // array display flags + time of the sparkles,
 } T_SPARKLE_SECTION;
 
 typedef struct COLOR_SECTION {
@@ -104,7 +120,7 @@ typedef struct COLOR_SECTION {
 	uint32_t len; // Length of the section
 
 	// special parameter
-	void *para;
+	void *para; // for example T_SPARKLE_SECTION
 	int32_t startpos;
 	T_COLOR_HSV hsv1;
 	T_COLOR_HSV hsv2;
@@ -171,7 +187,7 @@ typedef struct LED_SECTION {
 // function prototypes
 //typedef esp_err_t (paint_level) (T_LEVEL_SECTION*);
 //typedef esp_err_t (paint_color) (T_COLOR_SECTION*, int32_t, int32_t);
-
+//*/
 
 
 #endif /* MAIN_PAINT_PIXEL_H_ */

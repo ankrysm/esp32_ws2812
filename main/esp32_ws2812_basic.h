@@ -36,6 +36,10 @@
 #include "esp_netif.h"
 #include "esp_event.h"
 #include "esp_log.h"
+#include "esp_random.h"
+#include "bootloader_random.h"
+
+
 //#include "mdns.h"
 #include "esp_smartconfig.h"
 //#include "mdns.h"
