@@ -34,13 +34,13 @@ typedef enum {
  ***********************************************/
 typedef enum {
 	SCENE_IDLE,    // befor start time
-	SCENE_INITIALIZED, // before start but initialized
-	SCENE_STARTED, // just started, ramp up
+	//SCENE_INITIALIZED, // before start but initialized
+	//SCENE_STARTED, // just started, ramp up
 	SCENE_UP,      // main status
-	SCENE_ENDED,   // duration ended, shutdown startet
+	//SCENE_ENDED,   // duration ended, shutdown startet
 	SCENE_FINISHED // shutdown ended
 } scene_status_type;
-
+// */
 
 
 /**********************************************
@@ -98,6 +98,7 @@ typedef struct MOV_EVENT {
 } T_MOV_EVENT;
 // */
 
+/*
 typedef enum {
 	MOVE_IDLE,  // initialization needed
 	MOVE_INITIALIZED, // initialized
@@ -106,58 +107,146 @@ typedef enum {
 	MOVE_ENDED,   // duration ended, decrease speed
 	MOVE_FINISHED // end speed reached
 } move_status_type;
+// */
 
+typedef enum {
+	WT_NOTHING,
+	WT_CLEAR, // switch of all leds
+	WT_COLOR,
+	WT_COLOR_TRANSITION,
+	WT_RAINBOW,
+	WT_SPARKLE
+} what_type;
+
+typedef enum {
+	ET_NONE, // nothing to do
+	//ET_STEADY, // continue, nothing changed (speed or color or position)
+	ET_DELAY, // wait a moment
+	ET_BOUNCE, // change direction
+	ET_GLOW, // speed up, light up (or down)
+	ET_REPEAT, // repeat from an given event id 
+	ET_STOP, // finished.
+	ET_STOP_CLEAR // finished and clear when finished
+} event_type;
+
+// *** what will happen
+typedef struct EVT_WHAT_COLORTRANSITION {
+	T_COLOR_HSV hsv_from;
+	T_COLOR_HSV hsv_to;
+	uint32_t repeats;
+} T_EVT_WHAT_COLORTRANSITION;
+
+typedef struct EVT_WHAT {
+	int32_t id;
+	what_type type;
+	int32_t pos; // relative start position
+	int32_t len; // relative start length
+	//double brightness; // 0..1.0
+
+	union {
+		T_COLOR_HSV hsv;  // when only one color is needed
+		T_EVT_WHAT_COLORTRANSITION tr; // color transition
+	} para;
+	struct EVT_WHAT *nxt;
+} T_EVT_WHAT;
+
+
+#define EP_SET_ACCELERATION  0x0001
+#define EP_SET_SPEED         0x0002
+#define EP_SET_POSITION      0x0004
+#define EP_SET_SHRINK_RATE   0x0008
+#define EP_SET_LEN           0x0010
+#define EP_SET_ID            0x0020
+#define EP_SET_BRIGHTNESS     0x0040
+#define EP_SET_BRIGHTNESS_CHANGE 0x0080
+
+typedef struct EVT_PARAMETER {
+	uint32_t set_flags; //EP_SET-Values
+	double acceleration; // sets acceleration
+	double speed; // speed in leds per ms or HSV-V_percent per sec 
+	double position; // jump to position
+	double shrink_rate; // in leds per ms
+	double len; // sets length	
+	double brightness; // brightess 0.0 .. 1.0
+	double brightness_change; // brightness change in [0.0 .. 1.0] per ms
+	int32_t id; // for repeat
+} T_EVT_PARAMETER;
+
+//  *** when will something happens ***
+typedef struct EVT_TIME {
+	uint32_t id;
+	scene_status_type status;
+	event_type type; // what to do 
+	uint64_t starttime; // when it will start, measured from last event change
+	uint64_t duration; // when will it finished, go to the next
+	uint64_t w_time; // working time
+	T_EVT_WHAT *what_list;
+	T_EVT_PARAMETER para;
+	
+	struct EVT_TIME *nxt; // next event
+} T_EVT_TIME;
+
+// where will it happen
+typedef struct EVT_WHERE {
+	uint32_t id;
+	event_type type; // what to do 
+	double pos;	// at which position
+	// TODO which direction?
+
+	T_EVT_PARAMETER para;
+	T_EVT_WHAT *what_list;
+
+	struct EVT_WHERE *nxt;
+} T_EVT_WHERE;
 
 
 #define EVFL_ISDIRTY 0x0001
-#define EVFL_DONE    0x0002
-#define EVFL_SP_DONE 0x0004
+//#define EVFL_DONE    0x0002
+//#define EVFL_SP_DONE 0x0004
+
+typedef struct EVENT_VARYING_DATA {
+	union {
+		double value;
+		T_COLOR_RGB rgb;
+		T_COLOR_HSV hsv;
+	};
+	union {
+		double acceleration; // as start parameter
+		double delta; // as working parameter
+	};
+} T_EVENT_VARYING_DATA;	
+
+typedef struct EVENT_DATA{
+	T_EVENT_VARYING_DATA pos;
+	T_EVENT_VARYING_DATA len;
+	T_EVENT_VARYING_DATA speed;
+	T_EVENT_VARYING_DATA brightness;
+
+	T_EVT_WHAT *what_list;
+
+} T_EVENT_DATA;
+
 
 typedef struct EVENT{
-	uint32_t id; // for logging
-	// Event Parameter
-	// location 
-	int32_t pos; // start position on strip, negative values - before the beginning
-	
-	// moving
-	uint64_t sp_t_start; // start time in ms 
-	double sp_start; // initial speed in leds per ms
-	
-	uint64_t sp_dt_startup; // startup acceleration time in ms 
-	double sp_acc_startup; // acceleration leds per ms^2 (v=a*t)
-	
-	uint64_t sp_dt_up; // duration of up phase, 0 = forever
-	double sp_acc_up; // acceleration in up phase
-	
-	uint64_t sp_dt_finish; // duration of up phase, 0 = forever
-	double sp_acc_finish; // acceleration in finish phase
-	
-	// working data
-	move_status_type sp_status;
-	uint64_t w_sp_t; // time
-	//double w_sp_acc;
-	double w_sp_speed;
-	double w_sp_delta_speed;
-	
-	// scene timing
-	uint64_t t_start; // start time
-	uint64_t dt_startup; // time difference for startup
-	uint64_t dt_up;  // if 0: for ever
-	uint64_t dt_finish;
-
-	//T_LOC_EVENT loc_event; // location based event
-	//char *tim_event; // time base event (sets brightness, color)
-	//T_MOV_EVENT mov_event; // event moving (sets position, length)
-
-	// working values
-	scene_status_type status;
+	uint32_t id; // for reference
 	uint32_t flags;
+	T_EVENT_DATA start;
+	T_EVENT_DATA working;
 
-	uint64_t w_t_start;
-	double w_pos; // working position on strip, negative values - before the beginning
-	//int32_t len; // length, -1 = until numleds
-	uint64_t w_t; // working time
+	uint64_t time; // event time
 
+	// what, example: 10 red pixels, with fade in and fade out 
+
+	// time dependend events, 
+	// example: 1.) wait 10 sec, 2.) move with 5 pixel/second
+	T_EVT_TIME *w_evt_time; // actual timing event
+	T_EVT_TIME *evt_time_list; 
+	
+	// location based events, example 
+	// example start at position 30, stop at position 200 with blank
+	T_EVT_WHERE *w_evt_where;
+	T_EVT_WHERE *evt_where_list;
+	
 	struct EVENT *nxt;
 } T_EVENT;
 

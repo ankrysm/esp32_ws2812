@@ -103,6 +103,27 @@ void c_checkrgb(T_COLOR_RGB *rgb, T_COLOR_RGB *rgbmin, T_COLOR_RGB *rgbmax) {
 	}
 }
 
+void c_checkrgb_abs(T_COLOR_RGB *rgb) {
+	if ( rgb->r < 0) {
+		rgb->r = 0;
+	} else if ( rgb->r > 255 ) {
+		rgb->r = 255;
+	}
+
+	if ( rgb->g < 0) {
+		rgb->g = 0;
+	} else if ( rgb->g > 255) {
+		rgb->g = 255;
+	}
+
+	if ( rgb->b < 0) {
+		rgb->b = 0;
+	} else if ( rgb->b >255) {
+		rgb->b = 255;
+	}
+}
+
+
 // search color for a name
 T_NAMED_RGB_COLOR *color4name(char *name) {
 	for ( int i=0; i<CTIDX_END;i++) {

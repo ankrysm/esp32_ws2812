@@ -71,6 +71,36 @@ void start_demo1() {
 void build_demo2(
 		T_COLOR_RGB *fg_color // foreground color
 ) {
+
+
+
+	T_EVENT *evt = calloc(1,sizeof(T_EVENT));
+
+	// * wait 3 secs,
+	// * at position 10 paint 15 pixel in red for 5 secs then finished
+	// * brightness 10 %
+	evt->start.pos.value = 10;
+	evt->start.len.value = 15;
+	evt->start.brightness.value = 0.1;
+
+	T_EVT_TIME *tevt1 = calloc(1,sizeof(T_EVT_TIME));
+	tevt1->id =1;
+	tevt1->type = ET_DELAY;
+	tevt1->starttime = 3000; // 3 sec, in ms
+	tevt1->duration = 5000; // 5 sec, in ms
+
+	T_EVT_WHAT *w = calloc(1,sizeof(T_EVT_WHAT));
+	w->id = 1;
+	w->type = WT_COLOR;
+	T_NAMED_RGB_COLOR *nc = color4name("red");
+	w->para.hsv.h = nc->hsv.h;
+	w->para.hsv.s = nc->hsv.s;
+	w->para.hsv.v = nc->hsv.v;
+
+
+
+
+	/*
 	char *params[]={
 			"smooth,10,4,4,210,100,10;rotate,0,0,100,1,0",
 			"solid,1,0,100,10;rotate,0,0,100,-1,10",
@@ -78,7 +108,8 @@ void build_demo2(
 			"solid,2,120,100,10;rotate,0,0,50,-1,30",
 			""
 	};
-
+*/
+	/*
 	for(int i=0; strlen(params[i]); i++) {
 		T_EVENT evt;
 		char *param=params[i];
@@ -93,6 +124,7 @@ void build_demo2(
 			ESP_LOGW(__func__,"decode FAILED: %s\n", param);
 		}
 	}
+	*/
 	/*
 	int pos = 1;
 	int len = 20;

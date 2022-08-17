@@ -24,6 +24,7 @@ char *config2txt(char *txt, size_t sz);
 // from color.c
 void c_hsv2rgb( T_COLOR_HSV *hsv, T_COLOR_RGB *rgb );
 void c_checkrgb(T_COLOR_RGB *rgb, T_COLOR_RGB *rgbmin, T_COLOR_RGB *rgbmax);
+void c_checkrgb_abs(T_COLOR_RGB *rgb);
 T_NAMED_RGB_COLOR *color4name(char *name);
 
 // from led_strip.c

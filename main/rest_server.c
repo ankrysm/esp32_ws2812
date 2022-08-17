@@ -428,6 +428,7 @@ static esp_err_t get_handler_ctrl(httpd_req_t *req)
 					// type 'smooth' parameter: startpixel, #pixel, fade in pixel, fade out pixel, start-h,s,v, middle-h,s,v, end-h,s,v
 					// effects with different types (moving, location based etc.)
 					// can be in a list separated bei ';'
+					/* TODO
 					T_EVENT evt;
 					if (decode_effect_list(param, &evt) == ESP_OK) {
 						ESP_LOGI(__func__,"done: %s\n", param);
@@ -439,6 +440,7 @@ static esp_err_t get_handler_ctrl(httpd_req_t *req)
 					} else {
 						ESP_LOGW(__func__,"decode FAILED: %s\n", param);
 					}
+					*/
 
 				}
 				break;
