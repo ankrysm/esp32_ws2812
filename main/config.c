@@ -12,6 +12,13 @@
 
 T_CONFIG gConfig;
 
+static esp_vfs_spiffs_conf_t conf = {
+  .base_path = "/spiffs",
+  .partition_label = NULL,
+  .max_files = 5,
+  .format_if_mount_failed = true
+};
+
 /**
  * store the gConfig blob into storage
  */
@@ -44,6 +51,12 @@ esp_err_t store_config() {
 	return ESP_OK;
 }
 
+esp_err_t storage_info(size_t *total, size_t *used) {
+	*total=0;
+	*used=0;
+    esp_err_t ret = esp_spiffs_info(conf.partition_label, total, used);
+    return ret;
+}
 
 /**
  * Init Filesystem and permanent storage, initialize gConfig if necessary
@@ -52,12 +65,6 @@ esp_err_t init_storage() {
 
     ESP_LOGI(__func__, "Initializing SPIFFS");
 
-    esp_vfs_spiffs_conf_t conf = {
-      .base_path = "/spiffs",
-      .partition_label = NULL,
-      .max_files = 5,
-      .format_if_mount_failed = true
-    };
 
     // Use settings defined above to initialize and mount SPIFFS filesystem.
     // Note: esp_vfs_spiffs_register is an all-in-one convenience function.

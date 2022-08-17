@@ -17,6 +17,7 @@
 #define SCRATCH_BUFSIZE (10240)
 
 extern T_CONFIG gConfig;
+extern T_EVENT *s_event_list;
 
 
 typedef struct rest_server_context {
@@ -301,6 +302,14 @@ static esp_err_t get_handler_strip_config(httpd_req_t *req)
     }
     cJSON_AddNumberToObject(root, "cycle", gConfig.cycle);
 
+    cJSON *fs_size = cJSON_AddObjectToObject(root,"filesystem");
+
+
+    size_t total,used;
+    storage_info(&total,&used);
+    cJSON_AddNumberToObject(fs_size, "total", total);
+    cJSON_AddNumberToObject(fs_size, "used", used);
+
 
     // led strip configuration
     const char *resp = cJSON_PrintUnformatted(root);
@@ -345,6 +354,7 @@ static esp_err_t get_handler_ctrl(httpd_req_t *req)
 	char resp_str[255];
 
 	buf_len = httpd_req_get_url_query_len(req) + 1;
+	int cnt=0;
 	if (buf_len > 1) {
 		buf = malloc(buf_len);
 		if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK) {
@@ -357,6 +367,7 @@ static esp_err_t get_handler_ctrl(httpd_req_t *req)
 				if (httpd_query_key_value(buf, paramnames[i], param, sizeof(param)) != ESP_OK) {
 					continue;
 				}
+				cnt++;
 				switch(i) {
 				case 0: // cmd
 				{
@@ -382,8 +393,11 @@ static esp_err_t get_handler_ctrl(httpd_req_t *req)
 							httpd_resp_send_chunk(req, buf, strlen(buf));
 						} else {
 							for ( T_EVENT *evt= s_event_list; evt; evt = evt->nxt) {
-								snprintf(resp_str,sizeof(resp_str),"event %d\n", evt->id);
+								event2text(evt,resp_str,sizeof(resp_str));
 								httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
+
+//								snprintf(resp_str,sizeof(resp_str),"event %d\n", evt->id);
+//								httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
 
 //								loc_event2string(&(evt->loc_event), buf, sizeof(buf));
 //								snprintf(resp_str,sizeof(resp_str),"  loc_evt=%s\n", buf);
@@ -450,15 +464,18 @@ static esp_err_t get_handler_ctrl(httpd_req_t *req)
 				case 3: // set
 					// TODO
 					break;
+
 				default:
 					snprintf(resp_str,sizeof(resp_str),"%d NYI",i);
 					httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
+					cnt--;
 				}
 			}
 			free(buf);
 		}
 	}
-	snprintf(resp_str,sizeof(resp_str),"DONE\n");
+
+	snprintf(resp_str,sizeof(resp_str),"DONE(cnt=%d)\n",cnt);
 	httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
 
 	// End response

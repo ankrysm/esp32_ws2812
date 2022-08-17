@@ -8,6 +8,8 @@
 
 #include "esp32_ws2812.h"
 
+#define STRIP_DEMO
+
 extern size_t s_size_led_strip_pixels;
 extern uint8_t *led_strip_pixels;
 
@@ -58,7 +60,6 @@ void strip_clear()  {
 		ESP_LOGE(__func__, "not initalized");
 		return;
 	}
-	//ESP_ERROR_CHECK(gVstrip->clear(gVstrip, 100));
 	memset(led_strip_pixels, 0, s_size_led_strip_pixels);
 }
 
@@ -70,8 +71,25 @@ void strip_show() {
 		ESP_LOGE(__func__, "not initalized");
 		return;
 	}
+#ifdef STRIP_DEMO
+	{
+		uint32_t pos=0;
+		printf("\n#### LED:<");
+		for (int i=0; i<get_numleds(); i++) {
+			uint32_t s=led_strip_pixels[pos++];
+			s+= led_strip_pixels[pos++];
+			s+= led_strip_pixels[pos++];
+			if ( s>0) {
+				printf("X");
+			} else {
+				printf(".");
+			}
+		}
+		printf(">\n");
+	}
+#else
 	led_strip_refresh();
-	//ESP_ERROR_CHECK(gVstrip->refresh(gVstrip, 100));
+#endif
 }
 
 /**

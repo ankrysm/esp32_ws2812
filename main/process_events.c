@@ -382,7 +382,7 @@ void process_event_when(T_EVENT *evt, uint64_t scene_time, uint64_t timer_period
 		}
 		tevt->status = SCENE_UP;
 		tevt->w_time = 0;
-
+		ESP_LOGI(__func__,"%llu ms: time event %d IDLE->UP", scene_time, tevt->id);
 		// initialize working data
 		memset(&(evt->working), 0, sizeof(T_EVENT_DATA));
 
@@ -420,9 +420,11 @@ void process_event_when(T_EVENT *evt, uint64_t scene_time, uint64_t timer_period
 		}
 		break;
 	case SCENE_UP:
+		tevt->w_time += timer_period;
 		if ( tevt->w_time < tevt->duration ) {
 			break;
 		}
+		ESP_LOGI(__func__,"%llu ms: time event %d UP->FINISHED",scene_time,tevt->id);
 		tevt->status = SCENE_FINISHED;
 		// next event
 		evt->w_evt_time = tevt->nxt;
@@ -431,6 +433,8 @@ void process_event_when(T_EVENT *evt, uint64_t scene_time, uint64_t timer_period
 		return;
 	}
 
+
+	// special handling only
 	switch (tevt->type) {
 	case ET_REPEAT:
 		// default: from the beginning, if id is specified, find this event
@@ -467,7 +471,7 @@ void process_event_when(T_EVENT *evt, uint64_t scene_time, uint64_t timer_period
 		evt->working.what_list = &event_clear;
 		break;
 	default:
-		ESP_LOGW(__func__,"event type %d NYI", tevt->type);
+		//ESP_LOGW(__func__,"event type %d NYI", tevt->type);
 	}
 
 }
@@ -603,3 +607,41 @@ void reset_event( T_EVENT *evt) {
 
 }
 
+void event2text(T_EVENT *evt, char *buf, size_t sz_buf) {
+	if ( !evt) {
+		snprintf(buf, sz_buf, "evt was NULL");
+		return;
+	}
+	snprintf(buf, sz_buf, "Event %d, startpos=%.2f, startlen=%.2f", evt->id, evt->start.pos.value, evt->start.len.value);
+	size_t l=strlen(buf);
+
+	if (evt->evt_time_list) {
+		snprintf(&(buf[l]), sz_buf-l,", time events:");
+		for (T_EVT_TIME *tevt = evt->evt_time_list; tevt; tevt=tevt->nxt) {
+			l=strlen(buf);
+			snprintf(&(buf[l]), sz_buf-l," [id=%d, type=%d, starttime=%llu, duration=%llu",
+					tevt->id, tevt->type, tevt->starttime, tevt->duration);
+
+			if ( tevt->what_list) {
+				l=strlen(buf);
+				snprintf(&(buf[l]), sz_buf-l,", what=");
+
+				for ( T_EVT_WHAT *w=tevt->what_list; w; w=w->nxt) {
+					l=strlen(buf);
+					snprintf(&(buf[l]), sz_buf-l,"<id=%d, type=%d, pos=%d, len=%d>",
+							w->id, w->type, w->pos, w->len
+					);
+				}
+
+			} else {
+				l=strlen(buf);
+				snprintf(&(buf[l]), sz_buf-l,", no what list");
+			}
+
+			l=strlen(buf);
+			snprintf(&(buf[l]), sz_buf-l,"]");
+		}
+	} else {
+		snprintf(&(buf[l]), sz_buf-l,", no time events.");
+	}
+}

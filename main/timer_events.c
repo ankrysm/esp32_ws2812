@@ -64,8 +64,8 @@ static void periodic_timer_callback_t(void* arg) {
 	t_sum+=dt;
 	logcnt++;
 	if ( logcnt >= 50 ) {
-		ESP_LOGI(__func__,"processing time %.3f mikrosec on core %d", (1.0*t_sum/logcnt), xPortGetCoreID());
-		ESP_LOGI(__func__,"raw data %lld, %d, %lld", dt, logcnt, t_sum);
+		//ESP_LOGI(__func__,"processing time %.3f mikrosec on core %d", (1.0*t_sum/logcnt), xPortGetCoreID());
+		//ESP_LOGI(__func__,"raw data %lld, %d, %lld", dt, logcnt, t_sum);
 		logcnt = 0;
 		t_sum=0;
 	}

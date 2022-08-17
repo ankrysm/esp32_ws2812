@@ -15,11 +15,13 @@ int32_t get_random(int32_t min, uint32_t diff);
 // from process_events.c
 void process_event(T_EVENT *evt, uint64_t scene_time, uint64_t timer_period);
 void reset_event( T_EVENT *evt);
+void event2text(T_EVENT *evt, char *buf, size_t sz_buf);
 
 // from config.c
 esp_err_t store_config();
 esp_err_t init_storage();
 char *config2txt(char *txt, size_t sz);
+esp_err_t storage_info(size_t *total, size_t *used);
 
 // from color.c
 void c_hsv2rgb( T_COLOR_HSV *hsv, T_COLOR_RGB *rgb );

@@ -81,7 +81,7 @@ void build_demo2(
 	// * brightness 10 %
 	evt->start.pos.value = 10;
 	evt->start.len.value = 15;
-	evt->start.brightness.value = 0.1;
+	evt->start.brightness.value = 0.1; // 10%
 
 	T_EVT_TIME *tevt1 = calloc(1,sizeof(T_EVT_TIME));
 	tevt1->id =1;
@@ -91,12 +91,18 @@ void build_demo2(
 
 	T_EVT_WHAT *w = calloc(1,sizeof(T_EVT_WHAT));
 	w->id = 1;
+	w->pos=0;
+	w->len=15;
 	w->type = WT_COLOR;
 	T_NAMED_RGB_COLOR *nc = color4name("red");
 	w->para.hsv.h = nc->hsv.h;
 	w->para.hsv.s = nc->hsv.s;
 	w->para.hsv.v = nc->hsv.v;
+	tevt1->what_list = w;
 
+	evt->evt_time_list = tevt1;
+
+	event_list_add(evt);
 
 
 
