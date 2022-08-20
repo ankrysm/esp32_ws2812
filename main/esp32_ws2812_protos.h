@@ -44,8 +44,9 @@ void led_strip_firstled(int red, int green, int blue);
 
 
 // from timer_events.c
-void init_timer_events(int delta_ms);
-void set_timer_cycle(int new_delta_ms);
+void init_timer_events();
+//void set_timer_cycle(int new_delta_ms);
+int set_event_timer_period(int new_timer_period);
 void scenes_start();
 void scenes_stop();
 void scenes_pause();

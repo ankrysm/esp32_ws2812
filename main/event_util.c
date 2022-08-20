@@ -31,7 +31,7 @@ extern T_EVENT *s_event_list;
 // to lock access to eveent-List
 static  SemaphoreHandle_t xSemaphore = NULL;
 
-static int32_t exclusiveAccess = 0;
+//static int32_t exclusiveAccess = 0;
 
 static 	TickType_t xSemDelay = 5000 / portTICK_PERIOD_MS;
 
@@ -52,6 +52,7 @@ esp_err_t release_eventlist_lock(){
 	return ESP_FAIL;
 }
 
+/*
 esp_err_t set_exclusive_access(int flag) {
 	if (obtain_eventlist_lock() != ESP_OK) {
 		ESP_LOGE(__func__, "couldn't get lock");
@@ -69,8 +70,8 @@ int32_t has_exclusive_access() {
 	int32_t val = exclusiveAccess;
 	release_eventlist_lock();
 	return val;
-
 }
+*/
 
 /**
  * frees the event list

@@ -251,9 +251,9 @@ static esp_err_t get_handler_strip_config(httpd_req_t *req)
 			if (httpd_query_key_value(buf, paramname, param, sizeof(param)) == ESP_OK) {
 				ESP_LOGI(__func__, "query parameter: %s=%s", paramname, param);
 				gConfig.cycle = atoi(param);
-				// stop playing when cacle changed
-				scenes_stop();
-				set_timer_cycle(gConfig.cycle);
+				// stop playing when cycle changed
+				//scenes_stop();
+				set_event_timer_period(gConfig.cycle);
 				store_config_needed = 1;
 			}
 			paramname = "showstatus";
@@ -348,8 +348,8 @@ static esp_err_t get_handler_ctrl(httpd_req_t *req)
 	// Read URL query string length and allocate memory for length + 1,
 	// extra byte for null termination
 
-	run_status_type old_status = RUN_STATUS_IDLE;
-	run_status_type new_status = RUN_STATUS_IDLE;
+	run_status_type old_status = RUN_STATUS_STOPPED;
+	run_status_type new_status = RUN_STATUS_NOT_SET;
 
 	char resp_str[255];
 
@@ -360,8 +360,8 @@ static esp_err_t get_handler_ctrl(httpd_req_t *req)
 		if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK) {
 			ESP_LOGI(__func__, "Found URL query => %s", buf);
 
-			//                   0     1     2     3
-			char *paramnames[]={"cmd","add","del", "set", ""};
+			//                   0       1      2      3      4
+			char *paramnames[]={"cycle", "cmd", "add", "del", "set", ""};
 			for (int i=0; strlen(paramnames[i]); i++) {
 				char param[256];
 				if (httpd_query_key_value(buf, paramnames[i], param, sizeof(param)) != ESP_OK) {
@@ -369,7 +369,20 @@ static esp_err_t get_handler_ctrl(httpd_req_t *req)
 				}
 				cnt++;
 				switch(i) {
-				case 0: // cmd
+				case 0: // cycle
+				{
+					int new_val = atoi(param);
+					if ( new_val < 10 ) {
+						snprintf(resp_str,sizeof(resp_str),"new cycle time %d invalid, minimum value: 10 \n", new_val);
+					} else {
+						int old_val = set_event_timer_period(new_val);
+						snprintf(resp_str,sizeof(resp_str),"cycle time %d -> %d\n", old_val, new_val);
+					}
+					httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
+				}
+					break;
+
+				case 1: // cmd
 				{
 					if ( param[0] == 'r' ) {
 						new_status = RUN_STATUS_RUNNING;
@@ -421,7 +434,7 @@ static esp_err_t get_handler_ctrl(httpd_req_t *req)
 						httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
 					}
 
-					if (new_status != RUN_STATUS_IDLE) {
+					if (new_status != RUN_STATUS_NOT_SET) {
 						old_status = set_scene_status(new_status);
 						snprintf(resp_str,sizeof(resp_str),"New status %s -> %s\nTimer cycle=%lld ms\nScene time=%lld\n",
 								RUN_STATUS_TYPE2TEXT(old_status), RUN_STATUS_TYPE2TEXT(new_status),
@@ -435,7 +448,7 @@ static esp_err_t get_handler_ctrl(httpd_req_t *req)
 					httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
 				}
 					break;
-				case 1: // add
+				case 2: // add
 				{
 					// expected typ,parameter,parameter ...
 					// type 'solid' parameter: startpixel, #pixel, h,s,v
@@ -458,10 +471,10 @@ static esp_err_t get_handler_ctrl(httpd_req_t *req)
 
 				}
 				break;
-				case 2: // del
+				case 3: // del
 					// TODO
 					break;
-				case 3: // set
+				case 4: // set
 					// TODO
 					break;
 

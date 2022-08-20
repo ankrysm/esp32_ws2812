@@ -569,8 +569,11 @@ void process_event_what(T_EVENT *evt) {
 
 
 void process_event(T_EVENT *evt, uint64_t scene_time, uint64_t timer_period) {
+	evt->flags = 0;
+
 	process_event_where(evt,timer_period);
 	process_event_what(evt);
+
 	process_event_when(evt,scene_time, timer_period);
 	process_event_what(evt);
 

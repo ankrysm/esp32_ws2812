@@ -151,8 +151,9 @@ void app_main() {
 	config2txt(buf, sizeof(buf));
 	ESP_LOGI(__func__, "config=%s",buf);
 
-	// start timer
-	init_timer_events(50); // TODO config time
+	// init timer
+	init_timer_events();
+	set_event_timer_period(gConfig.cycle);
 
 	//start_demo1();
 	T_COLOR_RGB fg_color ={32,0,0};
