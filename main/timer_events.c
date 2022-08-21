@@ -271,15 +271,6 @@ int set_event_timer_period(int new_timer_period) {
 	return s_timer_period;
 }
 
-/*
-void set_timer_cycle(int new_delta_ms) {
-	ESP_LOGI(__func__, "started, new delta=%d", new_delta_ms);
-	esp_timer_stop(s_periodic_timer);
-	s_timer_period = new_delta_ms;
-    ESP_ERROR_CHECK(esp_timer_start_periodic(s_periodic_timer, s_timer_period*1000));
-
-}
-*/
 
 void init_timer_events(//int delta_ms
 		) {

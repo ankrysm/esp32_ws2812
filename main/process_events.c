@@ -281,6 +281,7 @@ static void event_sp_finished(T_EVENT *evt) {
 //  * brightness or
 //  * color
 void process_event_where(T_EVENT *evt, uint64_t timer_period) {
+	/*
 	T_EVT_WHERE *wevt = evt->w_evt_where;
 	//T_EVT_WHAT *what_list = evt->working.what_list;
 	if ( !wevt ){
@@ -358,120 +359,86 @@ void process_event_where(T_EVENT *evt, uint64_t timer_period) {
 	default:
 		ESP_LOGW(__func__,"event type %d NYI", wevt->type);
 	}
+	*/
 }
 
 // time dependend events
 // time values in ms
 // sets
-//  * speed or
-//  * acceleration or
+//  * speed (OK) or
+//  * acceleration (OK) or
 //  * position or
 //  * length or
 //  * brightness or
 //  * color
 void process_event_when(T_EVENT *evt, uint64_t scene_time, uint64_t timer_period) {
-	T_EVT_TIME *tevt= evt->w_evt_time;
-	if (!tevt) {
-		return; // no changes
+	if (!evt->evt_time_list) {
+		return; // no timing events
 	}
 
-	switch(tevt->status) {
-	case SCENE_IDLE:
-		if (evt->time < tevt->starttime) {
-			return; // not yet
-		}
-		tevt->status = SCENE_UP;
-		tevt->w_time = 0;
-		ESP_LOGI(__func__,"%llu ms: time event %d IDLE->UP", scene_time, tevt->id);
-		// initialize working data
-		memset(&(evt->working), 0, sizeof(T_EVENT_DATA));
-
-		// what to change in working data depend onb the next timing event
-		if ( tevt->para.set_flags & EP_SET_ACCELERATION )
-			evt->working.speed.delta = tevt->para.acceleration * timer_period;
-
-		if ( tevt->para.set_flags & EP_SET_SPEED )
-			evt->working.speed.value = tevt->para.speed;
-
-		if ( tevt->para.set_flags & EP_SET_POSITION )
-			evt->working.pos.value = tevt->para.position;
-
-		if ( tevt->para.set_flags & EP_SET_SHRINK_RATE )
-			evt->working.len.delta = tevt->para.shrink_rate * timer_period;
-
-		if ( tevt->para.set_flags & EP_SET_LEN )
-			evt->working.len.value = tevt->para.len;
-
-		if ( tevt->para.set_flags & EP_SET_BRIGHTNESS )
-			evt->working.brightness.value = tevt->para.brightness;
-
-		if ( tevt->para.set_flags & EP_SET_BRIGHTNESS_CHANGE )
-			evt->working.brightness.delta = tevt->para.brightness_change * timer_period;
-
-		if (tevt->what_list ) {
-			evt->working.what_list = tevt->what_list;
-		}
-
-		// if too short immediately to finished (examples: STOP- REPEAT-Events)
-		if (tevt->duration < timer_period) {
-			tevt->status = SCENE_FINISHED;
-			// next event
-			evt->w_evt_time = tevt->nxt;
-		}
-		break;
-	case SCENE_UP:
-		tevt->w_time += timer_period;
-		if ( tevt->w_time < tevt->duration ) {
-			break;
-		}
-		ESP_LOGI(__func__,"%llu ms: time event %d UP->FINISHED",scene_time,tevt->id);
-		tevt->status = SCENE_FINISHED;
-		// next event
-		evt->w_evt_time = tevt->nxt;
-		break;
-	case SCENE_FINISHED:
-		return;
-	}
-
-
-	// special handling only
-	switch (tevt->type) {
-	case ET_REPEAT:
-		// default: from the beginning, if id is specified, find this event
-		evt->w_evt_time = evt->evt_time_list;
-		if ( tevt->para.set_flags & EP_SET_ID ) {
-			// search for id
-			for (T_EVT_TIME *e = evt->evt_time_list; e; e=e->nxt) {
-				if ( e->id == tevt->para.id) {
-					// found
-					evt->w_evt_time = e;
+	uint32_t cnt_evts = 0;
+	uint32_t cnt_finished_evts = 0;
+	for ( T_EVT_TIME *e = evt->evt_time_list; e; e=e->nxt) {
+		cnt_evts++;
+		if ( e->w_time >=0 ) {
+			int64_t last_w_time = e->w_time;
+			e->w_time -= timer_period;
+			if ( last_w_time >= 0 && e->w_time < 0 ) {
+				// change from >0 to <0, do work
+				ESP_LOGI(__func__,"evt.id=%d, tevt.id=%d: timer of %llu ms, type %d, val=%.2f arrived",evt->id, e->id, e->starttime, e->type, e->value);
+				cnt_finished_evts++;
+				switch(e->type) {
+				case ET_SPEED:
+					evt->w_speed = e->value;
 					break;
+				case ET_SPEEDUP:
+					evt->w_acceleration = e->value;
+					break;
+				case ET_BOUNCE:
+					evt->w_speed = -evt->w_speed;
+					break;
+				case ET_CLEAR:
+					evt->flags |= EVFL_CLEARPIXEL;
+					break;
+				case ET_JUMP:
+					evt->w_pos = e->value;
+					break;
+				case ET_REVERSE:
+					evt->delta_pos = evt->delta_pos < 0 ? +1 : -1;
+					break;
+				case ET_SET_BRIGHTNESS:
+					evt->w_brightness = e->value;
+					break;
+				case ET_SET_BRIGHTNESS_DELTA:
+					evt->w_brightness_delta = e->value;
+					break;
+				default:
+					ESP_LOGW(__func__,"evt.id=%d, tevt.id=%d: timer of %llu ms, type %d arrived, TYPE UNKNOWN",evt->id, e->id, e->starttime, e->type);
 				}
 			}
 		}
-		// set all events in list to IDLE
-		for (T_EVT_TIME *e = evt->w_evt_time; e; e=e->nxt) {
-			e->status = SCENE_IDLE;
+	}
+
+	if ( cnt_evts == cnt_finished_evts ) {
+		// all events finished, repeat it?
+		if (evt->evt_time_list_repeats > 0 ) {
+			if ( evt->w_t_repeats > 0) {
+				evt->w_t_repeats--;
+			}
+		} else {
+			evt->w_t_repeats = 1;
 		}
-		break;
 
-	case ET_BOUNCE:
-		evt->working.speed.delta = -evt->working.speed.delta;
-		break;
-
-	case ET_STOP: // check if end position reached, leave lights on
-		// position reached
-		// finished. should be last event in list, next location based event is: nothing
-		evt->w_evt_time = NULL;
-		break;
-	case ET_STOP_CLEAR: // check if end position reached, clears range
-		// position reached
-		// finished. should be last event in list, next location based event is: nothing
-		evt->w_evt_time = NULL;
-		evt->working.what_list = &event_clear;
-		break;
-	default:
-		//ESP_LOGW(__func__,"event type %d NYI", tevt->type);
+		if ( evt->w_t_repeats > 0) {
+			// reset event
+			evt->w_speed = evt->speed;
+			evt->w_acceleration = evt->acceleration;
+			// reset all timing vents
+			ESP_LOGI(__func__, "evt.id=%d: repeat events (%d/%d)", evt->id, evt->w_t_repeats, evt->evt_time_list_repeats);
+			for ( T_EVT_TIME *e = evt->evt_time_list; e; e=e->nxt) {
+				e->w_time = e->starttime;
+			}
+		}
 	}
 
 }
@@ -479,24 +446,49 @@ void process_event_when(T_EVENT *evt, uint64_t scene_time, uint64_t timer_period
 // paint the pixel in the calculated range evt->working.pos and evt->working.len.value
 void process_event_what(T_EVENT *evt) {
 
-	T_EVT_WHAT *what_list = evt->working.what_list;
-	if ( !what_list) {
+	T_EVT_WHAT *what_list = evt->what_list;
+	if ( !what_list || evt->brightness < 0.01 ) {
 		return;
 	}
-	int32_t startpos, endpos, len;
-	int32_t delta_pos = evt->working.pos.delta > 0.0 ? 1 : -1;
-	len = evt->working.len.value;
-	int32_t pos = evt->working.pos.value;
-	if ( delta_pos > 0 ) {
-		startpos = pos;
-		endpos = pos+len;
-	} else {
-		startpos = pos+len;
-		endpos = pos;
-	}
-	double f = evt->working.brightness.value;
 
-	pos = startpos;
+	// whole length of all sections
+	int32_t len = 0;
+	for (T_EVT_WHAT *w = what_list; w; w=w->nxt) {
+		len += w->len;
+	}
+	double flen = len * evt->w_len_factor;
+
+	if ( flen < 1.0 ) {
+		return; // nothing left to display
+	}
+
+	// display range length:
+	//   len/2 - lenf/2 = (len-lenf)/2
+	//
+	// len   = 10 10   10      11
+	// lenf  =  2  3    1      11
+	// pos   =  4  3.5  4.5     5.5
+	// start =  4  3    4       0
+	// end   =  6  6    5      11
+	//
+	// 0123456789
+	// xxxxxxxxxx
+	//     XX
+
+	int32_t startpos, endpos;
+	if ( evt->delta_pos > 0 ) {
+		startpos = evt->w_pos;
+		endpos   = evt->w_pos + len;
+	} else {
+		startpos = evt->w_pos + len;
+		endpos   = evt->w_pos;
+	}
+	double f = evt->w_brightness;
+
+	int32_t dstart = floor(len - flen)/2.0;
+	int32_t dend = ceil(dstart + flen);
+
+	int32_t pos = startpos;
 	T_COLOR_RGB rgb = {.r=0,.g=0,.b=0};
 	T_COLOR_RGB rgb2 = {.r=0,.g=0,.b=0};
 
@@ -552,12 +544,12 @@ void process_event_what(T_EVENT *evt) {
 				ESP_LOGW(__func__,"what type %d NYI", w->type);
 			}
 
-			if ( pos >=0 && pos <get_numleds()) {
+			if ( pos >=0 && pos < get_numleds() && pos >= dstart && pos <= dend) {
 				c_checkrgb_abs(&rgb);
 				strip_set_pixel(pos, &rgb);
 				evt->flags |= EVFL_ISDIRTY;
 			}
-			pos += delta_pos;
+			pos += evt->delta_pos;
 			if ( pos < startpos || pos > endpos) {
 				break; // done.
 			}
@@ -571,8 +563,8 @@ void process_event_what(T_EVENT *evt) {
 void process_event(T_EVENT *evt, uint64_t scene_time, uint64_t timer_period) {
 	evt->flags = 0;
 
-	process_event_where(evt,timer_period);
-	process_event_what(evt);
+	//process_event_where(evt,timer_period);
+	//process_event_what(evt);
 
 	process_event_when(evt,scene_time, timer_period);
 	process_event_what(evt);
@@ -582,31 +574,42 @@ void process_event(T_EVENT *evt, uint64_t scene_time, uint64_t timer_period) {
 	// v = a * t
 	// Δv = a * Δt
 	// speed is leds per ms
-	evt->working.speed.value += evt->working.speed.delta;
-	evt->working.len.value += evt->working.len.delta;
+	evt->w_speed += evt->w_acceleration;
 
-	evt->working.brightness.value += evt->working.brightness.delta;
-	if ( evt->working.brightness.value < 0.0)
-		evt->working.brightness.value = 0.0;
-	else if(evt->working.brightness.value > 1.0)
-		evt->working.brightness.value = 1.0;
+	evt->w_len_factor += evt->w_len_factor_delta;
+	if ( evt->w_len_factor < 0.0 ) {
+		evt->w_len_factor = 0.0;
+	} else if ( evt->w_len_factor > 1.0 ) {
+		evt->w_len_factor = 1.0;
+	}
+
+	evt->w_brightness += evt->w_brightness_delta;
+	if ( evt->w_brightness < 0.0)
+		evt->w_brightness = 0.0;
+	else if(evt->w_brightness > 1.0)
+		evt->w_brightness = 1.0;
 
 	evt->time += timer_period;
-	evt->working.pos.value += evt->working.speed.value;
+	evt->w_pos += evt->w_speed;
 
 }
 
 // reset sets working->what_list to start->what_list
 void reset_event( T_EVENT *evt) {
-	//evt->status = SCENE_IDLE;
-	//evt->sp_status = MOVE_IDLE;
-	evt->w_evt_where = evt->evt_where_list;
-	evt->w_evt_time = evt->evt_time_list;
-	memcpy(&(evt->working), &(evt->start), sizeof(T_EVENT_DATA));
-	if (!evt->working.what_list) {
-		evt->working.what_list = &event_clear;
-	}
+	evt->w_pos = evt->pos;
+	evt->w_len_factor = evt->len_factor;
+	evt->w_len_factor_delta = evt->len_factor_delta;
+	evt->w_speed = evt->speed;
+	evt->w_acceleration = evt->acceleration;
+	evt->w_brightness = evt->brightness;
+	evt->w_brightness_delta = evt->brightness_delta;
 	evt->time = 0;
+
+	for ( T_EVT_TIME *e = evt->evt_time_list; e; e=e->nxt) {
+		e->w_time = e->starttime;
+	}
+	ESP_LOGI(__func__, "reset event %d", evt->id);
+
 
 }
 
@@ -615,36 +618,31 @@ void event2text(T_EVENT *evt, char *buf, size_t sz_buf) {
 		snprintf(buf, sz_buf, "evt was NULL");
 		return;
 	}
-	snprintf(buf, sz_buf, "Event %d, startpos=%.2f, startlen=%.2f", evt->id, evt->start.pos.value, evt->start.len.value);
-	size_t l=strlen(buf);
+	snprintf(buf, sz_buf, "Event %d, startpos=%.2f", evt->id, evt->pos);
+
+	if ( evt->what_list) {
+		snprintf(&(buf[strlen(buf)]), sz_buf-strlen(buf),", what=");
+
+		for ( T_EVT_WHAT *w=evt->what_list; w; w=w->nxt) {
+			snprintf(&(buf[strlen(buf)]), sz_buf-strlen(buf),"<id=%d, type=%d, pos=%d, len=%d>",
+					w->id, w->type, w->pos, w->len
+			);
+		}
+
+	} else {
+		snprintf(&(buf[strlen(buf)]), sz_buf-strlen(buf),", no what list");
+	}
 
 	if (evt->evt_time_list) {
-		snprintf(&(buf[l]), sz_buf-l,", time events:");
+		snprintf(&(buf[strlen(buf)]), sz_buf-strlen(buf),", time events:");
 		for (T_EVT_TIME *tevt = evt->evt_time_list; tevt; tevt=tevt->nxt) {
-			l=strlen(buf);
-			snprintf(&(buf[l]), sz_buf-l," [id=%d, type=%d, starttime=%llu, duration=%llu",
-					tevt->id, tevt->type, tevt->starttime, tevt->duration);
+			snprintf(&(buf[strlen(buf)]), sz_buf-strlen(buf)," [id=%d, starttime=%llu, type=%d, val=%.2f",
+					tevt->id, tevt->starttime, tevt->type, tevt->value);
 
-			if ( tevt->what_list) {
-				l=strlen(buf);
-				snprintf(&(buf[l]), sz_buf-l,", what=");
 
-				for ( T_EVT_WHAT *w=tevt->what_list; w; w=w->nxt) {
-					l=strlen(buf);
-					snprintf(&(buf[l]), sz_buf-l,"<id=%d, type=%d, pos=%d, len=%d>",
-							w->id, w->type, w->pos, w->len
-					);
-				}
-
-			} else {
-				l=strlen(buf);
-				snprintf(&(buf[l]), sz_buf-l,", no what list");
-			}
-
-			l=strlen(buf);
-			snprintf(&(buf[l]), sz_buf-l,"]");
+			snprintf(&(buf[strlen(buf)]), sz_buf-strlen(buf),"]");
 		}
 	} else {
-		snprintf(&(buf[l]), sz_buf-l,", no time events.");
+		snprintf(&(buf[strlen(buf)]), sz_buf-strlen(buf),", no time events.");
 	}
 }

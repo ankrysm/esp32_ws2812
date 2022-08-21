@@ -79,18 +79,13 @@ void build_demo2(
 	// * wait 3 secs,
 	// * at position 10 paint 15 pixel in red for 5 secs then finished
 	// * brightness 10 %
-	evt->start.pos.value = 10;
-	evt->start.len.value = 15;
-	evt->start.brightness.value = 0.1; // 10%
 
-	T_EVT_TIME *tevt1 = calloc(1,sizeof(T_EVT_TIME));
-	tevt1->id =1;
-	tevt1->type = ET_DELAY;
-	tevt1->starttime = 3000; // 3 sec, in ms
-	tevt1->duration = 5000; // 5 sec, in ms
+	evt->id=1000;
+	evt->pos = 10;
+	evt->brightness = 0.0;
 
 	T_EVT_WHAT *w = calloc(1,sizeof(T_EVT_WHAT));
-	w->id = 1;
+	w->id = 2001;
 	w->pos=0;
 	w->len=15;
 	w->type = WT_COLOR;
@@ -98,7 +93,21 @@ void build_demo2(
 	w->para.hsv.h = nc->hsv.h;
 	w->para.hsv.s = nc->hsv.s;
 	w->para.hsv.v = nc->hsv.v;
-	tevt1->what_list = w;
+
+	evt->what_list = w;
+
+	T_EVT_TIME *tevt1 = calloc(1,sizeof(T_EVT_TIME));
+	tevt1->id =1001;
+	tevt1->type = ET_SET_BRIGHTNESS;
+	tevt1->starttime = 3000; // 3 sec, in ms
+	tevt1->value = 0.1;
+
+	T_EVT_TIME *tevt2 = calloc(1,sizeof(T_EVT_TIME));
+	tevt1->nxt = tevt2;
+	tevt2->id =1002;
+	tevt2->type = ET_CLEAR;
+	tevt2->starttime = 8000; // 3 sec, in ms
+	tevt2->value = 0.0;
 
 	evt->evt_time_list = tevt1;
 

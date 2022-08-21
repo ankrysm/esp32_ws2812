@@ -5,33 +5,13 @@
  *      Author: andreas
  */
 
-/*
-#include <stdio.h>
-#include <string.h>
-#include <unistd.h>
-#include "esp_timer.h"
-#include "esp_log.h"
-#include "esp_sleep.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "freertos/event_groups.h"
-#include "sdkconfig.h"
-#include "timer_events.h"
-#include "math.h"
-#include "color.h"
-#include "led_strip.h"
-#include "led_strip_proto.h"
-*/
-
 #include "esp32_ws2812.h"
 
 
 extern T_EVENT *s_event_list;
 
-// to lock access to eveent-List
+// to lock access to event-List
 static  SemaphoreHandle_t xSemaphore = NULL;
-
-//static int32_t exclusiveAccess = 0;
 
 static 	TickType_t xSemDelay = 5000 / portTICK_PERIOD_MS;
 
@@ -52,26 +32,6 @@ esp_err_t release_eventlist_lock(){
 	return ESP_FAIL;
 }
 
-/*
-esp_err_t set_exclusive_access(int flag) {
-	if (obtain_eventlist_lock() != ESP_OK) {
-		ESP_LOGE(__func__, "couldn't get lock");
-		return ESP_FAIL;
-	}
-	exclusiveAccess = flag;
-	return release_eventlist_lock();
-}
-
-int32_t has_exclusive_access() {
-	if (obtain_eventlist_lock() != ESP_OK) {
-		ESP_LOGE(__func__, "couldn't get lock");
-		return -1;
-	}
-	int32_t val = exclusiveAccess;
-	release_eventlist_lock();
-	return val;
-}
-*/
 
 /**
  * frees the event list
