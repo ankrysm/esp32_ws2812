@@ -119,7 +119,7 @@ typedef enum {
 typedef enum {
 	ET_NONE, // nothing to do
 	//ET_STEADY, // continue, nothing changed (speed or color or position)
-	//ET_DELAY, // wait a moment
+	//ET_WAIT, // wait a moment
 	ET_SPEED, // set speed
 	ET_SPEEDUP, // set acceleration
 	ET_BOUNCE, // change direction speed=-speed
@@ -128,9 +128,9 @@ typedef enum {
 	ET_CLEAR,  // clear pixels
 	ET_SET_BRIGHTNESS,
 	ET_SET_BRIGHTNESS_DELTA
-	//ET_REPEAT, // reset all events in the list 
+	//ET_REPEAT, // reset all events in the list
 	//ET_GLOW, // speed up, light up (or down)
-	//ET_REPEAT, // repeat from an given event id 
+	//ET_REPEAT, // repeat from an given event id
 	//ET_STOP, // finished.
 	//ET_STOP_CLEAR // finished and clear when finished
 } event_type;
@@ -169,10 +169,10 @@ typedef struct EVT_WHAT {
 typedef struct EVT_PARAMETER {
 	uint32_t set_flags; //EP_SET-Values
 	double acceleration; // sets acceleration
-	double speed; // speed in leds per ms or HSV-V_percent per sec 
+	double speed; // speed in leds per ms or HSV-V_percent per sec
 	double position; // jump to position
 	double shrink_rate; // in leds per ms
-	double len; // sets length	
+	double len; // sets length
 	double brightness; // brightess 0.0 .. 1.0
 	double brightness_change; // brightness change in [0.0 .. 1.0] per ms
 	int32_t id; // for repeat
@@ -182,43 +182,48 @@ typedef struct EVT_PARAMETER {
 typedef struct EVT_TIME {
 	uint32_t id;
 	scene_status_type status;
-	event_type type; // what to do 
+	event_type type; // what to do
 	uint64_t starttime; // when it will start, measured from scene start
 	//uint64_t duration; // when will it finished, go to the next
 	int64_t w_time; // working time, if greater 0 decrement, if ==0 do work
 	//T_EVT_WHAT *what_list;
 	//T_EVT_PARAMETER para;
-	
+
 	// parameter:
 	//double acceleration; // acceleration
-	//double speed; // speed in leds per ms or HSV-V_percent per sec 
-	
+	//double speed; // speed in leds per ms or HSV-V_percent per sec
+
+	uint32_t set_flags;
+	uint32_t clear_flags;
 	double value;
-	
+
 	struct EVT_TIME *nxt; // next event
 } T_EVT_TIME;
 
 // where will it happen
 typedef struct EVT_WHERE {
 	uint32_t id;
-	event_type type; // what to do 
+	event_type type; // what to do
 	double pos;	// at which position
 	// TODO which direction?
 
 	//T_EVT_PARAMETER para;
 	//T_EVT_WHAT *what_list;
-	
-	
+
+
 
 	struct EVT_WHERE *nxt;
 } T_EVT_WHERE;
 
 
-#define EVFL_ISDIRTY    0x0001
+//#define EVFL_ISDIRTY    0x0001
 #define EVFL_CLEARPIXEL 0x0002
 //#define EVFL_DONE    0x0002
 //#define EVFL_SP_DONE 0x0004
 
+#define EVFL_WAIT        0x0001 // wait, do not paint something
+#define EVFL_CLEARPIXEL  0x0002
+#define EVFL_FINISHED    0x0004
 /*
 typedef struct EVENT_VARYING_DATA {
 	union {
@@ -230,7 +235,7 @@ typedef struct EVENT_VARYING_DATA {
 		double acceleration; // as start parameter
 		double delta; // as working parameter
 	};
-} T_EVENT_VARYING_DATA;	
+} T_EVENT_VARYING_DATA;
 
 typedef struct EVENT_DATA{
 	T_EVENT_VARYING_DATA pos;
@@ -245,50 +250,52 @@ typedef struct EVENT_DATA{
 
 typedef struct EVENT{
 	uint32_t id; // for reference
-	uint32_t flags;
 	//T_EVENT_DATA start;
 	//T_EVENT_DATA working;
 
 	int64_t time; // event time
 
+	uint32_t flags;
+	uint32_t w_flags;
+
 	double pos;
 	double w_pos;
-	
+
 	double len_factor; // 0..1.0
 	double w_len_factor;
-	
+
 	double len_factor_delta;
 	double w_len_factor_delta;
 
 	double speed;
 	double w_speed;
-	
+
 	double acceleration;
-	double w_acceleration; 
+	double w_acceleration;
 
 	double brightness;
 	double w_brightness;
 
 	double brightness_delta;
 	double w_brightness_delta;
-	
+
 	int32_t delta_pos; // +1 or -1
 
-	// what, example: 10 red pixels, with fade in and fade out 
+	// what, example: 10 red pixels, with fade in and fade out
 	T_EVT_WHAT *what_list;
 
-	// time dependend events, 
+	// time dependend events,
 	// example: 1.) wait 10 sec, 2.) move with 5 pixel/second
 	//T_EVT_TIME *w_evt_time; // actual timing event
 	uint32_t evt_time_list_repeats; // 0=for evener
-	uint32_t w_t_repeats; 
-	T_EVT_TIME *evt_time_list; 
-	
-	// location based events, example 
+	uint32_t w_t_repeats;
+	T_EVT_TIME *evt_time_list;
+
+	// location based events, example
 	// example start at position 30, stop at position 200 with blank
 	//T_EVT_WHERE *w_evt_where;
 	T_EVT_WHERE *evt_where_list;
-	
+
 	struct EVENT *nxt;
 } T_EVENT;
 

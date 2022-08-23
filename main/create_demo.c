@@ -82,7 +82,11 @@ void build_demo2(
 
 	evt->id=1000;
 	evt->pos = 10;
+	evt->delta_pos = 1;
+	evt->flags = EVFL_WAIT; // start with wait
 	evt->brightness = 0.0;
+	evt->len_factor = 1.0;
+	evt->evt_time_list_repeats = 5;
 
 	T_EVT_WHAT *w = calloc(1,sizeof(T_EVT_WHAT));
 	w->id = 2001;
@@ -100,7 +104,8 @@ void build_demo2(
 	tevt1->id =1001;
 	tevt1->type = ET_SET_BRIGHTNESS;
 	tevt1->starttime = 3000; // 3 sec, in ms
-	tevt1->value = 0.1;
+	tevt1->clear_flags = EVFL_WAIT; // clear wait flag
+	tevt1->value = 0.1; // new brightness
 
 	T_EVT_TIME *tevt2 = calloc(1,sizeof(T_EVT_TIME));
 	tevt1->nxt = tevt2;
@@ -108,6 +113,41 @@ void build_demo2(
 	tevt2->type = ET_CLEAR;
 	tevt2->starttime = 8000; // 3 sec, in ms
 	tevt2->value = 0.0;
+
+	evt->evt_time_list = tevt1;
+
+	event_list_add(evt);
+
+	//////////////////////
+
+	//memset(evt,0,sizeof(T_EVENT));
+	evt = calloc(1,sizeof(T_EVENT));
+	evt->id = 2000;
+	evt->delta_pos = 1;
+	evt->flags = 0;
+	evt->speed = 2.0;
+	evt->brightness = 0.1;
+	evt->len_factor = 1.0;
+	evt->evt_time_list_repeats = 3;
+
+	//memset(w,0,sizeof(T_EVT_WHAT));
+	w = calloc(1,sizeof(T_EVT_WHAT));
+	w->id = 2001;
+	w->pos=0;
+	w->len=5;
+	w->type = WT_COLOR;
+	nc = color4name("green");
+	w->para.hsv.h = nc->hsv.h;
+	w->para.hsv.s = nc->hsv.s;
+	w->para.hsv.v = nc->hsv.v;
+
+	evt->what_list = w;
+
+	//memset(tevt1,0, sizeof(T_EVT_TIME));
+	tevt1 = calloc(1,sizeof(T_EVT_TIME));
+	tevt1->id =2101;
+	tevt1->type = ET_CLEAR;
+	tevt1->starttime = 2000; // 2 sec, in ms
 
 	evt->evt_time_list = tevt1;
 

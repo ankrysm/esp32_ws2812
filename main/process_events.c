@@ -371,11 +371,13 @@ void process_event_where(T_EVENT *evt, uint64_t timer_period) {
 //  * length or
 //  * brightness or
 //  * color
-void process_event_when(T_EVENT *evt, uint64_t scene_time, uint64_t timer_period) {
+// return 1 when all timer events arrived
+int  process_event_when(T_EVENT *evt, uint64_t scene_time, uint64_t timer_period) {
 	if (!evt->evt_time_list) {
-		return; // no timing events
+		return 1; // no timing events
 	}
 
+	evt->delta_pos = evt->speed < 0.0 ? -1 : +1;
 	uint32_t cnt_evts = 0;
 	uint32_t cnt_finished_evts = 0;
 	for ( T_EVT_TIME *e = evt->evt_time_list; e; e=e->nxt) {
@@ -385,8 +387,15 @@ void process_event_when(T_EVENT *evt, uint64_t scene_time, uint64_t timer_period
 			e->w_time -= timer_period;
 			if ( last_w_time >= 0 && e->w_time < 0 ) {
 				// change from >0 to <0, do work
+				// timer arrived ...
 				ESP_LOGI(__func__,"evt.id=%d, tevt.id=%d: timer of %llu ms, type %d, val=%.2f arrived",evt->id, e->id, e->starttime, e->type, e->value);
-				cnt_finished_evts++;
+
+				if ( e->clear_flags) {
+					evt->w_flags &= ~ e->clear_flags;
+				}
+				if ( e->set_flags) {
+					evt->w_flags |= e->set_flags;
+				}
 				switch(e->type) {
 				case ET_SPEED:
 					evt->w_speed = e->value;
@@ -398,7 +407,7 @@ void process_event_when(T_EVENT *evt, uint64_t scene_time, uint64_t timer_period
 					evt->w_speed = -evt->w_speed;
 					break;
 				case ET_CLEAR:
-					evt->flags |= EVFL_CLEARPIXEL;
+					evt->w_flags |= EVFL_CLEARPIXEL;
 					break;
 				case ET_JUMP:
 					evt->w_pos = e->value;
@@ -415,41 +424,54 @@ void process_event_when(T_EVENT *evt, uint64_t scene_time, uint64_t timer_period
 				default:
 					ESP_LOGW(__func__,"evt.id=%d, tevt.id=%d: timer of %llu ms, type %d arrived, TYPE UNKNOWN",evt->id, e->id, e->starttime, e->type);
 				}
+				cnt_finished_evts++;  // just finished
 			}
+		} else {
+			cnt_finished_evts++; // already finished
 		}
 	}
 
 	if ( cnt_evts == cnt_finished_evts ) {
-		// all events finished, repeat it?
-		if (evt->evt_time_list_repeats > 0 ) {
-			if ( evt->w_t_repeats > 0) {
-				evt->w_t_repeats--;
-			}
-		} else {
-			evt->w_t_repeats = 1;
-		}
-
-		if ( evt->w_t_repeats > 0) {
-			// reset event
-			evt->w_speed = evt->speed;
-			evt->w_acceleration = evt->acceleration;
-			// reset all timing vents
-			ESP_LOGI(__func__, "evt.id=%d: repeat events (%d/%d)", evt->id, evt->w_t_repeats, evt->evt_time_list_repeats);
-			for ( T_EVT_TIME *e = evt->evt_time_list; e; e=e->nxt) {
-				e->w_time = e->starttime;
-			}
-		}
+//		// all events finished, repeat it?
+//		if (evt->evt_time_list_repeats > 0 ) {
+//			if ( evt->w_t_repeats > 0) {
+//				evt->w_t_repeats--;
+//			}
+//		} else {
+//			evt->w_t_repeats = 1;
+//		}
+//
+//		if ( evt->w_t_repeats > 0) {
+//			// reset event
+//			evt->w_speed = evt->speed;
+//			evt->w_acceleration = evt->acceleration;
+//			// reset all timing vents
+//			ESP_LOGI(__func__, "evt.id=%d: repeat events (%d/%d)", evt->id, evt->w_t_repeats, evt->evt_time_list_repeats);
+//			for ( T_EVT_TIME *e = evt->evt_time_list; e; e=e->nxt) {
+//				e->w_time = e->starttime;
+//			}
+//		}
+		return 1;
 	}
-
+	return 0;
 }
 
 // paint the pixel in the calculated range evt->working.pos and evt->working.len.value
 void process_event_what(T_EVENT *evt) {
 
-	T_EVT_WHAT *what_list = evt->what_list;
-	if ( !what_list || evt->brightness < 0.01 ) {
+	if ( evt->w_flags & EVFL_WAIT) {
 		return;
 	}
+
+	T_EVT_WHAT *what_list = evt->what_list;
+	if ( !what_list ) {
+		ESP_LOGI(__func__, "nothing to paint");
+		return;
+	}
+
+	int32_t startpos, endpos;
+	T_COLOR_RGB rgb = {.r=0,.g=0,.b=0};
+	T_COLOR_RGB rgb2 = {.r=0,.g=0,.b=0};
 
 	// whole length of all sections
 	int32_t len = 0;
@@ -460,6 +482,15 @@ void process_event_what(T_EVENT *evt) {
 
 	if ( flen < 1.0 ) {
 		return; // nothing left to display
+	}
+
+	if ( evt->w_flags & EVFL_CLEARPIXEL) {
+		evt->w_flags &= ~EVFL_CLEARPIXEL; // reset the flag
+		startpos = evt->w_pos;
+		endpos   = evt->w_pos + len;
+		strip_set_range(startpos, endpos, &rgb);
+		//ESP_LOGI(__func__, "clear pixel %d .. %d", startpos, endpos);
+		return;
 	}
 
 	// display range length:
@@ -475,28 +506,25 @@ void process_event_what(T_EVENT *evt) {
 	// xxxxxxxxxx
 	//     XX
 
-	int32_t startpos, endpos;
+	startpos = evt->w_pos;
+	endpos   = evt->w_pos + len;
+	int32_t pos = startpos;
 	if ( evt->delta_pos > 0 ) {
-		startpos = evt->w_pos;
-		endpos   = evt->w_pos + len;
+		pos = startpos;
 	} else {
-		startpos = evt->w_pos + len;
-		endpos   = evt->w_pos;
+		pos = endpos;
 	}
 	double f = evt->w_brightness;
 
-	int32_t dstart = floor(len - flen)/2.0;
+	int32_t dstart = startpos + floor(len - flen)/2.0;
 	int32_t dend = ceil(dstart + flen);
-
-	int32_t pos = startpos;
-	T_COLOR_RGB rgb = {.r=0,.g=0,.b=0};
-	T_COLOR_RGB rgb2 = {.r=0,.g=0,.b=0};
 
 	double r,g,b;
 
 	// for color transition
 	double df,dr,dg,db;
 
+	bool ende = false;
 	for (T_EVT_WHAT *w = what_list; w; w=w->nxt) {
 		for ( int len=0; len < w->len; len++) {
 			switch (w->type) {
@@ -544,31 +572,64 @@ void process_event_what(T_EVENT *evt) {
 				ESP_LOGW(__func__,"what type %d NYI", w->type);
 			}
 
+			//ESP_LOGI(__func__,"paint id=%d, type=%d, len=%d, pos=%d, dpos=%d, startpos=%d, endpos=%d, dstart=%d, dend=%d",
+			//		w->id, w->type, w->len, pos, evt->delta_pos, startpos, endpos, dstart, dend);
+
 			if ( pos >=0 && pos < get_numleds() && pos >= dstart && pos <= dend) {
 				c_checkrgb_abs(&rgb);
 				strip_set_pixel(pos, &rgb);
-				evt->flags |= EVFL_ISDIRTY;
 			}
 			pos += evt->delta_pos;
 			if ( pos < startpos || pos > endpos) {
+				ende = true;
 				break; // done.
 			}
 		}
+		if ( ende)
+			break;
 	}
+	// ESP_LOGI(__func__, "ENDE");
 }
 
 
 
 
 void process_event(T_EVENT *evt, uint64_t scene_time, uint64_t timer_period) {
-	evt->flags = 0;
+	//evt->flags = 0;
+	if ( evt->w_flags & EVFL_FINISHED) {
+		return;
+	}
 
 	//process_event_where(evt,timer_period);
 	//process_event_what(evt);
 
-	process_event_when(evt,scene_time, timer_period);
+	//ESP_LOGI(__func__, "start process_event_when evt=%d, t=%llu", evt->id, scene_time);
+	int finished = process_event_when(evt,scene_time, timer_period);
+
+	//ESP_LOGI(__func__, "start process_event_what evt=%d", evt->id);
 	process_event_what(evt);
 
+	if ( finished) {
+		evt->w_flags |= EVFL_FINISHED;
+
+		// all events finished, repeat it?
+		if (evt->evt_time_list_repeats > 0 ) {
+			if ( evt->w_t_repeats > 0) {
+				evt->w_t_repeats--;
+			}
+		} else {
+			evt->w_t_repeats = 1;
+		}
+
+		if ( evt->w_t_repeats > 0) {
+			// reset event
+			reset_event(evt);
+			// reset all timing vents
+			ESP_LOGI(__func__, "evt.id=%d: repeat events (%d/%d)", evt->id, evt->w_t_repeats, evt->evt_time_list_repeats);
+			return;
+		}
+
+	}
 	// next timestep
 	// calculate speed and length
 	// v = a * t
@@ -591,11 +652,13 @@ void process_event(T_EVENT *evt, uint64_t scene_time, uint64_t timer_period) {
 
 	evt->time += timer_period;
 	evt->w_pos += evt->w_speed;
+	//ESP_LOGI(__func__, "finished evt=%d", evt->id);
 
 }
 
 // reset sets working->what_list to start->what_list
 void reset_event( T_EVENT *evt) {
+	evt->w_flags = evt->flags;
 	evt->w_pos = evt->pos;
 	evt->w_len_factor = evt->len_factor;
 	evt->w_len_factor_delta = evt->len_factor_delta;
@@ -604,12 +667,18 @@ void reset_event( T_EVENT *evt) {
 	evt->w_brightness = evt->brightness;
 	evt->w_brightness_delta = evt->brightness_delta;
 	evt->time = 0;
+	evt->delta_pos = 1;
 
 	for ( T_EVT_TIME *e = evt->evt_time_list; e; e=e->nxt) {
 		e->w_time = e->starttime;
 	}
-	ESP_LOGI(__func__, "reset event %d", evt->id);
+	ESP_LOGI(__func__, "event %d", evt->id);
 
+}
+
+void reset_event_repeats(T_EVENT *evt) {
+	evt->w_t_repeats = evt->evt_time_list_repeats;
+	ESP_LOGI(__func__, "event %d", evt->id);
 
 }
 
@@ -619,6 +688,8 @@ void event2text(T_EVENT *evt, char *buf, size_t sz_buf) {
 		return;
 	}
 	snprintf(buf, sz_buf, "Event %d, startpos=%.2f", evt->id, evt->pos);
+	snprintf(&(buf[strlen(buf)]), sz_buf-strlen(buf),", flags=0x%04x, len_f=%.1f, len_f_delta=%.1f, v=%.1f, v_delta=%.1f, brightn.=%.1f, brightn.delta=%1f"
+			, evt->flags, evt->len_factor, evt->len_factor_delta, evt->speed, evt->acceleration, evt->brightness, evt->brightness_delta);
 
 	if ( evt->what_list) {
 		snprintf(&(buf[strlen(buf)]), sz_buf-strlen(buf),", what=");

@@ -148,7 +148,7 @@ static void periodic_timer_callback(void* arg)
 	}*/
 
 	s_scene_time += s_timer_period;
-	int n_paint=0;
+	//int n_paint=0;
 
 	// handle reset (first after start)
 	if ( do_reset) {
@@ -157,14 +157,15 @@ static void periodic_timer_callback(void* arg)
 		if ( s_event_list) {
 			for ( T_EVENT *evt= s_event_list; evt; evt = evt->nxt) {
 				reset_event(evt);
+				reset_event_repeats(evt);
 			}
 		} else {
 			// clear the strip
 			uint32_t n = get_numleds();
 			ESP_LOGI(__func__,"reset numleds=%u", n);
 			T_COLOR_RGB bk={.r=0,.g=0,.b=0};
-			strip_set_color(0, n - 1, &bk);
-			n_paint++;
+			strip_set_range(0, n - 1, &bk);
+			//n_paint++;
 		}
 	}
 
@@ -172,17 +173,17 @@ static void periodic_timer_callback(void* arg)
 	if ( s_event_list) {
 		for ( T_EVENT *evt= s_event_list; evt; evt = evt->nxt) {
 			process_event(evt, s_scene_time, s_timer_period);
-			if ( evt->flags & EVFL_ISDIRTY) {
-				n_paint++;
-			}
+//			if ( evt->flags & EVFL_ISDIRTY) {
+//				n_paint++;
+//			}
 		}
 	}
 
-	if ( n_paint > 0) {
+	//if ( n_paint > 0) {
 		//ESP_LOGI(__func__, "strip_show");
 		show_status();
 		strip_show();
-	}
+	//}
 
 	release_eventlist_lock();
 
@@ -194,6 +195,8 @@ static void periodic_timer_callback(void* arg)
 void scenes_start() {
 	ESP_LOGI(__func__, "start, periodic time %d ms(old: %d)", s_timer_period_new, s_timer_period);
 	logcnt = 10;
+
+	xEventGroupClearBits(s_timer_event_group, EVENT_BITS_ALL);
 
     esp_err_t rc = esp_timer_start_periodic(s_periodic_timer, s_timer_period_new*1000);
     if ( rc == ESP_ERR_INVALID_STATE) {
@@ -226,11 +229,13 @@ void scenes_start() {
 void scenes_stop() {
 	// tiomer stops by themselves
 	ESP_LOGI(__func__, "stop");
+	xEventGroupClearBits(s_timer_event_group, EVENT_BITS_ALL);
     xEventGroupSetBits(s_timer_event_group, EVENT_BIT_STOP);
 }
 
 void scenes_pause() {
 	ESP_LOGI(__func__, "pause");
+	xEventGroupClearBits(s_timer_event_group, EVENT_BITS_ALL);
     xEventGroupSetBits(s_timer_event_group, EVENT_BIT_PAUSE);
 }
 

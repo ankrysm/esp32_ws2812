@@ -56,14 +56,14 @@ esp_err_t event_list_free() {
 /**
  * adds an event
  */
-esp_err_t event_list_add(T_EVENT *pevt) {
+esp_err_t event_list_add(T_EVENT *evt) {
 	if (obtain_eventlist_lock() != ESP_OK) {
 		ESP_LOGE(__func__, "couldn't get lock");
 		return ESP_FAIL;
 	}
-	T_EVENT *evt = calloc(1,sizeof(T_EVENT));
+	//T_EVENT *evt = calloc(1,sizeof(T_EVENT));
 	if ( evt)  {
-		memcpy(evt,pevt,sizeof(T_EVENT));
+		//memcpy(evt,pevt,sizeof(T_EVENT));
 		if ( s_event_list) {
 			// add at the end of the list
 			T_EVENT *t;
@@ -75,6 +75,9 @@ esp_err_t event_list_add(T_EVENT *pevt) {
 			evt->id = 1;
 			s_event_list = evt;
 		}
+		reset_event(evt);
+		reset_event_repeats(evt);
+
 	} else {
 		ESP_LOGE(__func__,"couldn't allocate memory for event");
 	}

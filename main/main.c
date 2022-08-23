@@ -86,6 +86,8 @@ void app_main() {
 
 	// init led-strip
 	led_strip_init(gConfig.numleds);
+	strip_clear();
+	strip_show();
 	//ESP_ERROR_CHECK(strip_init(gConfig.numleds));
 
 

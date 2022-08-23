@@ -13,13 +13,40 @@
 extern size_t s_size_led_strip_pixels;
 extern uint8_t *led_strip_pixels;
 
+static int  is_dirty=0;
 
 #define STRIP_INITIALIZED (led_strip_pixels ? true : false)
+
+static void do_set_pixel(int32_t idx, T_COLOR_RGB *rgb) {
+	if ( idx < 0 || idx >= get_numleds()) {
+		return;
+	}
+	uint32_t opos, pos;
+
+	opos = pos = 3 * idx;
+	uint8_t r,g,b,nr,ng,nb;
+	g=led_strip_pixels[opos++];
+	r=led_strip_pixels[opos++];
+	b=led_strip_pixels[opos];
+
+	ng=rgb ? rgb->g : 0;
+	nr=rgb ? rgb->r : 0;
+	nb=rgb ? rgb->b : 0;
+
+	if (g != ng || r != nr ||b != nb) {
+		is_dirty = 1;
+		led_strip_pixels[pos++] = ng;
+		led_strip_pixels[pos++] = nr;
+		led_strip_pixels[pos]   = nb;
+	}
+
+}
+
 
 /**
  * sets the color for a pixel range
  */
-void strip_set_color(int32_t start_idx, int32_t end_idx,  T_COLOR_RGB *rgb) {
+void strip_set_range(int32_t start_idx, int32_t end_idx,  T_COLOR_RGB *rgb) {
 	if (!STRIP_INITIALIZED) {
 		ESP_LOGE(__func__, "not initalized");
 		return;
@@ -28,10 +55,7 @@ void strip_set_color(int32_t start_idx, int32_t end_idx,  T_COLOR_RGB *rgb) {
 	for(int i = start_idx; i <= end_idx; i++) {
 		if ( i<0 || i >= get_numleds())
 			continue;
-		uint32_t pos = 3 * i;
-		led_strip_pixels[pos++] = rgb->g;
-		led_strip_pixels[pos++] = rgb->r;
-		led_strip_pixels[pos] = rgb->b;
+		do_set_pixel(i, rgb);
 	}
 }
 
@@ -43,13 +67,7 @@ void strip_set_pixel(int32_t idx, T_COLOR_RGB *rgb) {
 		ESP_LOGE(__func__, "not initalized");
 		return;
 	}
-	if ( idx < 0 || idx >= get_numleds()) {
-		return;
-	}
-	uint32_t pos = 3 * idx;
-	led_strip_pixels[pos++] = rgb ? rgb->g : 0;
-	led_strip_pixels[pos++] = rgb ? rgb->r : 0;
-	led_strip_pixels[pos]   = rgb ? rgb->b : 0;
+	do_set_pixel(idx, rgb);
 }
 
 /**
@@ -61,6 +79,7 @@ void strip_clear()  {
 		return;
 	}
 	memset(led_strip_pixels, 0, s_size_led_strip_pixels);
+	is_dirty = 1;
 }
 
 /**
@@ -71,6 +90,10 @@ void strip_show() {
 		ESP_LOGE(__func__, "not initalized");
 		return;
 	}
+	if (! is_dirty)
+		return;
+
+	is_dirty = 0;
 #ifdef STRIP_DEMO
 	{
 		uint32_t pos=0;
@@ -87,9 +110,8 @@ void strip_show() {
 		}
 		printf(">\n");
 	}
-#else
-	led_strip_refresh();
 #endif
+	led_strip_refresh();
 }
 
 /**

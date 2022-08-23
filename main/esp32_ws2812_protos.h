@@ -15,6 +15,7 @@ int32_t get_random(int32_t min, uint32_t diff);
 // from process_events.c
 void process_event(T_EVENT *evt, uint64_t scene_time, uint64_t timer_period);
 void reset_event( T_EVENT *evt);
+void reset_event_repeats(T_EVENT *evt);
 void event2text(T_EVENT *evt, char *buf, size_t sz_buf);
 
 // from config.c
@@ -30,7 +31,7 @@ void c_checkrgb_abs(T_COLOR_RGB *rgb);
 T_NAMED_RGB_COLOR *color4name(char *name);
 
 // from led_strip.c
-void strip_set_color(int32_t start_idx, int32_t end_idx,  T_COLOR_RGB *rgb);
+void strip_set_range(int32_t start_idx, int32_t end_idx,  T_COLOR_RGB *rgb);
 void strip_set_pixel(int32_t idx, T_COLOR_RGB *rgb);
 void strip_clear();
 void strip_show();
