@@ -17,260 +17,6 @@ T_EVT_WHAT event_clear = {
 	};
 
 
-// **************************************************************************
-// timing
-// **************************************************************************
-/*
-static void event_init(T_EVENT *evt) {
-	ESP_LOGI(__func__,"event %d: init", evt->id);
-	evt->w_t_start = evt->t_start;
-	evt->w_t = 0;
-	evt->status = SCENE_INITIALIZED;
-	evt->flags = 0;
-
-	// TODO more initialisations
-}
-
-static void event_check4start(T_EVENT *evt, uint64_t scene_time) {
-	if ( scene_time < evt->w_t_start) {
-		evt->flags |= EVFL_DONE;
-		return; // not yet
-	}
-	ESP_LOGI(__func__,"event %d: started", evt->id);
-	evt->status = SCENE_STARTED;
-	evt->w_t = 0;
-}
-
-
-static void event_check4up(T_EVENT *evt, uint64_t timer_period) {
-	if (evt->dt_startup > timer_period ) {
-		evt->flags |= EVFL_DONE; // every time it is done
-		if ( evt->w_t < evt->dt_startup ) {
-			// paint "STARTUP" scenario
-			// TODO
-
-			return;
-		}
-		ESP_LOGI(__func__,"event %d: startup ended", evt->id);
-	} else {
-		ESP_LOGI(__func__,"event %d: no startup", evt->id);
-	}
-	// startup has ended
-	evt->status = SCENE_UP;
-	evt->w_t = 0;
-
-}
-
-static void event_check4end(T_EVENT *evt, uint64_t timer_period) {
-
-	if ( evt->dt_up > timer_period) {
-		evt->flags |= EVFL_DONE; // every time it is done
-		if ( evt->dt_up == 0 || evt->w_t < evt->dt_up ) {
-			// for ever or end of up time not reached
-			// paint up scenario
-			// TODO
-
-			return;
-		}
-		ESP_LOGI(__func__,"event %d: up ended", evt->id);
-	} else {
-		ESP_LOGI(__func__,"event %d: no up", evt->id);
-	}
-
-	// up has ended
-	evt->status = SCENE_ENDED;
-	evt->w_t = 0;
-
-}
-
-static void event_check4finish(T_EVENT *evt, uint64_t timer_period) {
-	if ( evt->dt_finish > timer_period) {
-		evt->flags |= EVFL_DONE; // every time it is done
-		if ( evt->w_t < evt->dt_finish ) {
-			// paint finish scenario
-			// TODO
-
-			return;
-		}
-		ESP_LOGI(__func__,"event %d: finish ended", evt->id);
-	} else {
-		ESP_LOGI(__func__,"event %d: no finish", evt->id);
-	}
-	// up has ended
-	evt->status = SCENE_FINISHED;
-	evt->w_t = 0;
-
-}
-
-
-static void event_finished(T_EVENT *evt) {
-	// TODO
-	// if nothing planned for the future stay in this status
-	evt->flags |= EVFL_DONE;
-}
-*/
-
-// **************************************************************************
-// moving
-// **************************************************************************
-
-/*
-static void event_sp_init(T_EVENT *evt) {
-	ESP_LOGI(__func__,"event %d: init", evt->id);
-	evt->w_pos = evt->pos;
-	evt->sp_status = MOVE_INITIALIZED;
-	evt->w_sp_speed = evt->sp_start;
-	evt->w_sp_t = 0;
-	evt->w_sp_delta_speed = 0.0;
-}
-
-static void event_sp_check4start(T_EVENT *evt, uint64_t scene_time, uint64_t timer_period) {
-	if ( scene_time < evt->sp_t_start) {
-		evt->flags |= EVFL_SP_DONE;
-		return; // not yet
-	}
-	ESP_LOGI(__func__,"event %d: started", evt->id);
-	evt->sp_status = MOVE_STARTED;
-	evt->w_sp_delta_speed = evt->sp_acc_startup * timer_period;
-	evt->w_sp_t = 0;
-}
-
-
-static void event_sp_check4up(T_EVENT *evt, uint64_t timer_period) {
-	if (evt->sp_dt_startup > timer_period ) {
-		evt->flags |= EVFL_SP_DONE; // every time it is done
-		if ( evt->w_sp_t < evt->sp_dt_startup ) {
-			return;
-		}
-		ESP_LOGI(__func__,"event %d: startup ended", evt->id);
-	} else {
-		ESP_LOGI(__func__,"event %d: no startup", evt->id);
-	}
-	// startup has ended
-	evt->sp_status = MOVE_UP;
-	evt->w_sp_delta_speed = evt->sp_acc_up * timer_period;
-	evt->w_sp_t = 0;
-
-}
-
-static void event_sp_check4end(T_EVENT *evt, uint64_t timer_period) {
-
-	if ( evt->sp_dt_up > timer_period) {
-		evt->flags |= EVFL_SP_DONE; // every time it is done
-		if ( evt->sp_dt_up == 0 || evt->w_sp_t < evt->sp_dt_up ) {
-			return;
-		}
-		ESP_LOGI(__func__,"event %d: up ended", evt->id);
-	} else {
-		ESP_LOGI(__func__,"event %d: no up", evt->id);
-	}
-
-	// up has ended
-	evt->sp_status = MOVE_ENDED;
-	evt->w_sp_t = 0;
-	evt->w_sp_delta_speed = evt->sp_acc_finish * timer_period;
-
-}
-
-static void event_sp_check4finish(T_EVENT *evt, uint64_t timer_period) {
-	if ( evt->sp_dt_finish > timer_period) {
-		evt->flags |= EVFL_SP_DONE; // every time it is done
-		if ( evt->w_sp_t < evt->sp_dt_finish ) {
-			return;
-		}
-		ESP_LOGI(__func__,"event %d: finish ended", evt->id);
-	} else {
-		ESP_LOGI(__func__,"event %d: no finish", evt->id);
-	}
-	// up has ended
-	evt->sp_status = MOVE_FINISHED;
-	evt->w_sp_t = 0;
-	evt->w_sp_delta_speed = 0.0;
-}
-
-
-static void event_sp_finished(T_EVENT *evt) {
-	// TODO
-	// if nothing planned for the future stay in this status
-	evt->flags |= EVFL_SP_DONE;
-}
-*/
-// **************************************************************************
-
-// *** main function ******
-// times in ms,
-// scene_time useful for start a scene
-// timer_period useful for startup and shutdown
-/*void process_event(T_EVENT *evt, uint64_t scene_time, uint64_t timer_period) {
-
-	evt->flags &= ~(EVFL_DONE | EVFL_SP_DONE | EVFL_ISDIRTY);
-
-	// speed
-	while ( !(evt->flags & EVFL_SP_DONE)) {
-		switch ( evt->sp_status ) {
-		case MOVE_IDLE:  // initialization needed
-			event_sp_init(evt);
-			break;
-		case MOVE_INITIALIZED: // check if start speed up has to start
-			event_sp_check4start(evt, scene_time, timer_period);
-			break;
-		case MOVE_STARTED:  // check if up speed up has to start
-			event_sp_check4up(evt, timer_period);
-			break;
-		case MOVE_UP:      // check if end speed up has to start
-			event_sp_check4end(evt, timer_period);
-			break;
-		case MOVE_ENDED:   // check if end speed up has finished
-			event_sp_check4finish(evt, timer_period);
-			break;
-		case MOVE_FINISHED: // check if it stays finished or restart moving
-			event_sp_finished(evt);
-			break;
-		default:
-			ESP_LOGE(__func__, "unexpected speed status %d", evt->sp_status);
-		}
-	}
-
-	// v = a * t
-	// Δv = a * Δt
-	// speed is leds per ms
-	evt->w_sp_speed += evt->w_sp_delta_speed;
-	evt->w_pos += evt->w_sp_speed;
-
-	// timing
-	while ( !(evt->flags & EVFL_DONE)) {
-		// check the timing status of a scene
-		switch ( evt->status) {
-		case SCENE_IDLE: // it has to be initialized
-			event_init(evt);
-			break;
-		case SCENE_INITIALIZED: // check if it has to start
-			event_check4start(evt, scene_time);
-			break;
-		case SCENE_STARTED: // check if it is up
-			event_check4up(evt, timer_period);
-			break;
-		case SCENE_UP: // check if it has ended
-			event_check4end(evt, timer_period);
-			break;
-		case SCENE_ENDED: // check if it has finished
-			event_check4finish(evt, timer_period);
-			break;
-		case SCENE_FINISHED: // check if it stays finished or restart the scene
-			event_finished(evt);
-			break;
-		default:
-			ESP_LOGE(__func__, "unexpected status %d", evt->status);
-		}
-	}
-	evt->w_t += timer_period;
-	evt->w_sp_t += timer_period;
-}
-*/
-// #######################################################################################
-// #######################################################################################
-// #######################################################################################
-
 
 // position dependend events
 // sets
@@ -365,16 +111,16 @@ void process_event_where(T_EVENT *evt, uint64_t timer_period) {
 // time dependend events
 // time values in ms
 // sets
-//  * speed (OK) or
-//  * acceleration (OK) or
-//  * position or
+//  * speed (ET_SPEED, ET_BOUNCE) or
+//  * acceleration (ET_SPEEDUP) or
+//  * position (ET_JUMP. ET_REVERSE) or
 //  * length or
-//  * brightness or
-//  * color
+//  * brightness (ET_BRIGHTNESS, ET_BRIGHTNESS_DELTA) or
+//  * color (ET_CLEAR)
 // return 1 when all timer events arrived
-int  process_event_when(T_EVENT *evt, uint64_t scene_time, uint64_t timer_period) {
+bool  process_event_when(T_EVENT *evt, uint64_t scene_time, uint64_t timer_period) {
 	if (!evt->evt_time_list) {
-		return 1; // no timing events
+		return true; // no timing events
 	}
 
 	evt->delta_pos = evt->speed < 0.0 ? -1 : +1;
@@ -388,7 +134,7 @@ int  process_event_when(T_EVENT *evt, uint64_t scene_time, uint64_t timer_period
 			if ( last_w_time >= 0 && e->w_time < 0 ) {
 				// change from >0 to <0, do work
 				// timer arrived ...
-				ESP_LOGI(__func__,"evt.id=%d, tevt.id=%d: timer of %llu ms, type %d, val=%.2f arrived",evt->id, e->id, e->starttime, e->type, e->value);
+				//ESP_LOGI(__func__,"evt.id=%d, tevt.id=%d: timer of %llu ms, type %d, val=%.2f arrived",evt->id, e->id, e->starttime, e->type, e->value);
 
 				if ( e->clear_flags) {
 					evt->w_flags &= ~ e->clear_flags;
@@ -432,28 +178,9 @@ int  process_event_when(T_EVENT *evt, uint64_t scene_time, uint64_t timer_period
 	}
 
 	if ( cnt_evts == cnt_finished_evts ) {
-//		// all events finished, repeat it?
-//		if (evt->evt_time_list_repeats > 0 ) {
-//			if ( evt->w_t_repeats > 0) {
-//				evt->w_t_repeats--;
-//			}
-//		} else {
-//			evt->w_t_repeats = 1;
-//		}
-//
-//		if ( evt->w_t_repeats > 0) {
-//			// reset event
-//			evt->w_speed = evt->speed;
-//			evt->w_acceleration = evt->acceleration;
-//			// reset all timing vents
-//			ESP_LOGI(__func__, "evt.id=%d: repeat events (%d/%d)", evt->id, evt->w_t_repeats, evt->evt_time_list_repeats);
-//			for ( T_EVT_TIME *e = evt->evt_time_list; e; e=e->nxt) {
-//				e->w_time = e->starttime;
-//			}
-//		}
-		return 1;
+		return true;
 	}
-	return 0;
+	return false;
 }
 
 // paint the pixel in the calculated range evt->working.pos and evt->working.len.value
@@ -489,7 +216,7 @@ void process_event_what(T_EVENT *evt) {
 		startpos = evt->w_pos;
 		endpos   = evt->w_pos + len;
 		strip_set_range(startpos, endpos, &rgb);
-		//ESP_LOGI(__func__, "clear pixel %d .. %d", startpos, endpos);
+		ESP_LOGI(__func__, "clear pixel %d .. %d", startpos, endpos);
 		return;
 	}
 
@@ -519,6 +246,7 @@ void process_event_what(T_EVENT *evt) {
 	int32_t dstart = startpos + floor(len - flen)/2.0;
 	int32_t dend = ceil(dstart + flen);
 
+	//ESP_LOGI(__func__, "pos=%d..%d, +%d d=%d..%d", startpos, endpos, evt->delta_pos, dstart, dend);
 	double r,g,b;
 
 	// for color transition
@@ -553,13 +281,22 @@ void process_event_what(T_EVENT *evt) {
 					r=rgb.r;
 					g=rgb.g;
 					b=rgb.b;
+					/*ESP_LOGI(__func__,"color transition rgb %d/%d/%d -> %d/%d/%d, drgb=%.1f/%.1f/%.1f, f=%.2f "
+							,rgb.r, rgb.g, rgb.b
+							,rgb2.r, rgb2.g, rgb2.b
+							,dr,dg,db
+							,f
+							);*/
 				}
 				r+=dr;
 				g+=dg;
 				b+=db;
 				rgb.r = f * r;
 				rgb.g = f * g;
-				rgb.r = f * r;
+				rgb.b = f * b;
+				/*ESP_LOGI(__func__,"pos=%d, color transition rgb %d/%d/%d"
+						,pos,rgb.r, rgb.g, rgb.b
+						);*/
 				break;
 
 			case WT_RAINBOW:
@@ -592,19 +329,21 @@ void process_event_what(T_EVENT *evt) {
 }
 
 
-
-
-void process_event(T_EVENT *evt, uint64_t scene_time, uint64_t timer_period) {
-	//evt->flags = 0;
+/**
+ * process an event, calculate time dependend events,
+ * show the pixel
+ * calculate parameter for next cycle
+ * return:
+ *  1 - all events finished
+ *  0 - do more work
+ */
+bool process_event(T_EVENT *evt, uint64_t scene_time, uint64_t timer_period) {
 	if ( evt->w_flags & EVFL_FINISHED) {
-		return;
+		return true;
 	}
 
-	//process_event_where(evt,timer_period);
-	//process_event_what(evt);
-
 	//ESP_LOGI(__func__, "start process_event_when evt=%d, t=%llu", evt->id, scene_time);
-	int finished = process_event_when(evt,scene_time, timer_period);
+	bool finished = process_event_when(evt,scene_time, timer_period);
 
 	//ESP_LOGI(__func__, "start process_event_what evt=%d", evt->id);
 	process_event_what(evt);
@@ -618,18 +357,18 @@ void process_event(T_EVENT *evt, uint64_t scene_time, uint64_t timer_period) {
 				evt->w_t_repeats--;
 			}
 		} else {
-			evt->w_t_repeats = 1;
+			evt->w_t_repeats = 1; // forever
 		}
 
 		if ( evt->w_t_repeats > 0) {
-			// reset event
+			// reset event, next turn
 			reset_event(evt);
-			// reset all timing vents
 			ESP_LOGI(__func__, "evt.id=%d: repeat events (%d/%d)", evt->id, evt->w_t_repeats, evt->evt_time_list_repeats);
-			return;
+			return false;
 		}
-
+		return true;
 	}
+
 	// next timestep
 	// calculate speed and length
 	// v = a * t
@@ -653,10 +392,13 @@ void process_event(T_EVENT *evt, uint64_t scene_time, uint64_t timer_period) {
 	evt->time += timer_period;
 	evt->w_pos += evt->w_speed;
 	//ESP_LOGI(__func__, "finished evt=%d", evt->id);
+	return false;
 
 }
 
-// reset sets working->what_list to start->what_list
+/**
+ *  reset an event, except repeat parameter
+ */
 void reset_event( T_EVENT *evt) {
 	evt->w_flags = evt->flags;
 	evt->w_pos = evt->pos;
@@ -676,44 +418,48 @@ void reset_event( T_EVENT *evt) {
 
 }
 
+/**
+ * reset repeat parameter of an event
+ */
 void reset_event_repeats(T_EVENT *evt) {
 	evt->w_t_repeats = evt->evt_time_list_repeats;
 	ESP_LOGI(__func__, "event %d", evt->id);
 
 }
 
+/**
+ * for logging ...
+ */
 void event2text(T_EVENT *evt, char *buf, size_t sz_buf) {
 	if ( !evt) {
 		snprintf(buf, sz_buf, "evt was NULL");
 		return;
 	}
-	snprintf(buf, sz_buf, "Event %d, startpos=%.2f", evt->id, evt->pos);
+	snprintf(buf, sz_buf, "\nEvent %d, startpos=%.2f", evt->id, evt->pos);
 	snprintf(&(buf[strlen(buf)]), sz_buf-strlen(buf),", flags=0x%04x, len_f=%.1f, len_f_delta=%.1f, v=%.1f, v_delta=%.1f, brightn.=%.1f, brightn.delta=%1f"
 			, evt->flags, evt->len_factor, evt->len_factor_delta, evt->speed, evt->acceleration, evt->brightness, evt->brightness_delta);
 
 	if ( evt->what_list) {
-		snprintf(&(buf[strlen(buf)]), sz_buf-strlen(buf),", what=");
+		snprintf(&(buf[strlen(buf)]), sz_buf-strlen(buf),"\n  what=");
 
 		for ( T_EVT_WHAT *w=evt->what_list; w; w=w->nxt) {
-			snprintf(&(buf[strlen(buf)]), sz_buf-strlen(buf),"<id=%d, type=%d, pos=%d, len=%d>",
+			snprintf(&(buf[strlen(buf)]), sz_buf-strlen(buf),"\n    id=%d, type=%d, pos=%d, len=%d>",
 					w->id, w->type, w->pos, w->len
 			);
 		}
 
 	} else {
-		snprintf(&(buf[strlen(buf)]), sz_buf-strlen(buf),", no what list");
+		snprintf(&(buf[strlen(buf)]), sz_buf-strlen(buf),"\n  no what list");
 	}
 
 	if (evt->evt_time_list) {
-		snprintf(&(buf[strlen(buf)]), sz_buf-strlen(buf),", time events:");
+		snprintf(&(buf[strlen(buf)]), sz_buf-strlen(buf),"\n  time events:");
 		for (T_EVT_TIME *tevt = evt->evt_time_list; tevt; tevt=tevt->nxt) {
-			snprintf(&(buf[strlen(buf)]), sz_buf-strlen(buf)," [id=%d, starttime=%llu, type=%d, val=%.2f",
+			snprintf(&(buf[strlen(buf)]), sz_buf-strlen(buf),"\n    id=%d, starttime=%llu, type=%d, val=%.2f",
 					tevt->id, tevt->starttime, tevt->type, tevt->value);
 
-
-			snprintf(&(buf[strlen(buf)]), sz_buf-strlen(buf),"]");
 		}
 	} else {
-		snprintf(&(buf[strlen(buf)]), sz_buf-strlen(buf),", no time events.");
+		snprintf(&(buf[strlen(buf)]), sz_buf-strlen(buf),"\n  no time events.");
 	}
 }

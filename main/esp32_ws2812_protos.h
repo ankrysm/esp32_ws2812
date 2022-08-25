@@ -11,9 +11,10 @@
 
 // from util.h
 int32_t get_random(int32_t min, uint32_t diff);
+uint32_t crc32b(const uint8_t arr[], size_t sz);
 
 // from process_events.c
-void process_event(T_EVENT *evt, uint64_t scene_time, uint64_t timer_period);
+bool process_event(T_EVENT *evt, uint64_t scene_time, uint64_t timer_period);
 void reset_event( T_EVENT *evt);
 void reset_event_repeats(T_EVENT *evt);
 void event2text(T_EVENT *evt, char *buf, size_t sz_buf);
@@ -34,7 +35,7 @@ T_NAMED_RGB_COLOR *color4name(char *name);
 void strip_set_range(int32_t start_idx, int32_t end_idx,  T_COLOR_RGB *rgb);
 void strip_set_pixel(int32_t idx, T_COLOR_RGB *rgb);
 void strip_clear();
-void strip_show();
+void strip_show(bool forced);
 void firstled(int red, int green, int blue);
 size_t get_numleds();
 
@@ -46,7 +47,6 @@ void led_strip_firstled(int red, int green, int blue);
 
 // from timer_events.c
 void init_timer_events();
-//void set_timer_cycle(int new_delta_ms);
 int set_event_timer_period(int new_timer_period);
 void scenes_start();
 void scenes_stop();
@@ -56,11 +56,16 @@ run_status_type get_scene_status();
 run_status_type set_scene_status(run_status_type new_status);
 uint64_t get_event_timer_period();
 uint64_t get_scene_time();
+
+// from event_util.c
 esp_err_t event_list_free();
 esp_err_t event_list_add(T_EVENT *evt);
 esp_err_t obtain_eventlist_lock();
 esp_err_t release_eventlist_lock();
 void init_eventlist_utils();
+T_EVENT *create_event(uint32_t id);
+T_EVT_TIME *create_timing_event(T_EVENT *evt, uint32_t id);
+T_EVT_WHAT *create_what(T_EVENT *evt, uint32_t id);
 
 // from wifi_vonfig.c
 void initialise_wifi();
@@ -75,39 +80,8 @@ void initialise_netbios();
 
 
 // from create_events.c
-esp_err_t decode_effect_list(char *param, T_EVENT *event );
+esp_err_t decode_json4event(char *content, char *errmsg, size_t sz_errmsg);
 
-/*
-// from location_based_events.c
-esp_err_t decode_effect_solid(T_LOC_EVENT *evt, uint32_t len, T_COLOR_HSV *hsv);
-esp_err_t decode_effect_smooth(
-		T_LOC_EVENT *evt,
-		uint32_t len,
-		uint32_t fade_in,
-		uint32_t fade_out,
-		T_COLOR_HSV *hsv1,
-		T_COLOR_HSV *hsv2,
-		T_COLOR_HSV *hsv3
-);
-void loc_event2string(T_LOC_EVENT *evt, char *buf, size_t sz_buf);
-esp_err_t process_loc_event(T_EVENT *evt);
-
-// from move_events.c
-esp_err_t decode_effect_fix(T_MOV_EVENT *evt, int32_t start);
-esp_err_t decode_effect_rotate(
-		T_MOV_EVENT *evt,
-		int32_t start,
-		uint32_t len,
-		int32_t start_pos,
-		uint64_t dt,
-		int32_t dir,
-		T_COLOR_HSV *bg_hsv);
-
-void calc_pos(T_MOV_EVENT *evt, int32_t *pos, int32_t *delta);
-
-esp_err_t process_move_events(T_EVENT *evt, uint64_t timer_period);
-void mov_event2string(T_MOV_EVENT *evt, char *buf, size_t sz_buf);
-*/
 // from create_demo
 void build_demo2(
 		T_COLOR_RGB *fg_color // foreground color

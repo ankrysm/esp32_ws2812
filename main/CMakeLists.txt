@@ -4,7 +4,7 @@
 idf_component_register(SRCS
 					"main.c" "rest_server.c" "led_strip.c" "config.c"
 					"wifi_config.c" "timer_events.c" "process_events.c" "color.c" "create_events.c"
-					"create_demo.c" "event_util.c"
+					"create_demo.c" "event_util.c" "util.c"
 					#"location_based_events.c" "move_events.c"
 					#"paint_pixel.c"
                     INCLUDE_DIRS ".")

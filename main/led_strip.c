@@ -13,7 +13,7 @@
 extern size_t s_size_led_strip_pixels;
 extern uint8_t *led_strip_pixels;
 
-static int  is_dirty=0;
+static uint32_t last_hash = 0;
 
 #define STRIP_INITIALIZED (led_strip_pixels ? true : false)
 
@@ -21,25 +21,10 @@ static void do_set_pixel(int32_t idx, T_COLOR_RGB *rgb) {
 	if ( idx < 0 || idx >= get_numleds()) {
 		return;
 	}
-	uint32_t opos, pos;
-
-	opos = pos = 3 * idx;
-	uint8_t r,g,b,nr,ng,nb;
-	g=led_strip_pixels[opos++];
-	r=led_strip_pixels[opos++];
-	b=led_strip_pixels[opos];
-
-	ng=rgb ? rgb->g : 0;
-	nr=rgb ? rgb->r : 0;
-	nb=rgb ? rgb->b : 0;
-
-	if (g != ng || r != nr ||b != nb) {
-		is_dirty = 1;
-		led_strip_pixels[pos++] = ng;
-		led_strip_pixels[pos++] = nr;
-		led_strip_pixels[pos]   = nb;
-	}
-
+	uint32_t pos = 3 * idx;
+	led_strip_pixels[pos++] = rgb ? rgb->g : 0;
+	led_strip_pixels[pos++] = rgb ? rgb->r : 0;
+	led_strip_pixels[pos]   = rgb ? rgb->b : 0;
 }
 
 
@@ -79,39 +64,53 @@ void strip_clear()  {
 		return;
 	}
 	memset(led_strip_pixels, 0, s_size_led_strip_pixels);
-	is_dirty = 1;
+	//is_dirty = 1;
 }
 
 /**
  * flush the pixel buffer to the strip
  */
-void strip_show() {
+void strip_show(bool forced) {
 	if (!STRIP_INITIALIZED) {
 		ESP_LOGE(__func__, "not initalized");
 		return;
 	}
-	if (! is_dirty)
+	uint32_t hash = crc32b(led_strip_pixels, s_size_led_strip_pixels);
+	if (!forced && hash == last_hash)
 		return;
 
-	is_dirty = 0;
+	last_hash = hash;
+//	is_dirty = 0;
 #ifdef STRIP_DEMO
 	{
+		char txt[1024];
 		uint32_t pos=0;
-		printf("\n#### LED:<");
+		snprintf(txt,sizeof(txt),"#### LED:<");
 		for (int i=0; i<get_numleds(); i++) {
-			uint32_t s=led_strip_pixels[pos++];
-			s+= led_strip_pixels[pos++];
-			s+= led_strip_pixels[pos++];
+			uint32_t g= led_strip_pixels[pos++]; // g
+			uint32_t r= led_strip_pixels[pos++]; // r
+			uint32_t b= led_strip_pixels[pos++]; //b
+			uint32_t s = g+r+b;
 			if ( s>0) {
-				printf("X");
+				if (g>r && g>b)
+					strlcat(txt,"G",sizeof(txt));
+				else if(r>g && r>b)
+					strlcat(txt,"R",sizeof(txt));
+				else if(b>r && b>g)
+					strlcat(txt,"B",sizeof(txt));
+				else strlcat(txt,"X",sizeof(txt));
 			} else {
-				printf(".");
+				strlcat(txt,".",sizeof(txt));
 			}
 		}
-		printf(">\n");
+		strlcat(txt,">",sizeof(txt));
+		ESP_LOGI(__func__, "%s", txt);
 	}
 #endif
 	led_strip_refresh();
+	// clear all pixels for next cycle
+	memset(led_strip_pixels, 0, s_size_led_strip_pixels);
+
 }
 
 /**

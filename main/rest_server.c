@@ -408,17 +408,6 @@ static esp_err_t get_handler_ctrl(httpd_req_t *req)
 							for ( T_EVENT *evt= s_event_list; evt; evt = evt->nxt) {
 								event2text(evt,resp_str,sizeof(resp_str));
 								httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
-
-//								snprintf(resp_str,sizeof(resp_str),"event %d\n", evt->id);
-//								httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
-
-//								loc_event2string(&(evt->loc_event), buf, sizeof(buf));
-//								snprintf(resp_str,sizeof(resp_str),"  loc_evt=%s\n", buf);
-//								httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
-//
-//								mov_event2string(&(evt->mov_event), buf, sizeof(buf));
-//								snprintf(resp_str,sizeof(resp_str),"  mov_evt=%s\n", buf);
-//								httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
 							}
 						}
 						release_eventlist_lock();
@@ -449,28 +438,8 @@ static esp_err_t get_handler_ctrl(httpd_req_t *req)
 				}
 					break;
 				case 2: // add
-				{
-					// expected typ,parameter,parameter ...
-					// type 'solid' parameter: startpixel, #pixel, h,s,v
-					// type 'smooth' parameter: startpixel, #pixel, fade in pixel, fade out pixel, start-h,s,v, middle-h,s,v, end-h,s,v
-					// effects with different types (moving, location based etc.)
-					// can be in a list separated bei ';'
-					/* TODO
-					T_EVENT evt;
-					if (decode_effect_list(param, &evt) == ESP_OK) {
-						ESP_LOGI(__func__,"done: %s\n", param);
-						if ( event_list_add(&evt) == ESP_OK) {
-							ESP_LOGI(__func__,"event '%s' stored", param);
-						} else {
-							ESP_LOGE(__func__,"could not store event '%s'", param);
-						}
-					} else {
-						ESP_LOGW(__func__,"decode FAILED: %s\n", param);
-					}
-					*/
-
-				}
-				break;
+					// TODO
+					break;
 				case 3: // del
 					// TODO
 					break;
@@ -486,6 +455,12 @@ static esp_err_t get_handler_ctrl(httpd_req_t *req)
 			}
 			free(buf);
 		}
+	} else {
+		old_status = get_scene_status();
+		snprintf(resp_str,sizeof(resp_str),"Status %s\nTimer cycle=%lld ms\nScene time=%lld\n",
+				RUN_STATUS_TYPE2TEXT(old_status),
+				get_event_timer_period(), get_scene_time());
+		httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
 	}
 
 	snprintf(resp_str,sizeof(resp_str),"DONE(cnt=%d)\n",cnt);
@@ -516,6 +491,68 @@ static esp_err_t get_handler_reset(httpd_req_t *req)
     ESP_LOGI(__func__, "Restarting now.\n");
     fflush(stdout);
     esp_restart();
+
+	return ESP_OK;
+}
+
+static esp_err_t post_handler_data(httpd_req_t *req)
+{
+	ESP_LOGI(__func__,"running on core %d",xPortGetCoreID());
+	ESP_LOGI(__func__,"uri='%s', contenlen=%d", req->uri, req->content_len);
+
+	char resp_str[255];
+
+	if ( req->content_len > SCRATCH_BUFSIZE) {
+        ESP_LOGE(__func__, "Content too large : %d bytes\n", req->content_len);
+        // Respond with 400 Bad Request
+        snprintf(resp_str,sizeof(resp_str),"Data size must be less then %d bytes!\n",SCRATCH_BUFSIZE);
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, resp_str);
+        /// Return failure to close underlying connection else the
+        // incoming file content will keep the socket busy
+        return ESP_FAIL;
+	}
+
+    int remaining = req->content_len;
+    // Retrieve the pointer to scratch buffer for temporary storage
+    char *buf = ((rest_server_context_t *)req->user_ctx)->scratch;
+    memset(buf, 0, SCRATCH_BUFSIZE);
+    int received;
+
+    while (remaining > 0) {
+
+        ESP_LOGI(__func__, "Remaining size : %d", remaining);
+        // Receive the file part by part into a buffer
+        if ((received = httpd_req_recv(req, buf, MIN(remaining, SCRATCH_BUFSIZE))) <= 0) {
+        	// recv failed
+            if (received == HTTPD_SOCK_ERR_TIMEOUT) {
+                // Retry if timeout occurred
+                continue;
+            }
+
+            ESP_LOGE(__func__, "Data reception failed!");
+            /* Respond with 500 Internal Server Error */
+            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to receive data\n");
+            return ESP_FAIL;
+        }
+
+        // Keep track of remaining size of
+        // the file left to be uploaded
+        remaining -= received;
+    }
+
+    char errmsg[64];
+    esp_err_t res = decode_json4event(buf, errmsg, sizeof(errmsg));
+    if (res != ESP_OK) {
+        snprintf(resp_str,sizeof(resp_str),"Decoding data failed: %s\n",errmsg);
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, resp_str);
+        return ESP_FAIL;
+    }
+
+	snprintf(resp_str,sizeof(resp_str),"DONE\n");
+	httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
+
+	// End response
+	httpd_resp_send_chunk(req, NULL, 0);
 
 	return ESP_OK;
 }
@@ -578,6 +615,15 @@ esp_err_t start_rest_server(const char *base_path)
         .user_ctx  = rest_context
     };
     httpd_register_uri_handler(server, &ctrl_uri);
+
+    // data
+    httpd_uri_t data_uri = {
+        .uri       = "/data/*",
+        .method    = HTTP_POST,
+        .handler   = post_handler_data,
+        .user_ctx  = rest_context
+    };
+    httpd_register_uri_handler(server, &data_uri);
 
     /*
     httpd_uri_t strip_setcolor = {

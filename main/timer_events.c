@@ -18,8 +18,6 @@ static EventGroupHandle_t s_timer_event_group;
 static const int EVENT_BIT_START = BIT0;
 static const int EVENT_BIT_STOP = BIT1;
 static const int EVENT_BIT_PAUSE = BIT2;
-//static const int EVENT_BIT_NEW_SCENE = BIT3;
-//static const int EVENT_BIT_RESTART = BIT4;
 
 static const int EVENT_BITS_ALL = 0xFF;
 
@@ -57,7 +55,7 @@ static void periodic_timer_callback_t(void* arg) {
 	t_sum+=dt;
 	logcnt++;
 	if ( logcnt >= 50 ) {
-		//ESP_LOGI(__func__,"processing time %.3f mikrosec on core %d", (1.0*t_sum/logcnt), xPortGetCoreID());
+		ESP_LOGI(__func__,"processing time %.2f ms on core %d", (1.0*t_sum/logcnt)/1000.0, xPortGetCoreID());
 		//ESP_LOGI(__func__,"raw data %lld, %d, %lld", dt, logcnt, t_sum);
 		logcnt = 0;
 		t_sum=0;
@@ -68,15 +66,7 @@ static void periodic_timer_callback_t(void* arg) {
 /**
  * main timer function
  */
-static void periodic_timer_callback(void* arg)
-{
-/*	static uint32_t flags= BIT5; // Bit 5 for initial logging
-
-	if ( flags & BIT5) {
-		ESP_LOGI(__func__,"started");
-		flags &= ~BIT5;
-	}
-*/
+static void periodic_timer_callback(void* arg) {
 	int do_reset = false;
 
 	// discover stauts of playback
@@ -132,28 +122,11 @@ static void periodic_timer_callback(void* arg)
 		return;
 	}
 
-	/*if ( !s_event_list) {
-		//ESP_LOGI(__func__,"event list is empty");
-		// clear the strip
-		uint32_t n = get_numleds();
-		ESP_LOGI(__func__,"reset numleds=%u", n);
-		T_COLOR_RGB bk={.r=0,.g=0,.b=0};
-		strip_set_color(0, n - 1, &bk);
-		show_status();
-		strip_show();
-		s_run_status = RUN_STATUS_IDLE;
-		s_scene_time = 0;
-		release_eventlist_lock();
-		return;
-	}*/
-
 	s_scene_time += s_timer_period;
-	//int n_paint=0;
 
-	// handle reset (first after start)
 	if ( do_reset) {
 		s_scene_time = 0;
-		// reset all event data
+		// reset all event data + repeat data
 		if ( s_event_list) {
 			for ( T_EVENT *evt= s_event_list; evt; evt = evt->nxt) {
 				reset_event(evt);
@@ -165,28 +138,32 @@ static void periodic_timer_callback(void* arg)
 			ESP_LOGI(__func__,"reset numleds=%u", n);
 			T_COLOR_RGB bk={.r=0,.g=0,.b=0};
 			strip_set_range(0, n - 1, &bk);
-			//n_paint++;
 		}
 	}
 
 	// paint scenes
+	bool finished = true;
 	if ( s_event_list) {
 		for ( T_EVENT *evt= s_event_list; evt; evt = evt->nxt) {
-			process_event(evt, s_scene_time, s_timer_period);
-//			if ( evt->flags & EVFL_ISDIRTY) {
-//				n_paint++;
-//			}
+			bool rc = process_event(evt, s_scene_time, s_timer_period);
+			if ( rc == false )
+				finished = false;
 		}
 	}
 
-	//if ( n_paint > 0) {
-		//ESP_LOGI(__func__, "strip_show");
-		show_status();
-		strip_show();
-	//}
+	strip_show(false);
+	show_status();
 
 	release_eventlist_lock();
 
+	if ( finished) {
+		// stop working
+		s_run_status = RUN_STATUS_STOPPED;
+		s_scene_time = 0; // stop resets the time
+		// stop this timer
+		esp_timer_stop(s_periodic_timer);
+		ESP_LOGI(__func__, "finished -> STOP");
+	}
     //int64_t time_since_boot = esp_timer_get_time();
     //ESP_LOGI(__func__, "Periodic timer called, time since boot: %lld us", time_since_boot);
 }
@@ -213,6 +190,7 @@ void scenes_start() {
     		}
     	} else {
         	ESP_LOGI(__func__, "Timer already running");
+            xEventGroupSetBits(s_timer_event_group, EVENT_BIT_START);
     	}
 
     } else if (rc == ESP_OK) {
@@ -227,7 +205,7 @@ void scenes_start() {
 }
 
 void scenes_stop() {
-	// tiomer stops by themselves
+	// timer stops by themselves
 	ESP_LOGI(__func__, "stop");
 	xEventGroupClearBits(s_timer_event_group, EVENT_BITS_ALL);
     xEventGroupSetBits(s_timer_event_group, EVENT_BIT_STOP);
@@ -277,9 +255,7 @@ int set_event_timer_period(int new_timer_period) {
 }
 
 
-void init_timer_events(//int delta_ms
-		) {
-	//ESP_LOGI(__func__, "Start, delta=%d ms", delta_ms);
+void init_timer_events() {
 	ESP_LOGI(__func__, "Started");
 
 	// initialize eventlist handling
@@ -297,9 +273,5 @@ void init_timer_events(//int delta_ms
 
 	ESP_ERROR_CHECK(esp_timer_create(&periodic_timer_args, &s_periodic_timer));
 
-	// start timer, time in microseconds
- //   ESP_ERROR_CHECK(esp_timer_start_periodic(s_periodic_timer, s_timer_period*1000));
-  //  ESP_LOGI(__func__, "Timer started");
-//	ESP_LOGI(__func__,"##### NO TIMER STARTED FOR TEST");
 }
 
