@@ -83,6 +83,37 @@ void c_hsv2rgb( T_COLOR_HSV *hsv, T_COLOR_RGB *rgb )
     }
 }
 
+/**
+ * https://stackoverflow.com/questions/3018313/algorithm-to-convert-rgb-to-hsv-and-hsv-to-rgb-in-range-0-255-for-both
+ */
+void c_rgb2hsv(T_COLOR_RGB *rgb, T_COLOR_HSV *hsv){
+    uint8_t rgbMin, rgbMax;
+
+    rgbMin = rgb->r < rgb->g ? (rgb->r < rgb->b ? rgb->r : rgb->b) : (rgb->g < rgb->b ? rgb->g : rgb->b);
+    rgbMax = rgb->r > rgb->g ? (rgb->r > rgb->b ? rgb->r : rgb->b) : (rgb->g > rgb->b ? rgb->g : rgb->b);
+
+    hsv->v = rgbMax;
+    if (hsv->v == 0) {
+        hsv->h = 0;
+        hsv->s = 0;
+        return;
+    }
+
+    hsv->s = 255 * (long)(rgbMax - rgbMin) / hsv->v;
+    if (hsv->s == 0) {
+        hsv->h = 0;
+        return;
+    }
+
+    if (rgbMax == rgb->r)
+        hsv->h = 0 + 43 * (rgb->g - rgb->b) / (rgbMax - rgbMin);
+    else if (rgbMax == rgb->g)
+        hsv->h = 85 + 43 * (rgb->b - rgb->r) / (rgbMax - rgbMin);
+    else
+        hsv->h = 171 + 43 * (rgb->r - rgb->g) / (rgbMax - rgbMin);
+
+}
+
 void c_checkrgb(T_COLOR_RGB *rgb, T_COLOR_RGB *rgbmin, T_COLOR_RGB *rgbmax) {
 	if ( rgb->r < MIN(rgbmin->r, rgbmax->r)) {
 		rgb->r = MIN(rgbmin->r, rgbmax->r);

@@ -64,8 +64,23 @@ typedef enum {
 	ET_JUMP, // jump to position (relative to scene)
 	ET_CLEAR,  // clear pixels
 	ET_SET_BRIGHTNESS,
-	ET_SET_BRIGHTNESS_DELTA
+	ET_SET_BRIGHTNESS_DELTA,
+	ET_UNKNOWN
 } event_type;
+
+
+#define TEXT2ET(c) ( \
+	!strcasecmp(c,"wait") ? ET_WAIT : \
+	!strcasecmp(c,"speed") ? ET_SPEED : \
+	!strcasecmp(c,"speedup") ? ET_SPEEDUP : \
+	!strcasecmp(c,"bounce") ? ET_BOUNCE : \
+	!strcasecmp(c,"reverse") ? ET_REVERSE : \
+	!strcasecmp(c,"jump") ? ET_JUMP : \
+	!strcasecmp(c,"clear") ? ET_CLEAR : \
+	!strcasecmp(c,"brightness") ? ET_SET_BRIGHTNESS : \
+	!strcasecmp(c,"brightness_delta") ? ET_SET_BRIGHTNESS_DELTA : \
+	ET_UNKNOWN \
+)
 
 // *** what will happen
 typedef struct EVT_WHAT_COLORTRANSITION {
@@ -112,10 +127,18 @@ typedef struct EVT_WHERE {
 	struct EVT_WHERE *nxt;
 } T_EVT_WHERE;
 
+typedef enum {
+	EVFL_WAIT      =  0x0001, // wait, do not paint something
+	EVFL_CLEARPIXEL=  0x0002,
+	EVFL_FINISHED  =  0x0004,
+	EVFL_UNKNOWN   =  0xFFFF
+} event_flags;
 
-#define EVFL_WAIT        0x0001 // wait, do not paint something
-#define EVFL_CLEARPIXEL  0x0002
-#define EVFL_FINISHED    0x0004
+#define TEXT2EVFL(c) ( \
+		!strcasecmp(c,"wait") ? ET_WAIT : \
+		!strcasecmp(c,"clearpixel") ? EVFL_CLEARPIXEL : \
+		!strcasecmp(c,"finished") ? EVFL_FINISHED : \
+		EVFL_UNKNOWN)
 
 typedef struct EVENT{
 	uint32_t id; // for reference
