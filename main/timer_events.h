@@ -42,11 +42,21 @@ typedef enum {
 	WT_COLOR,
 	WT_COLOR_TRANSITION,
 	WT_RAINBOW,
-	WT_SPARKLE
+	WT_SPARKLE,
+	WT_UNKNOWN
 } what_type;
+
+#define TEXT2WT(c) ( \
+	!strcasecmp(c,"clear") ? WT_CLEAR : \
+	!strcasecmp(c,"color") ? WT_COLOR : \
+	!strcasecmp(c,"color_transition") ? WT_COLOR_TRANSITION : \
+	!strcasecmp(c,"rainbow") ? WT_RAINBOW : \
+	!strcasecmp(c,"sparkle") ? WT_SPARKLE : WT_UNKNOWN \
+)
 
 typedef enum {
 	ET_NONE, // nothing to do
+	ET_WAIT, // do nothing
 	ET_SPEED, // set speed
 	ET_SPEEDUP, // set acceleration
 	ET_BOUNCE, // change direction speed=-speed

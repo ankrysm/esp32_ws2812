@@ -143,6 +143,11 @@ bool  process_event_when(T_EVENT *evt, uint64_t scene_time, uint64_t timer_perio
 					evt->w_flags |= e->set_flags;
 				}
 				switch(e->type) {
+				case ET_NONE:
+					break;
+				case ET_WAIT:
+					evt->w_flags |= EVFL_WAIT;
+					break;
 				case ET_SPEED:
 					evt->w_speed = e->value;
 					break;

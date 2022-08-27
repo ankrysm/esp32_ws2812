@@ -58,6 +58,7 @@ uint64_t get_event_timer_period();
 uint64_t get_scene_time();
 
 // from event_util.c
+void delete_event(T_EVENT *evt);
 esp_err_t event_list_free();
 esp_err_t event_list_add(T_EVENT *evt);
 esp_err_t obtain_eventlist_lock();

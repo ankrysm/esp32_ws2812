@@ -32,6 +32,44 @@ esp_err_t release_eventlist_lock(){
 	return ESP_FAIL;
 }
 
+/**
+ * free an event
+ */
+void delete_event(T_EVENT *evt) {
+	if (!evt)
+		return;
+
+	if (evt->what_list) {
+		T_EVT_WHAT *t, *w = evt->what_list;
+		while(w) {
+			t = w->nxt;
+			free(w);
+			w=t;
+		}
+	}
+
+	if (evt->evt_time_list) {
+		T_EVT_TIME *t, *w = evt->evt_time_list;
+		while(w) {
+			t = w->nxt;
+			free(w);
+			w=t;
+		}
+	}
+
+	if (evt->evt_where_list) {
+		T_EVT_WHERE *t, *w = evt->evt_where_list;
+		while(w) {
+			t = w->nxt;
+			free(w);
+			w=t;
+		}
+	}
+
+	free(evt);
+
+}
+
 
 /**
  * frees the event list
