@@ -66,8 +66,11 @@ esp_err_t obtain_eventlist_lock();
 esp_err_t release_eventlist_lock();
 void init_eventlist_utils();
 T_EVENT *create_event(uint32_t id);
+T_EVENT *find_event(uint32_t id);
 T_EVT_TIME *create_timing_event(T_EVENT *evt, uint32_t id);
 T_EVT_WHAT *create_what(T_EVENT *evt, uint32_t id);
+uint32_t get_new_event_id();
+esp_err_t delete_event_by_id(uint32_t id);
 
 // from wifi_vonfig.c
 void initialise_wifi();
@@ -82,7 +85,7 @@ void initialise_netbios();
 
 
 // from create_events.c
-esp_err_t decode_json4event(char *content, char *errmsg, size_t sz_errmsg);
+esp_err_t decode_json4event(char *content, bool overwrite, char *errmsg, size_t sz_errmsg);
 
 // from create_demo
 void build_demo2(

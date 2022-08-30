@@ -360,8 +360,8 @@ static esp_err_t get_handler_ctrl(httpd_req_t *req)
 		if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK) {
 			ESP_LOGI(__func__, "Found URL query => %s", buf);
 
-			//                   0       1      2      3      4
-			char *paramnames[]={"cycle", "cmd", "add", "del", "set", ""};
+			//                   0       1
+			char *paramnames[]={"cycle", "cmd", ""};
 			for (int i=0; strlen(paramnames[i]); i++) {
 				char param[256];
 				if (httpd_query_key_value(buf, paramnames[i], param, sizeof(param)) != ESP_OK) {
@@ -437,15 +437,6 @@ static esp_err_t get_handler_ctrl(httpd_req_t *req)
 					httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
 				}
 					break;
-				case 2: // add
-					// TODO
-					break;
-				case 3: // del
-					// TODO
-					break;
-				case 4: // set
-					// TODO
-					break;
 
 				default:
 					snprintf(resp_str,sizeof(resp_str),"%d NYI",i);
@@ -495,6 +486,9 @@ static esp_err_t get_handler_reset(httpd_req_t *req)
 	return ESP_OK;
 }
 
+/**
+ * uri should be data/add or data/set
+ */
 static esp_err_t post_handler_data(httpd_req_t *req)
 {
 	ESP_LOGI(__func__,"running on core %d",xPortGetCoreID());
@@ -541,7 +535,8 @@ static esp_err_t post_handler_data(httpd_req_t *req)
     }
 
     char errmsg[64];
-    esp_err_t res = decode_json4event(buf, errmsg, sizeof(errmsg));
+    bool overwrite = true; // TODO: add: false, set: true
+    esp_err_t res = decode_json4event(buf, overwrite, errmsg, sizeof(errmsg));
     if (res != ESP_OK) {
         snprintf(resp_str,sizeof(resp_str),"Decoding data failed: %s\n",errmsg);
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, resp_str);

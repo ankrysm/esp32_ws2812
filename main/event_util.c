@@ -72,6 +72,78 @@ void delete_event(T_EVENT *evt) {
 
 
 /**
+ * find an event by id
+ * (without lock)
+ */
+T_EVENT *find_event(uint32_t id) {
+	if (!s_event_list) {
+		return NULL; // nothing available
+	}
+
+	for( T_EVENT *e = s_event_list; e; e=e->nxt) {
+		if ( e->id == id ) {
+			return e; // found!
+		}
+	}
+	return NULL; // not found
+}
+
+/**
+ * find a new event id larger than the max id,
+ * (without lock)
+ */
+uint32_t get_new_event_id() {
+
+	uint32_t max_id = 0;
+	if (s_event_list) {
+
+		for( T_EVENT *e = s_event_list; e; e=e->nxt) {
+			if ( e->id > max_id ) {
+				max_id = e->id;
+			}
+		}
+	}
+	return max_id + 1; // not found
+}
+
+
+esp_err_t delete_event_by_id(uint32_t id) {
+	if (obtain_eventlist_lock() != ESP_OK) {
+		ESP_LOGE(__func__, "couldn't get lock");
+		return ESP_FAIL;
+	}
+	bool found = false;
+	if ( s_event_list)  {
+		T_EVENT *prev = NULL;
+		for (T_EVENT *evt=s_event_list; evt; evt=evt->nxt) {
+			if ( evt->id == id ) {
+				// found, delete it
+				if (prev == NULL ) {
+					s_event_list = evt->nxt;
+				} else {
+					prev->nxt = evt->nxt;
+				}
+				delete_event(evt);
+				found = true;
+				break;
+			}
+			prev = evt;
+		}
+	}
+
+	if (found)
+		ESP_LOGI(__func__,"event %d deleted", id);
+	else
+		ESP_LOGI(__func__,"event %d not found", id);
+
+	esp_err_t rc = release_eventlist_lock();
+	if ( rc == ESP_OK && !found )
+		rc = ESP_ERR_NOT_FOUND;
+
+	return rc;
+}
+
+/**
  * frees the event list
  */
 esp_err_t event_list_free() {
@@ -83,7 +155,7 @@ esp_err_t event_list_free() {
 		T_EVENT *nxt;
 		while (s_event_list) {
 			nxt = s_event_list->nxt;
-			free(s_event_list);
+			delete_event(s_event_list);
 			s_event_list = nxt;
 		}
 	}
