@@ -1,6 +1,8 @@
 [
-	{"id":1001 },
-	{"id":2001 },
-	{"noid":333},
-	{"id":"444"}
+	{"pos":20,
+	 "brightness":0.1,
+	 "what":[
+	 	{"type":"color", "color":"yellow", "pos":0, "len":7}
+	 ]
+	}
 ]

@@ -120,7 +120,7 @@ void process_event_where(T_EVENT *evt, uint64_t timer_period) {
 // return 1 when all timer events arrived
 bool  process_event_when(T_EVENT *evt, uint64_t scene_time, uint64_t timer_period) {
 	if (!evt->evt_time_list) {
-		return true; // no timing events
+		return false; // no timing events
 	}
 
 	evt->delta_pos = evt->speed < 0.0 ? -1 : +1;

@@ -51,6 +51,7 @@ void init_timer_events();
 int set_event_timer_period(int new_timer_period);
 void scenes_start();
 void scenes_stop();
+void scenes_blank();
 void scenes_pause();
 void scenes_restart();
 run_status_type get_scene_status();

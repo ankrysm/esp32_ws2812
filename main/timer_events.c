@@ -18,6 +18,8 @@ static EventGroupHandle_t s_timer_event_group;
 static const int EVENT_BIT_START = BIT0;
 static const int EVENT_BIT_STOP = BIT1;
 static const int EVENT_BIT_PAUSE = BIT2;
+static const int EVENT_BIT_BLANK = BIT3;
+
 
 static const int EVENT_BITS_ALL = 0xFF;
 
@@ -96,6 +98,14 @@ static void periodic_timer_callback(void* arg) {
 			s_scene_time = 0; // stop resets the time
 			// stop this timer
 			esp_timer_stop(s_periodic_timer);
+			if ( uxBits & EVENT_BIT_BLANK) {
+				uint32_t n = get_numleds();
+				ESP_LOGI(__func__,"stop: blank, numleds=%u", n);
+				T_COLOR_RGB bk={.r=0,.g=0,.b=0};
+				strip_set_range(0, n - 1, &bk);
+				strip_show(true);
+				show_status();
+			}
 			return;
 		}
 	}
@@ -135,7 +145,7 @@ static void periodic_timer_callback(void* arg) {
 		} else {
 			// clear the strip
 			uint32_t n = get_numleds();
-			ESP_LOGI(__func__,"reset numleds=%u", n);
+			ESP_LOGI(__func__,"do reset: blank, numleds=%u", n);
 			T_COLOR_RGB bk={.r=0,.g=0,.b=0};
 			strip_set_range(0, n - 1, &bk);
 		}
@@ -209,6 +219,13 @@ void scenes_stop() {
 	ESP_LOGI(__func__, "stop");
 	xEventGroupClearBits(s_timer_event_group, EVENT_BITS_ALL);
     xEventGroupSetBits(s_timer_event_group, EVENT_BIT_STOP);
+}
+
+void scenes_blank() {
+	// timer stops by themselves
+	ESP_LOGI(__func__, "stop");
+	xEventGroupClearBits(s_timer_event_group, EVENT_BITS_ALL);
+    xEventGroupSetBits(s_timer_event_group, EVENT_BIT_STOP|EVENT_BIT_BLANK);
 }
 
 void scenes_pause() {
