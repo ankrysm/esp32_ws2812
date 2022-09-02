@@ -17,7 +17,7 @@ uint32_t crc32b(const uint8_t arr[], size_t sz);
 bool process_event(T_EVENT *evt, uint64_t scene_time, uint64_t timer_period);
 void reset_event( T_EVENT *evt);
 void reset_event_repeats(T_EVENT *evt);
-void event2text(T_EVENT *evt, char *buf, size_t sz_buf);
+//void event2text(T_EVENT *evt, char *buf, size_t sz_buf);
 
 // from config.c
 esp_err_t store_config();

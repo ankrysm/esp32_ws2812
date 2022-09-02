@@ -64,6 +64,14 @@ static void periodic_timer_callback_t(void* arg) {
 	}
 }
 
+static void make_it_blank() {
+	uint32_t n = get_numleds();
+	ESP_LOGI(__func__,"stop: blank, numleds=%u", n);
+	T_COLOR_RGB bk={.r=0,.g=0,.b=0};
+	strip_set_range(0, n - 1, &bk);
+	strip_show(true);
+	show_status();
+}
 
 /**
  * main timer function
@@ -99,12 +107,7 @@ static void periodic_timer_callback(void* arg) {
 			// stop this timer
 			esp_timer_stop(s_periodic_timer);
 			if ( uxBits & EVENT_BIT_BLANK) {
-				uint32_t n = get_numleds();
-				ESP_LOGI(__func__,"stop: blank, numleds=%u", n);
-				T_COLOR_RGB bk={.r=0,.g=0,.b=0};
-				strip_set_range(0, n - 1, &bk);
-				strip_show(true);
-				show_status();
+				make_it_blank();
 			}
 			return;
 		}
@@ -226,6 +229,7 @@ void scenes_blank() {
 	ESP_LOGI(__func__, "stop");
 	xEventGroupClearBits(s_timer_event_group, EVENT_BITS_ALL);
     xEventGroupSetBits(s_timer_event_group, EVENT_BIT_STOP|EVENT_BIT_BLANK);
+    make_it_blank();
 }
 
 void scenes_pause() {

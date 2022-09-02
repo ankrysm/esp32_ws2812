@@ -134,7 +134,7 @@ bool  process_event_when(T_EVENT *evt, uint64_t scene_time, uint64_t timer_perio
 			if ( last_w_time >= 0 && e->w_time < 0 ) {
 				// change from >0 to <0, do work
 				// timer arrived ...
-				//ESP_LOGI(__func__,"evt.id=%d, tevt.id=%d: timer of %llu ms, type %d, val=%.2f arrived",evt->id, e->id, e->starttime, e->type, e->value);
+				ESP_LOGI(__func__,"evt.id=%d, tevt.id=%d: timer of %llu ms, type %d, val=%.2f arrived",evt->id, e->id, e->starttime, e->type, e->value);
 
 				if ( e->clear_flags) {
 					evt->w_flags &= ~ e->clear_flags;
@@ -142,8 +142,14 @@ bool  process_event_when(T_EVENT *evt, uint64_t scene_time, uint64_t timer_perio
 				if ( e->set_flags) {
 					evt->w_flags |= e->set_flags;
 				}
+
+				// in most cases reset wait flag
+				evt->w_flags &= ~EVFL_WAIT;
+
 				switch(e->type) {
 				case ET_NONE:
+					break;
+				case ET_STOP:
 					break;
 				case ET_WAIT:
 					evt->w_flags |= EVFL_WAIT;
@@ -434,13 +440,13 @@ void reset_event_repeats(T_EVENT *evt) {
 
 /**
  * for logging ...
- */
+ * /
 void event2text(T_EVENT *evt, char *buf, size_t sz_buf) {
 	if ( !evt) {
 		snprintf(buf, sz_buf, "evt was NULL");
 		return;
 	}
-	snprintf(buf, sz_buf, "\nEvent %d, startpos=%.2f", evt->id, evt->pos);
+	snprintf(buf, sz_buf, "\nEvent id=%d, startpos=%.2f", evt->id, evt->pos);
 	snprintf(&(buf[strlen(buf)]), sz_buf-strlen(buf),", flags=0x%04x, len_f=%.1f, len_f_delta=%.1f, v=%.1f, v_delta=%.1f, brightn.=%.1f, brightn.delta=%1f"
 			, evt->flags, evt->len_factor, evt->len_factor_delta, evt->speed, evt->acceleration, evt->brightness, evt->brightness_delta);
 
@@ -448,8 +454,8 @@ void event2text(T_EVENT *evt, char *buf, size_t sz_buf) {
 		snprintf(&(buf[strlen(buf)]), sz_buf-strlen(buf),"\n  what=");
 
 		for ( T_EVT_WHAT *w=evt->what_list; w; w=w->nxt) {
-			snprintf(&(buf[strlen(buf)]), sz_buf-strlen(buf),"\n    id=%d, type=%d, pos=%d, len=%d>",
-					w->id, w->type, w->pos, w->len
+			snprintf(&(buf[strlen(buf)]), sz_buf-strlen(buf),"\n    id=%d, type=%d/%s, pos=%d, len=%d",
+					w->id, w->type, WT2TEXT(w->type), w->pos, w->len
 			);
 		}
 
@@ -460,11 +466,12 @@ void event2text(T_EVENT *evt, char *buf, size_t sz_buf) {
 	if (evt->evt_time_list) {
 		snprintf(&(buf[strlen(buf)]), sz_buf-strlen(buf),"\n  time events:");
 		for (T_EVT_TIME *tevt = evt->evt_time_list; tevt; tevt=tevt->nxt) {
-			snprintf(&(buf[strlen(buf)]), sz_buf-strlen(buf),"\n    id=%d, starttime=%llu, type=%d, val=%.2f",
-					tevt->id, tevt->starttime, tevt->type, tevt->value);
+			snprintf(&(buf[strlen(buf)]), sz_buf-strlen(buf),"\n    id=%d, starttime=%llu, type=%d/%s, val=%.2f",
+					tevt->id, tevt->starttime, tevt->type, ET2TEXT(tevt->type), tevt->value);
 
 		}
 	} else {
 		snprintf(&(buf[strlen(buf)]), sz_buf-strlen(buf),"\n  no time events.");
 	}
 }
+*/

@@ -54,6 +54,14 @@ typedef enum {
 	!strcasecmp(c,"sparkle") ? WT_SPARKLE : WT_UNKNOWN \
 )
 
+#define WT2TEXT(c) ( \
+	c==WT_CLEAR ? "clear" : \
+	c==WT_COLOR ? "color" : \
+	c==WT_COLOR_TRANSITION ? "color_transition" : \
+	c==WT_RAINBOW ? "rainbow" : \
+	c==WT_SPARKLE ? "sparkle" : "unknown" \
+)
+
 typedef enum {
 	ET_NONE, // nothing to do
 	ET_WAIT, // do nothing
@@ -63,6 +71,7 @@ typedef enum {
 	ET_REVERSE, // change delta_pos to -delta_pos
 	ET_JUMP, // jump to position (relative to scene)
 	ET_CLEAR,  // clear pixels
+	ET_STOP, // end of event
 	ET_SET_BRIGHTNESS,
 	ET_SET_BRIGHTNESS_DELTA,
 	ET_UNKNOWN
@@ -76,10 +85,24 @@ typedef enum {
 	!strcasecmp(c,"bounce") ? ET_BOUNCE : \
 	!strcasecmp(c,"reverse") ? ET_REVERSE : \
 	!strcasecmp(c,"jump") ? ET_JUMP : \
+	!strcasecmp(c,"stop") ? ET_STOP : \
 	!strcasecmp(c,"clear") ? ET_CLEAR : \
 	!strcasecmp(c,"brightness") ? ET_SET_BRIGHTNESS : \
 	!strcasecmp(c,"brightness_delta") ? ET_SET_BRIGHTNESS_DELTA : \
 	ET_UNKNOWN \
+)
+
+#define ET2TEXT(c) ( \
+	c==ET_WAIT ? "wait" : \
+	c==ET_SPEED ? "speed" : \
+	c==ET_SPEEDUP ? "speedup" : \
+	c==ET_BOUNCE ? "bounce" : \
+	c==ET_REVERSE ? "reverse" : \
+	c==ET_JUMP ? "jump" : \
+	c==ET_STOP ? "stop" : \
+	c==ET_CLEAR ? "clear" : \
+	c==ET_SET_BRIGHTNESS ? "brightness" : \
+	c==ET_SET_BRIGHTNESS_DELTA ? "brightness_delta" : "unknown" \
 )
 
 // *** what will happen

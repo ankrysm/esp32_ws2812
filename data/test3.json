@@ -1,0 +1,27 @@
+[
+	{	"id":10,
+		"pos":1,
+	  	"len_factor":1.0,
+	  	"len_factor_delta":0.0,
+	 	"speed":0.0,
+	 	"acceleration":0.0,
+	 	"brightness":0.1,
+	 	"brightness_delta":0.0,
+	 	"repeats":1,
+	 	"start_with_wait":true,
+		 "what":[
+		 	{"type":"color_transition", "color_from":"blue", "color_to":"red", "pos":0, "len":7},
+		 	{"type":"color", "color":"yellow", "pos":7, "len":7},
+		 	{"type":"color_transition", "color_from":"red", "color_to":"blue", "pos":14, "len":7}
+		 ],
+		 "tevt": [
+		 	{"type":"wait", "time":1000},
+		 	{"type":"speed", "time":0, "value":2},
+		 	{"type":"brightness_delta", "time":5000, "value":0.001},
+		 	{"type":"bounce", "time":0},
+		 	{"type":"brightness_delta", "time":5000, "value":-0.001},
+		 	{"type":"speed", "time":0, "value":0},
+		 	{"type":"clear", "time":2000}
+		 ]
+	}
+]

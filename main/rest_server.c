@@ -504,11 +504,8 @@ static esp_err_t get_handler_reset(httpd_req_t *req)
  */
 
 typedef enum {
-	HP_NONE,
-	// POST
-	HP_ADD,
-	HP_SET,
 	// GET
+	HP_STATUS,
 	HP_LIST,
 	HP_DELETE,
 	HP_CLEAR,
@@ -520,7 +517,12 @@ typedef enum {
 	HP_SAVE,
 	HP_RESTART,
 	HP_RESET,
-	HP_UNKNOWN
+	HP_HELP,
+	// POST
+	HP_ADD,
+	HP_SET,
+	// End of list
+	HP_END_OF_LIST
 } t_http_processing;;
 
 typedef struct {
@@ -533,6 +535,8 @@ typedef struct {
 static T_HTTP_PROCCESSING_TYPE http_processing[] = {
 		{"/a","/add", HP_ADD, "add event, uses POST-data"},
 		{"","/set", HP_SET, "set event, specified by query parameter 'id=<nn>', uses POST-data"},
+		{"/", "/help", HP_HELP, "API help"},
+		{"/st", "/status", HP_STATUS, "status"},
 		{"/l","/list",HP_LIST, "list events"},
 		{"","/delete",HP_DELETE,"delete an event specified by query parameter 'id=<nn>'"},
 		{"","/clear",HP_CLEAR,"clear event list"},
@@ -544,7 +548,7 @@ static T_HTTP_PROCCESSING_TYPE http_processing[] = {
 		{"","/save",HP_SAVE,"save event list specified by fname=<fname> default: 'playlist' "},
 		{"","/restart",HP_RESTART,"restart ESP32"},
 		{"","/reset",HP_RESET,"reset ESP32 to default"},
-		{"","", HP_NONE,""}
+		{"","", HP_END_OF_LIST,""}
 };
 
 static esp_err_t http_help(httpd_req_t *req) {
@@ -552,7 +556,7 @@ static esp_err_t http_help(httpd_req_t *req) {
 	snprintf(resp_str, sizeof(resp_str), "short - long - description\n");
 	httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
 
-	for  (int i=0; http_processing[i].todo != HP_NONE; i++) {
+	for  (int i=0; http_processing[i].todo != HP_END_OF_LIST; i++) {
 		snprintf(resp_str, sizeof(resp_str),"'%s' - '%s' - %s\n",
 				http_processing[i].short_path,
 				http_processing[i].path,
@@ -583,7 +587,7 @@ static void get_path_from_uri(const char *uri,char *dest, size_t destsize)
 
 static T_HTTP_PROCCESSING_TYPE *get_http_processing(char *path) {
 
-	for  (int i=0; http_processing[i].todo != HP_NONE; i++) {
+	for  (int i=0; http_processing[i].todo != HP_END_OF_LIST; i++) {
 		if ( !strcmp(http_processing[i].path, path)) {
 			return &http_processing[i];
 		}
@@ -596,41 +600,107 @@ static T_HTTP_PROCCESSING_TYPE *get_http_processing(char *path) {
 
 static void get_handler_data_list(httpd_req_t *req) {
 	// list events
-	char resp_str[255];
+	char buf[255];
+	const size_t sz_buf = sizeof(buf);
+	const int l = HTTPD_RESP_USE_STRLEN;
 
 	extern T_EVENT *s_event_list;
 	if (obtain_eventlist_lock() != ESP_OK) {
-		snprintf(resp_str, sizeof(resp_str), "%s couldn't get lock on eventlist\n", __func__);
-		httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
+		snprintf(buf, sz_buf, "%s couldn't get lock on eventlist\n", __func__);
+		httpd_resp_send_chunk(req, buf, l);
 		return;
 	}
 
 	if ( !s_event_list) {
-		snprintf(resp_str,sizeof(resp_str),"no events in list\n");
-		httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
+		snprintf(buf, sz_buf, "no events in list");
+		httpd_resp_send_chunk(req, buf, l);
+
 	} else {
 		for ( T_EVENT *evt= s_event_list; evt; evt = evt->nxt) {
-			event2text(evt,resp_str,sizeof(resp_str));
-			httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
+			snprintf(buf, sz_buf, "\nEvent id=%d, startpos=%.2f", evt->id, evt->pos);
+			httpd_resp_send_chunk(req, buf, l);
+
+			snprintf(buf, sz_buf,", flags=0x%04x, len_f=%.1f, len_f_delta=%.1f, v=%.1f, v_delta=%.1f, brightn.=%.1f, brightn.delta=%1f"
+					, evt->flags, evt->len_factor, evt->len_factor_delta, evt->speed, evt->acceleration, evt->brightness, evt->brightness_delta);
+			httpd_resp_send_chunk(req, buf, l);
+
+			if ( evt->what_list) {
+				snprintf(buf, sz_buf, "\n  what=");
+				httpd_resp_send_chunk(req, buf, l);
+
+				for ( T_EVT_WHAT *w=evt->what_list; w; w=w->nxt) {
+					snprintf(buf, sz_buf,"\n    id=%d, type=%d/%s, pos=%d, len=%d",
+							w->id, w->type, WT2TEXT(w->type), w->pos, w->len
+					);
+					httpd_resp_send_chunk(req, buf, l);
+				}
+
+			} else {
+				snprintf(buf, sz_buf,"\n  no what list");
+				httpd_resp_send_chunk(req, buf, l);
+			}
+
+			if (evt->evt_time_list) {
+				snprintf(buf, sz_buf,"\n  time events:");
+				httpd_resp_send_chunk(req, buf, l);
+
+				for (T_EVT_TIME *tevt = evt->evt_time_list; tevt; tevt=tevt->nxt) {
+					snprintf(buf, sz_buf,"\n    id=%d, starttime=%llu, type=%d/%s, val=%.2f",
+							tevt->id, tevt->starttime, tevt->type, ET2TEXT(tevt->type), tevt->value);
+					httpd_resp_send_chunk(req, buf, l);
+
+				}
+			} else {
+				snprintf(buf, sz_buf,"\n  no time events.");
+				httpd_resp_send_chunk(req, buf, l);
+			}
 		}
 	}
+	httpd_resp_send_chunk(req, "\n", l);
+
 	release_eventlist_lock();
 }
 
+static void get_handler_data_status(httpd_req_t *req, bool changed, run_status_type status) {
+    httpd_resp_set_type(req, "application/json");
+    cJSON *root = cJSON_CreateObject();
+
+    if ( changed ) {
+         cJSON_AddTrueToObject(root, "changed");
+     } else {
+         cJSON_AddFalseToObject(root, "changed");
+     }
+    cJSON_AddStringToObject(root, "status", RUN_STATUS_TYPE2TEXT(status));
+    cJSON_AddNumberToObject(root, "scene_time", get_scene_time());
+    cJSON_AddNumberToObject(root, "timer_period", get_event_timer_period());
+    cJSON_AddNumberToObject(root, "free_heap_size",esp_get_free_heap_size());
+    cJSON_AddNumberToObject(root, "minimum_free_heap_size",esp_get_minimum_free_heap_size());
+
+    cJSON *fs_size = cJSON_AddObjectToObject(root,"filesystem");
+    size_t total,used;
+    storage_info(&total,&used);
+    cJSON_AddNumberToObject(fs_size, "total", total);
+    cJSON_AddNumberToObject(fs_size, "used", used);
+
+    const char *resp = cJSON_PrintUnformatted(root);
+    ESP_LOGI(__func__,"resp=%s", resp?resp:"nix");
+	httpd_resp_send_chunk(req, resp, strlen(resp));
+	httpd_resp_send_chunk(req, "\n", 1);
+
+    free((void *)resp);
+    cJSON_Delete(root);
+}
+
+static void get_handler_data_status_current(httpd_req_t *req) {
+	get_handler_data_status(req, false, get_scene_status());
+}
+
 static void get_handler_data_scene_status(httpd_req_t *req, run_status_type new_status) {
-	char resp_str[64];
 	run_status_type old_status = get_scene_status();
-	if ( old_status == new_status) {
-		snprintf(resp_str,sizeof(resp_str),"Status %s\nTimer cycle=%lld ms\nScene time=%lld\n",
-				RUN_STATUS_TYPE2TEXT(old_status),
-				get_event_timer_period(), get_scene_time());
-		httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
-		return;
+	if ( old_status != new_status) {
+		old_status = set_scene_status(new_status);
 	}
-	old_status = set_scene_status(new_status);
-	snprintf(resp_str,sizeof(resp_str),"New status %s -> %s\nTimer cycle=%lld ms\nScene time=%lld\n",
-			RUN_STATUS_TYPE2TEXT(old_status), RUN_STATUS_TYPE2TEXT(new_status),
-			get_event_timer_period(), get_scene_time());
+	get_handler_data_status(req, old_status != new_status, new_status);
 }
 
 static void get_handler_data_clear(httpd_req_t *req) {
@@ -720,7 +790,6 @@ static void get_handler_data_delete(httpd_req_t *req) {
 }
 
 static void get_handler_data_config(httpd_req_t *req) {
-	char resp_str[255];
 	bool restart_needed = false;
 	bool store_config_needed = false;
 
@@ -818,10 +887,11 @@ static void get_handler_data_config(httpd_req_t *req) {
     free((void *)resp);
     cJSON_Delete(root);
 
-	// End response
-	httpd_resp_send_chunk(req, NULL, 0);
 
 	if ( restart_needed ) {
+		// End response
+		httpd_resp_send_chunk(req, NULL, 0);
+
 		ESP_LOGI(__func__,"Restarting in a second...\n");
 		vTaskDelay(1000 / portTICK_PERIOD_MS);
 	    ESP_LOGI(__func__, "Restarting now.\n");
@@ -869,10 +939,16 @@ static esp_err_t get_handler_data(httpd_req_t *req)
 
 	char resp_str[255];
 
-	snprintf(resp_str, sizeof(resp_str),"path='%s' todo %d\n", path, pt->todo);
-	httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
+	//snprintf(resp_str, sizeof(resp_str),"path='%s' todo %d\n", path, pt->todo);
+	//httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
 
 	switch(pt->todo) {
+	case HP_STATUS:
+		get_handler_data_status_current(req);
+		break;
+	case HP_HELP:
+		http_help(req);
+		break;
 	case HP_LIST:
 		get_handler_data_list(req);
 		break;
@@ -1045,35 +1121,7 @@ esp_err_t start_rest_server(const char *base_path)
     }
 
     // Install URI Handler
-
-    // config
-  /*  httpd_uri_t strip_setup = {
-        .uri       = "/config",
-        .method    = HTTP_GET,
-        .handler   = get_handler_strip_config,
-        .user_ctx  = rest_context
-    };
-    httpd_register_uri_handler(server, &strip_setup);
-*/
- /*   httpd_uri_t reset_uri = {
-        .uri       = "/reset",
-        .method    = HTTP_GET,
-        .handler   = get_handler_reset,
-        .user_ctx  = rest_context
-    };
-    httpd_register_uri_handler(server, &reset_uri);
-*/
-
-/*    // control run/stop/pause/reset
-    httpd_uri_t ctrl_uri = {
-        .uri       = "/ctrl/ *",
-        .method    = HTTP_GET,
-        .handler   = get_handler_ctrl,
-        .user_ctx  = rest_context
-    };
-    httpd_register_uri_handler(server, &ctrl_uri);
-*/
-    // /set /add
+    // POST
     httpd_uri_t data_post_uri = {
         .uri       = "/*",
         .method    = HTTP_POST,
@@ -1082,7 +1130,7 @@ esp_err_t start_rest_server(const char *base_path)
     };
     httpd_register_uri_handler(server, &data_post_uri);
 
-    // /list /delete /clear /run /stop /pause /reset
+    // GET
     httpd_uri_t data_get_uri = {
         .uri       = "/*",
         .method    = HTTP_GET,
@@ -1091,15 +1139,6 @@ esp_err_t start_rest_server(const char *base_path)
     };
     httpd_register_uri_handler(server, &data_get_uri);
 
-    /*
-    httpd_uri_t strip_setcolor = {
-        .uri       = "/api/v1/setcolor",
-        .method    = HTTP_GET,
-        .handler   = get_handler_strip_setcolor,
-        .user_ctx  = rest_context
-    };
-    httpd_register_uri_handler(server, &strip_setcolor);
-	*/
     return ESP_OK;
 }
 
