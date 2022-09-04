@@ -44,15 +44,15 @@ void build_demo2(
 		return;
 
 	tevt->type = ET_SET_BRIGHTNESS;
-	tevt->starttime = 3000; // 3 sec, in ms
-	tevt->clear_flags = EVFL_WAIT; // clear wait flag
+	tevt->time = 3000; // 3 sec, in ms
+	//tevt->clear_flags = EVFL_WAIT; // clear wait flag
 	tevt->value = 0.1; // new brightness
 
 	tevt = create_timing_event(evt,1001);
 	if (!tevt)
 		return;
 	tevt->type = ET_CLEAR;
-	tevt->starttime = 8000; // 3 sec, in ms
+	tevt->time = 8000; // 3 sec, in ms
 
 
 	event_list_add(evt);
@@ -98,7 +98,7 @@ void build_demo2(
 		return;
 	tevt->id =2101;
 	tevt->type = ET_CLEAR;
-	tevt->starttime = 2000; // 2 sec, in ms
+	tevt->time = 2000; // 2 sec, in ms
 
 	event_list_add(evt);
 

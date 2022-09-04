@@ -133,8 +133,8 @@ typedef struct EVT_TIME {
 	uint32_t id;
 	//scene_status_type status;
 	event_type type; // what to do
-	uint64_t starttime; // when it will start, measured from scene start
-	int64_t w_time; // working time, if greater 0 decrement, if ==0 do work
+	uint64_t time; // initial duration, when 0 execute immediately
+	int64_t w_time; // working time, count doun from 'time'
 
 	// what to change when timer arrives
 	//uint32_t set_flags;

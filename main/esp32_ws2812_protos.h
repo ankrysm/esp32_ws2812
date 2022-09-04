@@ -14,7 +14,7 @@ int32_t get_random(int32_t min, uint32_t diff);
 uint32_t crc32b(const uint8_t arr[], size_t sz);
 
 // from process_events.c
-bool process_event(T_EVENT *evt, uint64_t scene_time, uint64_t timer_period);
+void process_event(T_EVENT *evt, uint64_t scene_time, uint64_t timer_period);
 void reset_event( T_EVENT *evt);
 void reset_event_repeats(T_EVENT *evt);
 void reset_timing_events(T_EVT_TIME *tevt);

@@ -645,8 +645,8 @@ static void get_handler_data_list(httpd_req_t *req) {
 				httpd_resp_send_chunk(req, buf, l);
 
 				for (T_EVT_TIME *tevt = evt->evt_time_list; tevt; tevt=tevt->nxt) {
-					snprintf(buf, sz_buf,"\n    id=%d, starttime=%llu, type=%d/%s, val=%.2f",
-							tevt->id, tevt->starttime, tevt->type, ET2TEXT(tevt->type), tevt->value);
+					snprintf(buf, sz_buf,"\n    id=%d, time=%llu ms, type=%d/%s, val=%.2f",
+							tevt->id, tevt->time, tevt->type, ET2TEXT(tevt->type), tevt->value);
 					httpd_resp_send_chunk(req, buf, l);
 
 				}
@@ -939,7 +939,7 @@ static esp_err_t get_handler_data(httpd_req_t *req)
 
 	char resp_str[255];
 
-	//snprintf(resp_str, sizeof(resp_str),"path='%s' todo %d\n", path, pt->todo);
+	//snprintf(resp_str, sizeof(resp_str),"path='%s' to do %d\n", path, pt->todo);
 	//httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
 
 	switch(pt->todo) {

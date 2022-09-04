@@ -286,8 +286,8 @@ static esp_err_t decode_json4event_evt_time(cJSON *element, uint32_t id, T_EVENT
 
 		attr="time";
 		if (evt_get_number(element, attr, &val, errmsg, sz_errmsg) == ESP_OK) {
-			t->starttime = val;
-			ESP_LOGI(__func__, "tid=%d: %s=%d", id, attr, t->starttime);
+			t->time = val;
+			ESP_LOGI(__func__, "tid=%d: %s=%d", id, attr, t->time);
 		}
 
 		attr="marker";

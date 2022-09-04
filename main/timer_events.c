@@ -158,8 +158,8 @@ static void periodic_timer_callback(void* arg) {
 	bool finished = true;
 	if ( s_event_list) {
 		for ( T_EVENT *evt= s_event_list; evt; evt = evt->nxt) {
-			bool rc = process_event(evt, s_scene_time, s_timer_period);
-			if ( rc == false )
+			process_event(evt, s_scene_time, s_timer_period);
+			if (! (evt->w_flags &  EVFL_FINISHED))
 				finished = false;
 		}
 	}
