@@ -31,9 +31,9 @@ typedef enum {
  * timing status of a single scene
  ***********************************************/
 typedef enum {
-	SCENE_IDLE,    // befor start time
-	SCENE_UP,      // main status
-	SCENE_FINISHED // shutdown ended
+	SCENE_WAIT_FOR_START,    // wait for start
+	SCENE_WAIT_FOR_END,    // timer is running, wait for arrive
+	SCENE_FINISHED    // timer arrived
 } scene_status_type;
 
 typedef enum {
@@ -70,6 +70,7 @@ typedef enum {
 	ET_BOUNCE, // change direction speed=-speed
 	ET_REVERSE, // change delta_pos to -delta_pos
 	ET_JUMP, // jump to position (relative to scene)
+	ET_JUMP_MARKER, // jump to event with the marker
 	ET_CLEAR,  // clear pixels
 	ET_STOP, // end of event
 	ET_SET_BRIGHTNESS,
@@ -85,6 +86,7 @@ typedef enum {
 	!strcasecmp(c,"bounce") ? ET_BOUNCE : \
 	!strcasecmp(c,"reverse") ? ET_REVERSE : \
 	!strcasecmp(c,"jump") ? ET_JUMP : \
+	!strcasecmp(c,"jump_marker") ? ET_JUMP_MARKER : \
 	!strcasecmp(c,"stop") ? ET_STOP : \
 	!strcasecmp(c,"clear") ? ET_CLEAR : \
 	!strcasecmp(c,"brightness") ? ET_SET_BRIGHTNESS : \
@@ -99,6 +101,7 @@ typedef enum {
 	c==ET_BOUNCE ? "bounce" : \
 	c==ET_REVERSE ? "reverse" : \
 	c==ET_JUMP ? "jump" : \
+	c==ET_JUMP_MARKER ? "jump_marker" : \
 	c==ET_STOP ? "stop" : \
 	c==ET_CLEAR ? "clear" : \
 	c==ET_SET_BRIGHTNESS ? "brightness" : \
@@ -124,18 +127,20 @@ typedef struct EVT_WHAT {
 	struct EVT_WHAT *nxt;
 } T_EVT_WHAT;
 
+#define LEN_EVT_MARKER 8+1
 //  *** when will something happens ***
 typedef struct EVT_TIME {
 	uint32_t id;
-	scene_status_type status;
+	//scene_status_type status;
 	event_type type; // what to do
 	uint64_t starttime; // when it will start, measured from scene start
 	int64_t w_time; // working time, if greater 0 decrement, if ==0 do work
 
 	// what to change when timer arrives
-	uint32_t set_flags;
-	uint32_t clear_flags;
+	//uint32_t set_flags;
+	//uint32_t clear_flags;
 	double value;
+	char marker[LEN_EVT_MARKER]; // destination for jump, value for ET_ JUMP_MARKER
 
 	struct EVT_TIME *nxt; // next event
 } T_EVT_TIME;

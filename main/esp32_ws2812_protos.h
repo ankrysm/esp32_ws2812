@@ -17,7 +17,7 @@ uint32_t crc32b(const uint8_t arr[], size_t sz);
 bool process_event(T_EVENT *evt, uint64_t scene_time, uint64_t timer_period);
 void reset_event( T_EVENT *evt);
 void reset_event_repeats(T_EVENT *evt);
-//void event2text(T_EVENT *evt, char *buf, size_t sz_buf);
+void reset_timing_events(T_EVT_TIME *tevt);
 
 // from config.c
 esp_err_t store_config();
@@ -68,6 +68,7 @@ esp_err_t release_eventlist_lock();
 void init_eventlist_utils();
 T_EVENT *create_event(uint32_t id);
 T_EVENT *find_event(uint32_t id);
+T_EVT_TIME *find_timer_event4marker(T_EVT_TIME *tevt_list, char *marker);
 T_EVT_TIME *create_timing_event(T_EVENT *evt, uint32_t id);
 T_EVT_WHAT *create_what(T_EVENT *evt, uint32_t id);
 uint32_t get_new_event_id();

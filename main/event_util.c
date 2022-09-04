@@ -88,6 +88,19 @@ T_EVENT *find_event(uint32_t id) {
 	return NULL; // not found
 }
 
+T_EVT_TIME *find_timer_event4marker(T_EVT_TIME *tevt_list, char *marker) {
+	if (!tevt_list || !marker || !strlen(marker)) {
+		return NULL; // nothing to find
+	}
+
+	for( T_EVT_TIME *e = tevt_list; e; e=e->nxt) {
+		if ( e->marker && strlen(e->marker) && !strcasecmp(e->marker, marker) ) {
+			return e; // found!
+		}
+	}
+	return NULL; // not found
+}
+
 /**
  * find a new event id larger than the max id,
  * (without lock)

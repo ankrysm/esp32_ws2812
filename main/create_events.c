@@ -261,7 +261,7 @@ static esp_err_t decode_json_getcolor(cJSON *element, char *attr4colorname, char
 /**
  * reads a single T_EVT_TIME element
  */
-static esp_err_t decode_json4event_evt_time(cJSON *element, uint32_t id, T_EVENT *evt, uint64_t *starttime, char *errmsg, size_t sz_errmsg) {
+static esp_err_t decode_json4event_evt_time(cJSON *element, uint32_t id, T_EVENT *evt,  char *errmsg, size_t sz_errmsg) {
 	esp_err_t rc = ESP_FAIL;
 
 	T_EVT_TIME *t = NULL;
@@ -286,9 +286,14 @@ static esp_err_t decode_json4event_evt_time(cJSON *element, uint32_t id, T_EVENT
 
 		attr="time";
 		if (evt_get_number(element, attr, &val, errmsg, sz_errmsg) == ESP_OK) {
-			t->starttime = val + *starttime;
-			*starttime = t->starttime;
+			t->starttime = val;
 			ESP_LOGI(__func__, "tid=%d: %s=%d", id, attr, t->starttime);
+		}
+
+		attr="marker";
+		if (evt_get_string(element, attr, sval, sizeof(sval), errmsg, sz_errmsg) == ESP_OK) {
+			strlcpy(t->marker, sval,LEN_EVT_MARKER );
+			ESP_LOGI(__func__, "tid=%d: %s=%s", id, attr, t->marker);
 		}
 
 		/*
@@ -358,12 +363,11 @@ static esp_err_t decode_json4event_evt_time_list(cJSON *element, T_EVENT *evt, c
 	}
 
 	esp_err_t rc = ESP_OK;
-	uint64_t starttime=0; //kumulative stat time, all events has deltas
 	for (int i=0; i < array_size; i++) {
 		cJSON *element = cJSON_GetArrayItem(found, i);
 		JSON_Print(element);
 		char l_errmsg[64];
-		if (decode_json4event_evt_time(element, i+1, evt, &starttime, l_errmsg, sizeof(l_errmsg)) != ESP_OK) {
+		if (decode_json4event_evt_time(element, i+1, evt, l_errmsg, sizeof(l_errmsg)) != ESP_OK) {
 			snprintf(&(errmsg[strlen(errmsg)]), sz_errmsg - strlen(errmsg),"[%s]", l_errmsg);
 			rc = ESP_FAIL;
 		}
