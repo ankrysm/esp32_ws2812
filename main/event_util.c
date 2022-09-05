@@ -198,6 +198,7 @@ esp_err_t event_list_add(T_EVENT *evt) {
 			s_event_list = evt;
 		}
 		reset_event(evt);
+		reset_timing_events(evt->evt_time_list);
 		reset_event_repeats(evt);
 
 	} else {

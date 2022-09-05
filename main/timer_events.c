@@ -143,6 +143,7 @@ static void periodic_timer_callback(void* arg) {
 		if ( s_event_list) {
 			for ( T_EVENT *evt= s_event_list; evt; evt = evt->nxt) {
 				reset_event(evt);
+				reset_timing_events(evt->evt_time_list);
 				reset_event_repeats(evt);
 			}
 		} else {

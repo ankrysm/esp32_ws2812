@@ -620,7 +620,7 @@ static void get_handler_data_list(httpd_req_t *req) {
 			snprintf(buf, sz_buf, "\nEvent id=%d, startpos=%.2f", evt->id, evt->pos);
 			httpd_resp_send_chunk(req, buf, l);
 
-			snprintf(buf, sz_buf,", flags=0x%04x, len_f=%.1f, len_f_delta=%.1f, v=%.1f, v_delta=%.1f, brightn.=%.1f, brightn.delta=%1f"
+			snprintf(buf, sz_buf,", flags=0x%04x, len_f=%.1f, len_f_delta=%.2f, v=%.2f, v_delta=%.3f, brightn.=%.2f, brightn.delta=%.3f"
 					, evt->flags, evt->len_factor, evt->len_factor_delta, evt->speed, evt->acceleration, evt->brightness, evt->brightness_delta);
 			httpd_resp_send_chunk(req, buf, l);
 
@@ -645,7 +645,7 @@ static void get_handler_data_list(httpd_req_t *req) {
 				httpd_resp_send_chunk(req, buf, l);
 
 				for (T_EVT_TIME *tevt = evt->evt_time_list; tevt; tevt=tevt->nxt) {
-					snprintf(buf, sz_buf,"\n    id=%d, time=%llu ms, type=%d/%s, val=%.2f",
+					snprintf(buf, sz_buf,"\n    id=%d, time=%llu ms, type=%d/%s, val=%.3f",
 							tevt->id, tevt->time, tevt->type, ET2TEXT(tevt->type), tevt->value);
 					httpd_resp_send_chunk(req, buf, l);
 

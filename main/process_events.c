@@ -108,26 +108,6 @@ void process_event_where(T_EVENT *evt, uint64_t timer_period) {
 	*/
 }
 
-void check_event_when_repeat(T_EVENT *evt) {
-
-	// all events finished, repeat it?
-	if (evt->evt_time_list_repeats > 0 ) {
-		if ( evt->w_t_repeats > 0) {
-			evt->w_t_repeats--;
-		}
-	} else {
-		evt->w_t_repeats = 1; // forever
-	}
-
-	if ( evt->w_t_repeats > 0) {
-		// reset event, next turn
-		reset_event(evt);
-		ESP_LOGI(__func__, "evt.id=%d: repeat events (%d/%d)", evt->id, evt->w_t_repeats, evt->evt_time_list_repeats);
-	} else {
-		// done, marknevent as finished
-		evt->w_flags |= EVFL_FINISHED;
-	}
-}
 
 // time dependend events
 // time values in ms
@@ -140,7 +120,7 @@ void check_event_when_repeat(T_EVENT *evt) {
 //  * color (ET_CLEAR)
 // return 1 when all timer events arrived
 
-// TODO: use relative starttimes
+// TODO prcessing at timer START!
 void  process_event_when(T_EVENT *evt, uint64_t scene_time, uint64_t timer_period) {
 	if (!evt->evt_time_list) {
 		return; // no timing events
@@ -148,91 +128,151 @@ void  process_event_when(T_EVENT *evt, uint64_t scene_time, uint64_t timer_perio
 
 	evt->delta_pos = evt->speed < 0.0 ? -1 : +1;
 
-	T_EVT_TIME *tevt = NULL;
-	bool done = false;
-	for ( tevt = evt->evt_time_list; tevt; tevt=tevt->nxt) {
-		if ( tevt->w_time < 0 )
-			continue; // arrived
-
-		// if event has duration, check for expire,
-		// if not process immediate
-		if ( tevt->time > 0 ) {
-			// with duration
-			tevt->w_time -= timer_period;
-			if ( tevt->w_time > 0)
-				break; // timer still running, stop working
-		} else {
-			// without duration
-			tevt->w_time = -1; // mark es executed
+	T_EVT_TIME *tevt = evt->evt_time_list;
+	while(tevt) {
+		if ( tevt->status == TE_FINISHED) {
+			tevt = tevt->nxt;
+			continue;
 		}
 
-		// timer expired ...
-		ESP_LOGI(__func__,"evt.id=%d, tevt.id=%d: timer of %llu ms, type %d(%s), val=%.2f expired",
-				evt->id, tevt->id, tevt->time, tevt->type, ET2TEXT(tevt->type), tevt->value);
-
-		// in most cases reset wait flag
 		evt->w_flags &= ~EVFL_WAIT;
 
-		switch(tevt->type) {
-		case ET_NONE:
-			break;
-		case ET_STOP:
-			break;
-		case ET_WAIT:
-			evt->w_flags |= EVFL_WAIT;
-			break;
-		case ET_SPEED:
-			evt->w_speed = tevt->value;
-			break;
-		case ET_SPEEDUP:
-			evt->w_acceleration = tevt->value;
-			break;
-		case ET_BOUNCE:
-			evt->w_speed = -evt->w_speed;
-			break;
-		case ET_CLEAR:
-			evt->w_flags |= EVFL_CLEARPIXEL;
-			break;
-		case ET_JUMP:
-			evt->w_pos = tevt->value;
-			break;
-		case ET_JUMP_MARKER:
-			// find event with marker
-			T_EVT_TIME *tevt_jump_to = find_timer_event4marker (evt->evt_time_list, tevt->marker);
-			if ( tevt_jump_to && (tevt_jump_to != tevt)) {
-				// found a destination and it is not itselves
-				// check for repeat
-				check_event_when_repeat(evt);
-				if ( ! (evt->flags & EVFL_FINISHED)	 ) {
-					reset_timing_events(tevt_jump_to);
-					ESP_LOGI(__func__, "jump to tid=%d", tevt_jump_to->id );
-				}
-				done = true; // break loop
-			} else {
-				ESP_LOGE(__func__, "no event for '%s' found", tevt->marker);
-			}
-			break;
-		case ET_REVERSE:
-			evt->delta_pos = evt->delta_pos < 0 ? +1 : -1;
-			break;
-		case ET_SET_BRIGHTNESS:
-			evt->w_brightness = tevt->value;
-			break;
-		case ET_SET_BRIGHTNESS_DELTA:
-			evt->w_brightness_delta = tevt->value;
-			break;
-		default:
-			ESP_LOGW(__func__,"evt.id=%d, tevt.id=%d: timer of %llu ms, type %d expired, NYI",
-					evt->id, tevt->id, tevt->time, tevt->type);
-		}
-		if ( done)
-			break;
-	}
+		if ( tevt->status == TE_WAIT_FOR_START) {
+			// Timer start
+			ESP_LOGI(__func__,"evt.id=%d, tevt.id=%d: timer of %llu ms, type %d(%s), val=%.3f, timer START", evt->id, tevt->id, tevt->time, tevt->type, ET2TEXT(tevt->type), tevt->value);
 
-	if (tevt == NULL ) {
-		// last timer event expired, check for repeat
-		check_event_when_repeat(evt);
-	}
+			// do work at start ********************************************
+			switch(tevt->type) {
+			case ET_WAIT:
+				evt->w_flags |= EVFL_WAIT;
+				break;
+			case ET_SPEED:
+				evt->w_speed = tevt->value;
+				break;
+			case ET_SPEEDUP:
+				evt->w_acceleration = tevt->value;
+				break;
+			case ET_SET_BRIGHTNESS:
+				evt->w_brightness = tevt->value;
+				break;
+			case ET_SET_BRIGHTNESS_DELTA:
+				evt->w_brightness_delta = tevt->value;
+				break;
+			default:
+				//ESP_LOGW(__func__,"evt.id=%d, tevt.id=%d: timer of %llu ms, type %d expired, NYI", evt->id, tevt->id, tevt->time, tevt->type);
+				break;
+			}
+			// continue with timer running
+			tevt->status = TE_RUNNING;
+		}
+
+		if ( tevt->status == TE_RUNNING ) {
+			if ( tevt->w_time > 0) {
+				// do work while timer runs *****************************************
+				switch(tevt->type) {
+				case ET_WAIT:
+					evt->w_flags |= EVFL_WAIT;
+					break;
+				case ET_CLEAR:
+					evt->w_flags |= EVFL_CLEARPIXEL;
+					break;
+				default:
+					break;
+				}
+				tevt->w_time -= timer_period;
+				break; // while
+
+			} else {
+				// timer expired
+				ESP_LOGI(__func__,"evt.id=%d, tevt.id=%d: timer of %llu ms, type %d(%s), val=%.3f, timer EXPIRED", evt->id, tevt->id, tevt->time, tevt->type, ET2TEXT(tevt->type), tevt->value);
+				tevt->status = TE_FINISHED;
+			}
+		}
+
+		if ( tevt->status == TE_FINISHED) {
+			// do work when timer ends *******************************************
+
+			T_EVT_TIME *tevt_next = tevt->nxt;
+			bool check_for_repeat = false;
+			switch(tevt->type) {
+			case ET_BOUNCE:
+				evt->w_speed = -evt->w_speed;
+				break;
+			case ET_JUMP:
+				evt->w_pos = tevt->value;
+				break;
+			case ET_REVERSE:
+				evt->delta_pos = evt->delta_pos < 0 ? +1 : -1;
+				break;
+
+			case ET_STOP: // end of event chain, check for repeat
+				tevt_next = evt->evt_time_list; // go to start of the list
+				check_for_repeat = true;
+				break;
+			case ET_JUMP_MARKER:
+				// find event with marker
+				tevt_next = find_timer_event4marker (evt->evt_time_list, tevt->marker);
+				if ( tevt_next ) {
+					// have one
+					if (tevt_next == tevt) {
+						// found myself
+						ESP_LOGE(__func__, "found my self tid=%d, marker='%s'", tevt->id, tevt->marker);
+						tevt_next = tevt->nxt;
+
+					} else {
+						// found a destination and it is not itselves
+						// check for repeat
+						check_for_repeat = true;
+						ESP_LOGI(__func__, "found destination tid=%d, marker='%s'", tevt_next->id, tevt_next->marker);
+					}
+				} else {
+					ESP_LOGE(__func__, "no event for '%s' found", tevt->marker);
+					tevt_next = tevt->nxt;
+				}
+				break;
+			default:
+				//ESP_LOGW(__func__,"evt.id=%d, tevt.id=%d: timer of %llu ms, type %d expired, NYI", evt->id, tevt->id, tevt->time, tevt->type);
+				break;
+			}
+
+			if ( !tevt_next){
+				// no more events, start from the beginning
+				check_for_repeat = true; // no more timer events, check for repeat
+				tevt_next = evt->evt_time_list; // go to start of the list
+			}
+
+			if ( check_for_repeat) {
+				// all events finished, repeat it?
+				if (evt->evt_time_list_repeats > 0 ) {
+					if ( evt->w_t_repeats > 0) {
+						evt->w_t_repeats--;
+					}
+				} else {
+					evt->w_t_repeats = 1; // forever
+				}
+
+				if ( evt->w_t_repeats > 0) {
+					// reset event, next turn
+					ESP_LOGI(__func__, "evt.id=%d: repeat events (%d/%d)", evt->id, evt->w_t_repeats, evt->evt_time_list_repeats);
+					reset_event(evt);
+					reset_timing_events(tevt_next);
+					ESP_LOGI(__func__, "jump to tid=%d", tevt_next->id );
+				} else {
+					// done, mark event as finished
+					evt->w_flags |= EVFL_FINISHED;
+				}
+			}
+
+			tevt = tevt_next;
+			continue;
+
+		} else {
+			// its the running timer
+			break;
+
+		} // if finished
+
+	} // while
 }
 
 // paint the pixel in the calculated range evt->working.pos and evt->working.len.value
@@ -460,7 +500,7 @@ void reset_timing_events(T_EVT_TIME *tevt) {
 
 	for ( T_EVT_TIME *e = tevt; e; e=e->nxt) {
 		e->w_time = e->time;
-		//e->status = SCENE_WAIT_FOR_START;
+		e->status = TE_WAIT_FOR_START;
 	}
 }
 
@@ -480,7 +520,7 @@ void reset_event( T_EVENT *evt) {
 	evt->time = 0;
 	evt->delta_pos = 1;
 
-	reset_timing_events(evt->evt_time_list);
+	//reset_timing_events(evt->evt_time_list);
 	ESP_LOGI(__func__, "event %d", evt->id);
 
 }

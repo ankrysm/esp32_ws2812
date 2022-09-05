@@ -17,9 +17,9 @@
 		 "tevt": [
 		 	{"type":"wait", "time":1000},
 		 	{"type":"speed", "time":0, "value":2, "marker":"here"},
-		 	{"type":"brightness_delta", "time":5000, "value":0.001},
+		 	{"type":"brightness_delta", "time":5000, "value":0.01},
 		 	{"type":"bounce", "time":0},
-		 	{"type":"brightness_delta", "time":5000, "value":-0.001},
+		 	{"type":"brightness_delta", "time":5000, "value":-0.01},
 		 	{"type":"speed", "time":0, "value":0},
 		 	{"type":"clear", "time":2000}
 		 ]

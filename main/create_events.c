@@ -79,7 +79,7 @@ static esp_err_t evt_get_number(cJSON *element, char *attr, double *val, char *e
     }
 
     *val = cJSON_GetNumberValue(found);
-    snprintf(errmsg, sz_errmsg, "got '%s'=%.2f", attr, *val);
+    snprintf(errmsg, sz_errmsg, "got '%s'=%.3f", attr, *val);
 
 	return ESP_OK;
 }
@@ -287,13 +287,13 @@ static esp_err_t decode_json4event_evt_time(cJSON *element, uint32_t id, T_EVENT
 		attr="time";
 		if (evt_get_number(element, attr, &val, errmsg, sz_errmsg) == ESP_OK) {
 			t->time = val;
-			ESP_LOGI(__func__, "tid=%d: %s=%d", id, attr, t->time);
+			ESP_LOGI(__func__, "tid=%d: %s=%llu", id, attr, t->time);
 		}
 
 		attr="marker";
 		if (evt_get_string(element, attr, sval, sizeof(sval), errmsg, sz_errmsg) == ESP_OK) {
 			strlcpy(t->marker, sval,LEN_EVT_MARKER );
-			ESP_LOGI(__func__, "tid=%d: %s=%s", id, attr, t->marker);
+			ESP_LOGI(__func__, "tid=%d: %s='%s'", id, attr, t->marker);
 		}
 
 		/*
@@ -318,7 +318,7 @@ static esp_err_t decode_json4event_evt_time(cJSON *element, uint32_t id, T_EVENT
 		attr="value";
 		if (evt_get_number(element, attr, &val, errmsg, sz_errmsg) == ESP_OK) {
 			t->value = val;
-			ESP_LOGI(__func__, "tid=%d: %s=%d", id, attr, t->value);
+			ESP_LOGI(__func__, "tid=%d: %s=%.3f", id, attr, t->value);
 		}
 
 
@@ -326,7 +326,7 @@ static esp_err_t decode_json4event_evt_time(cJSON *element, uint32_t id, T_EVENT
 	} while(0);
 
 	if ( rc == ESP_OK) {
-		snprintf(errmsg, sz_errmsg,"wid=%d: 'what' created", id);
+		snprintf(errmsg, sz_errmsg,"wid=%d: 'time event' created", id);
 		ESP_LOGI(__func__,"%s", errmsg);
 	} else {
 		ESP_LOGE(__func__, "error: %s", errmsg);

@@ -31,10 +31,10 @@ typedef enum {
  * timing status of a single scene
  ***********************************************/
 typedef enum {
-	SCENE_WAIT_FOR_START,    // wait for start
-	SCENE_WAIT_FOR_END,    // timer is running, wait for arrive
-	SCENE_FINISHED    // timer arrived
-} scene_status_type;
+	TE_WAIT_FOR_START, // wait for start
+	TE_RUNNING,   // timer is running, wait for expire
+	TE_FINISHED    // timer expired
+} timer_event_status_type;
 
 typedef enum {
 	WT_NOTHING,
@@ -131,7 +131,7 @@ typedef struct EVT_WHAT {
 //  *** when will something happens ***
 typedef struct EVT_TIME {
 	uint32_t id;
-	//scene_status_type status;
+	timer_event_status_type status;
 	event_type type; // what to do
 	uint64_t time; // initial duration, when 0 execute immediately
 	int64_t w_time; // working time, count doun from 'time'
