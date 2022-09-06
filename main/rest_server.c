@@ -18,6 +18,7 @@
 
 extern T_CONFIG gConfig;
 extern T_EVENT *s_event_list;
+extern T_EVT_OBJECT *s_object_list;
 
 
 typedef struct rest_server_context {
@@ -611,8 +612,32 @@ static void get_handler_data_list(httpd_req_t *req) {
 		return;
 	}
 
+	if ( !s_object_list) {
+		snprintf(buf, sz_buf, "\nno objects in list");
+		httpd_resp_send_chunk(req, buf, l);
+	} else {
+		for (T_EVT_OBJECT *obj=s_object_list; obj; obj=obj->nxt) {
+			snprintf(buf, sz_buf, "\n   object '%s'", obj->oid);
+			httpd_resp_send_chunk(req, buf, l);
+			if (obj->data) {
+				for(T_EVT_OBJECT_DATA *data = obj->data; data; data=data->nxt) {
+					snprintf(buf, sz_buf,"\n    id=%d, type=%d/%s, pos=%d, len=%d",
+							data->id, data->type, WT2TEXT(data->type), data->pos, data->len
+					);
+					httpd_resp_send_chunk(req, buf, l);
+
+				}
+			} else {
+				snprintf(buf, sz_buf, "\n   no data list in object");
+				httpd_resp_send_chunk(req, buf, l);
+			}
+
+		}
+	}
+
+
 	if ( !s_event_list) {
-		snprintf(buf, sz_buf, "no events in list");
+		snprintf(buf, sz_buf, "\nno events in list");
 		httpd_resp_send_chunk(req, buf, l);
 
 	} else {
@@ -620,33 +645,17 @@ static void get_handler_data_list(httpd_req_t *req) {
 			snprintf(buf, sz_buf, "\nEvent id=%d, startpos=%.2f", evt->id, evt->pos);
 			httpd_resp_send_chunk(req, buf, l);
 
-			snprintf(buf, sz_buf,", flags=0x%04x, len_f=%.1f, len_f_delta=%.2f, v=%.2f, v_delta=%.3f, brightn.=%.2f, brightn.delta=%.3f"
-					, evt->flags, evt->len_factor, evt->len_factor_delta, evt->speed, evt->acceleration, evt->brightness, evt->brightness_delta);
+			snprintf(buf, sz_buf,", flags=0x%04x, obj.oid='%s', len_f=%.1f, len_f_delta=%.2f, v=%.2f, v_delta=%.3f, brightn.=%.2f, brightn.delta=%.3f"
+					, evt->flags, evt->object_oid, evt->len_factor, evt->len_factor_delta, evt->speed, evt->acceleration, evt->brightness, evt->brightness_delta);
 			httpd_resp_send_chunk(req, buf, l);
-
-			if ( evt->what_list) {
-				snprintf(buf, sz_buf, "\n  what=");
-				httpd_resp_send_chunk(req, buf, l);
-
-				for ( T_EVT_WHAT *w=evt->what_list; w; w=w->nxt) {
-					snprintf(buf, sz_buf,"\n    id=%d, type=%d/%s, pos=%d, len=%d",
-							w->id, w->type, WT2TEXT(w->type), w->pos, w->len
-					);
-					httpd_resp_send_chunk(req, buf, l);
-				}
-
-			} else {
-				snprintf(buf, sz_buf,"\n  no what list");
-				httpd_resp_send_chunk(req, buf, l);
-			}
 
 			if (evt->evt_time_list) {
 				snprintf(buf, sz_buf,"\n  time events:");
 				httpd_resp_send_chunk(req, buf, l);
 
 				for (T_EVT_TIME *tevt = evt->evt_time_list; tevt; tevt=tevt->nxt) {
-					snprintf(buf, sz_buf,"\n    id=%d, time=%llu ms, type=%d/%s, val=%.3f",
-							tevt->id, tevt->time, tevt->type, ET2TEXT(tevt->type), tevt->value);
+					snprintf(buf, sz_buf,"\n    id=%d, time=%llu ms, type=%d/%s, val=%.3f, obj.oid='%s', marker='%s'",
+							tevt->id, tevt->time, tevt->type, ET2TEXT(tevt->type), tevt->value, tevt->oid, tevt->marker);
 					httpd_resp_send_chunk(req, buf, l);
 
 				}
@@ -711,6 +720,13 @@ static void get_handler_data_clear(httpd_req_t *req) {
 		snprintf(resp_str,sizeof(resp_str),"event list cleared");
 	} else {
 		snprintf(resp_str,sizeof(resp_str),"clear event list failed");
+	}
+	httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
+
+	if ( object_list_free() == ESP_OK) {
+		snprintf(resp_str,sizeof(resp_str),"object list cleared");
+	} else {
+		snprintf(resp_str,sizeof(resp_str),"clear object list failed");
 	}
 	httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
 }

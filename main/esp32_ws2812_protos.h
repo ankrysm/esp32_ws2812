@@ -70,9 +70,17 @@ T_EVENT *create_event(uint32_t id);
 T_EVENT *find_event(uint32_t id);
 T_EVT_TIME *find_timer_event4marker(T_EVT_TIME *tevt_list, char *marker);
 T_EVT_TIME *create_timing_event(T_EVENT *evt, uint32_t id);
-T_EVT_WHAT *create_what(T_EVENT *evt, uint32_t id);
 uint32_t get_new_event_id();
 esp_err_t delete_event_by_id(uint32_t id);
+
+
+void delete_object(T_EVT_OBJECT *obj);
+esp_err_t delete_object_by_oid(char *oid);
+esp_err_t object_list_free();
+T_EVT_OBJECT *find_object4oid(char *oid);
+T_EVT_OBJECT *create_object(char *oid) ;
+T_EVT_OBJECT_DATA *create_object_data(T_EVT_OBJECT *obj, uint32_t id);
+esp_err_t object_list_add(T_EVT_OBJECT *obj);
 
 // from wifi_vonfig.c
 void initialise_wifi();

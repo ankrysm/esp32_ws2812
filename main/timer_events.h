@@ -10,6 +10,14 @@
 
 #include "color.h"
 
+typedef enum {
+	RES_OK,
+	RES_NOT_FOUND,
+	RES_NO_VALUE,
+	RES_INVALID_DATA_TYPE,
+	RES_FAILED
+} t_result;
+
 /**********************************************
  * status of a play list
  ***********************************************/
@@ -64,6 +72,7 @@ typedef enum {
 
 typedef enum {
 	ET_NONE, // nothing to do
+	ET_CONTINUE, // continue with actual parameter
 	ET_WAIT, // do nothing
 	ET_SPEED, // set speed
 	ET_SPEEDUP, // set acceleration
@@ -81,6 +90,7 @@ typedef enum {
 
 #define TEXT2ET(c) ( \
 	!strcasecmp(c,"wait") ? ET_WAIT : \
+	!strcasecmp(c,"continue") ? ET_CONTINUE : \
 	!strcasecmp(c,"speed") ? ET_SPEED : \
 	!strcasecmp(c,"speedup") ? ET_SPEEDUP : \
 	!strcasecmp(c,"bounce") ? ET_BOUNCE : \
@@ -96,6 +106,7 @@ typedef enum {
 
 #define ET2TEXT(c) ( \
 	c==ET_WAIT ? "wait" : \
+	c==ET_CONTINUE ? "continue" : \
 	c==ET_SPEED ? "speed" : \
 	c==ET_SPEEDUP ? "speedup" : \
 	c==ET_BOUNCE ? "bounce" : \
@@ -114,7 +125,9 @@ typedef struct EVT_WHAT_COLORTRANSITION {
 	T_COLOR_HSV hsv_to;
 } T_EVT_WHAT_COLORTRANSITION;
 
-typedef struct EVT_WHAT {
+#define LEN_EVT_MARKER 8+1
+
+typedef struct EVT_OBJECT_DATA {
 	int32_t id;
 	what_type type;
 	int32_t pos; // relative start position
@@ -124,10 +137,17 @@ typedef struct EVT_WHAT {
 		T_COLOR_HSV hsv;  // when only one color is needed
 		T_EVT_WHAT_COLORTRANSITION tr; // color transition
 	} para;
-	struct EVT_WHAT *nxt;
-} T_EVT_WHAT;
 
-#define LEN_EVT_MARKER 8+1
+	struct EVT_OBJECT_DATA *nxt;
+} T_EVT_OBJECT_DATA;
+
+typedef struct EVT_OBJECT {
+	char oid[LEN_EVT_MARKER];
+	T_EVT_OBJECT_DATA *data;
+
+	struct EVT_OBJECT *nxt;
+} T_EVT_OBJECT;
+
 //  *** when will something happens ***
 typedef struct EVT_TIME {
 	uint32_t id;
@@ -135,6 +155,8 @@ typedef struct EVT_TIME {
 	event_type type; // what to do
 	uint64_t time; // initial duration, when 0 execute immediately
 	int64_t w_time; // working time, count doun from 'time'
+
+	char oid[LEN_EVT_MARKER]; // which object shoud be processed
 
 	// what to change when timer arrives
 	//uint32_t set_flags;
@@ -199,8 +221,11 @@ typedef struct EVENT{
 
 	int32_t delta_pos; // +1 or -1
 
+	char object_oid[LEN_EVT_MARKER];
+	char w_object_oid[LEN_EVT_MARKER];
+
 	// what, example: 10 red pixels, with fade in and fade out
-	T_EVT_WHAT *what_list;
+	//T_EVT_WHAT *what_list;
 
 	// time dependend events,
 	// example: 1.) wait 10 sec, 2.) move with 5 pixel/second

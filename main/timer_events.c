@@ -28,6 +28,8 @@ static volatile run_status_type s_run_status = RUN_STATUS_STOPPED;
 static volatile uint64_t s_scene_time = 0;
 
 T_EVENT *s_event_list = NULL;
+T_EVT_OBJECT *s_object_list = NULL;
+
 extern T_CONFIG gConfig;
 
 static void show_status() {

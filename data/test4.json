@@ -1,0 +1,30 @@
+{
+	 "objects" : [
+		 {  "oid":"o1",
+			"data" :[
+			    {"type":"color_transition", "color_from":"blue", "color_to":"red", "pos":0, "len":7},
+			 	{"type":"color", "color":"yellow", "pos":7, "len":7},
+			 	{"type":"color_transition", "color_from":"red", "color_to":"blue", "pos":14, "len":7}
+			 ]
+		  }
+	  ],
+	 "events" : [
+	 	{
+	 	 "id":10,
+	     "pos":1,
+	     "brightness":0.0,
+	     "oid":"o1",
+	     	 "tevt": [
+		 	{"type":"speed", "time":0, "value":2.5, "marker":"p"},
+		 	{"type":"brightness_delta", "time":0, "value":0.01},
+		 	{"type":"wait", "time":1000},
+		 	{"type":"bounce", "time": 1000},
+		 	{"type":"brightness", "time":0, "value":0.1},
+		 	{"type":"brightness_delta", "time":0, "value":-0.01},
+		 	{"type":"continue", "time":1000}
+
+		 ]
+	 	}
+
+	 ]
+}

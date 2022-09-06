@@ -11,7 +11,7 @@
 void build_demo2(
 		T_COLOR_RGB *fg_color // foreground color
 ) {
-
+/*
 	T_EVENT *evt;
 	T_EVT_WHAT *w;
 	T_EVT_TIME *tevt;
@@ -101,7 +101,7 @@ void build_demo2(
 	tevt->time = 2000; // 2 sec, in ms
 
 	event_list_add(evt);
-
+*/
 }
 
 

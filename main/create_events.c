@@ -8,9 +8,10 @@
 
 #include "esp32_ws2812.h"
 
+#define ESP_ERR_NO_VALUE -2
 /**
  * print JSON-Element-Type (for testing)
- */
+ * /
 static void JSON_Print(cJSON *element) {
 	if (!element) {
 		ESP_LOGI(__func__, "data missing");
@@ -26,91 +27,100 @@ static void JSON_Print(cJSON *element) {
 	if (element->type == cJSON_Object) ESP_LOGI(__func__, "cJSON_Object");
 	if (element->type == cJSON_Raw) ESP_LOGI(__func__, "cJSON_Raw");
 }
+//*/
 
 /**
  * reads a boolean value for an attribute in the current JSON node
  */
-static esp_err_t evt_get_bool(cJSON *element, char *attr, bool *val, char *errmsg, size_t sz_errmsg) {
+t_result evt_get_bool(cJSON *element, char *attr, bool *val, char *errmsg, size_t sz_errmsg) {
 	memset(errmsg, 0, sz_errmsg);
 	if ( !element || !attr) {
 		snprintf(errmsg, sz_errmsg, "missing parameter 'element' or 'attr'");
-		return ESP_FAIL;
+		return RES_FAILED;
 	}
+
 	cJSON *found = NULL;
 	*val = 0;
     found = cJSON_GetObjectItemCaseSensitive(element, attr);
     if ( !found) {
 		snprintf(errmsg, sz_errmsg, "missing attribute '%s'", attr);
-		return ESP_ERR_NOT_FOUND;
+		return RES_NOT_FOUND;
     }
 
     if (!cJSON_IsBool(found)) {
 		snprintf(errmsg, sz_errmsg, "attribute '%s' is not a boolean", attr);
-		return ESP_FAIL;
+		return RES_INVALID_DATA_TYPE;
     }
 
     *val = cJSON_IsTrue(found);
     snprintf(errmsg, sz_errmsg, "got '%s'=%s", attr, (*val? "true" : "false"));
 
-	return ESP_OK;
+	return RES_OK;
 }
 
 
 /**
  * reads a numeric value for an attribute in the current JSON node
  */
-static esp_err_t evt_get_number(cJSON *element, char *attr, double *val, char *errmsg, size_t sz_errmsg) {
+static t_result evt_get_number(cJSON *element, char *attr, double *val, char *errmsg, size_t sz_errmsg) {
 	memset(errmsg, 0, sz_errmsg);
 	if ( !element || !attr) {
 		snprintf(errmsg, sz_errmsg, "missing parameter 'element' or 'attr'");
-		return ESP_FAIL;
+		return RES_FAILED;
 	}
+
 	cJSON *found = NULL;
 	*val = 0;
     found = cJSON_GetObjectItemCaseSensitive(element, attr);
     if ( !found) {
 		snprintf(errmsg, sz_errmsg, "missing attribute '%s'", attr);
-		return ESP_ERR_NOT_FOUND;
+		return RES_NOT_FOUND;
     }
 
     if (!cJSON_IsNumber(found)) {
 		snprintf(errmsg, sz_errmsg, "attribute '%s' is not a number", attr);
-		return ESP_FAIL;
+		return RES_INVALID_DATA_TYPE;
     }
 
     *val = cJSON_GetNumberValue(found);
-    snprintf(errmsg, sz_errmsg, "got '%s'=%.3f", attr, *val);
+    snprintf(errmsg, sz_errmsg, "got '%s'=%f", attr, *val);
 
-	return ESP_OK;
+	return RES_OK;
 }
 
 /**
  * reads a string for an attribut in the current JSON node
  */
-static esp_err_t evt_get_string(cJSON *element, char *attr, char *sval, size_t sz_sval, char *errmsg, size_t sz_errmsg) {
+static t_result evt_get_string(cJSON *element, char *attr, char *sval, size_t sz_sval, char *errmsg, size_t sz_errmsg) {
 	memset(errmsg, 0, sz_errmsg);
 	memset(sval, 0,sz_sval);
+
 	if ( !element || !attr) {
 		snprintf(errmsg, sz_errmsg, "missing parameter 'element' or 'attr'");
-		return ESP_FAIL;
+		return RES_FAILED;
 	}
 	cJSON *found = NULL;
 
 	found = cJSON_GetObjectItemCaseSensitive(element, attr);
     if ( !found) {
 		snprintf(errmsg, sz_errmsg, "missing attribute '%s'", attr);
-		return ESP_ERR_NOT_FOUND;
+		return RES_NOT_FOUND;
     }
 
     if (!cJSON_IsString(found)) {
 		snprintf(errmsg, sz_errmsg, "attribute '%s' is not a string", attr);
-		return ESP_FAIL;
+		return RES_INVALID_DATA_TYPE;
     }
 
     strlcpy(sval, cJSON_GetStringValue(found),sz_sval);
-    snprintf(errmsg, sz_errmsg, "got '%s'='%s'", attr, sval);
 
-	return ESP_OK;
+    if ( !strlen(sval)) {
+        snprintf(errmsg, sz_errmsg, "got '%s' has no value", attr, sval);
+    	return RES_NO_VALUE;
+    }
+
+    snprintf(errmsg, sz_errmsg, "got '%s'='%s'", attr, sval);
+	return RES_OK;
 
 }
 
@@ -124,9 +134,9 @@ static esp_err_t decode_json_getcolor_by_name(cJSON *element, char *attr, T_COLO
 	if ( !attr || !strlen(attr))
 		return ESP_ERR_NOT_FOUND;
 
-	esp_err_t rc = evt_get_string(element, attr, sval, sizeof(sval), l_errmsg, sizeof(l_errmsg));
+	t_result rc = evt_get_string(element, attr, sval, sizeof(sval), l_errmsg, sizeof(l_errmsg));
 
-	if ( rc == ESP_OK) {
+	if ( rc == RES_OK) {
 		T_NAMED_RGB_COLOR *nc= color4name(sval);
 		if (nc == NULL) {
 			snprintf(errmsg, sz_errmsg, "attr '%s': unknown color '%s'", attr, sval);
@@ -137,9 +147,6 @@ static esp_err_t decode_json_getcolor_by_name(cJSON *element, char *attr, T_COLO
 			snprintf(errmsg, sz_errmsg, "'color': attr '%s': hsv=%d,%d,%d", attr, hsv->h, hsv->s, hsv->v );
 		}
 
-	} else if (rc == ESP_ERR_NOT_FOUND) {
-		snprintf(errmsg, sz_errmsg, "attr '%s': not found", attr);
-
 	} else {
 		snprintf(errmsg, sz_errmsg, "attr '%s': access failed: %s", attr, l_errmsg);
 	}
@@ -149,7 +156,7 @@ static esp_err_t decode_json_getcolor_by_name(cJSON *element, char *attr, T_COLO
 /**
  * reads a HSV-color from attribute
  */
-static esp_err_t decode_json_getcolor_as_hsv(cJSON *element, char *attr, T_COLOR_HSV *hsv, char *errmsg, size_t sz_errmsg) {
+static t_result decode_json_getcolor_as_hsv(cJSON *element, char *attr, T_COLOR_HSV *hsv, char *errmsg, size_t sz_errmsg) {
 	char sval[32];
 	char l_errmsg[64];
 
@@ -185,8 +192,6 @@ static esp_err_t decode_json_getcolor_as_hsv(cJSON *element, char *attr, T_COLOR
 			hsv->v = iV;
 			snprintf(errmsg, sz_errmsg, "'hsv': attr '%s': hsv=%d,%d,%d", attr, hsv->h, hsv->s, hsv->v );
 		}
-	} else if (rc == ESP_ERR_NOT_FOUND) {
-		snprintf(errmsg, sz_errmsg, "attr '%s': not found", attr);
 
 	} else {
 		snprintf(errmsg, sz_errmsg, "attr '%s': access failed: %s", attr, l_errmsg);
@@ -197,16 +202,16 @@ static esp_err_t decode_json_getcolor_as_hsv(cJSON *element, char *attr, T_COLOR
 /**
  * gets an RGB color definition as HSV
  */
-static esp_err_t decode_json_getcolor_as_rgb(cJSON *element, char *attr, T_COLOR_HSV *hsv, char *errmsg, size_t sz_errmsg) {
+static t_result decode_json_getcolor_as_rgb(cJSON *element, char *attr, T_COLOR_HSV *hsv, char *errmsg, size_t sz_errmsg) {
 	char sval[32];
 	char l_errmsg[64];
 
 	if ( !attr || !strlen(attr))
 		return ESP_ERR_NOT_FOUND;
 
-	esp_err_t rc = evt_get_string(element, attr, sval, sizeof(sval), l_errmsg, sizeof(l_errmsg));
+	t_result rc = evt_get_string(element, attr, sval, sizeof(sval), l_errmsg, sizeof(l_errmsg));
 
-	if ( rc == ESP_OK) {
+	if ( rc == RES_OK) {
 		char *s=strdup(sval), *sR=NULL, *sG=NULL, *sB=NULL, *l;
 		int32_t iR=-1, iG=-1, iB=-1;
 		sR=strtok_r(s, ",", &l);
@@ -231,9 +236,6 @@ static esp_err_t decode_json_getcolor_as_rgb(cJSON *element, char *attr, T_COLOR
 			c_rgb2hsv(&rgb,hsv);
 			snprintf(errmsg, sz_errmsg, "'rgb': attr '%s': rgb=%s hsv=%d,%d,%d", attr, sval, hsv->h, hsv->s, hsv->v );
 		}
-	} else if (rc == ESP_ERR_NOT_FOUND) {
-		snprintf(errmsg, sz_errmsg, "attr '%s': not found", attr);
-
 	} else {
 		snprintf(errmsg, sz_errmsg, "attr '%s': access failed: %s", attr, l_errmsg);
 	}
@@ -276,7 +278,7 @@ static esp_err_t decode_json4event_evt_time(cJSON *element, uint32_t id, T_EVENT
 		ESP_LOGI(__func__, "tid=%d: 'time event' created", id);
 
 		attr="type";
-		if (evt_get_string(element, attr, sval, sizeof(sval), errmsg, sz_errmsg) != ESP_OK)
+		if (evt_get_string(element, attr, sval, sizeof(sval), errmsg, sz_errmsg) != RES_OK)
 			break;
 		t->type = TEXT2ET(sval);
 		if ( t->type == ET_UNKNOWN) {
@@ -290,12 +292,17 @@ static esp_err_t decode_json4event_evt_time(cJSON *element, uint32_t id, T_EVENT
 			ESP_LOGI(__func__, "tid=%d: %s=%llu", id, attr, t->time);
 		}
 
-		attr="marker";
-		if (evt_get_string(element, attr, sval, sizeof(sval), errmsg, sz_errmsg) == ESP_OK) {
+		attr="marker"; // optional
+		if (evt_get_string(element, attr, sval, sizeof(sval), errmsg, sz_errmsg) == RES_OK) {
 			strlcpy(t->marker, sval,LEN_EVT_MARKER );
 			ESP_LOGI(__func__, "tid=%d: %s='%s'", id, attr, t->marker);
 		}
 
+		attr="oid"; // optional
+		if (evt_get_string(element, attr, sval, sizeof(sval), errmsg, sz_errmsg) == RES_OK) {
+			strlcpy(t->oid, sval,LEN_EVT_MARKER );
+			ESP_LOGI(__func__, "tid=%d: %s='%s'", id, attr, t->oid);
+		}
 		/*
 		attr="set_flags";
 		if (evt_get_string(element, attr, sval, sizeof(sval), errmsg, sz_errmsg) == ESP_OK) {
@@ -316,7 +323,7 @@ static esp_err_t decode_json4event_evt_time(cJSON *element, uint32_t id, T_EVENT
 		}
 	    */
 		attr="value";
-		if (evt_get_number(element, attr, &val, errmsg, sz_errmsg) == ESP_OK) {
+		if (evt_get_number(element, attr, &val, errmsg, sz_errmsg) == RES_OK) {
 			t->value = val;
 			ESP_LOGI(__func__, "tid=%d: %s=%.3f", id, attr, t->value);
 		}
@@ -365,7 +372,7 @@ static esp_err_t decode_json4event_evt_time_list(cJSON *element, T_EVENT *evt, c
 	esp_err_t rc = ESP_OK;
 	for (int i=0; i < array_size; i++) {
 		cJSON *element = cJSON_GetArrayItem(found, i);
-		JSON_Print(element);
+		//JSON_Print(element);
 		char l_errmsg[64];
 		if (decode_json4event_evt_time(element, i+1, evt, l_errmsg, sizeof(l_errmsg)) != ESP_OK) {
 			snprintf(&(errmsg[strlen(errmsg)]), sz_errmsg - strlen(errmsg),"[%s]", l_errmsg);
@@ -381,97 +388,96 @@ static esp_err_t decode_json4event_evt_time_list(cJSON *element, T_EVENT *evt, c
 
 }
 
-
-
-
-
-/**
- * reads a single T_EVT_WHAT element
- */
-static esp_err_t decode_json4event_what(cJSON *element, uint32_t id, T_EVENT *evt, char *errmsg, size_t sz_errmsg) {
+static esp_err_t decode_json4event_object_data(cJSON *element, T_EVT_OBJECT *obj, int id, char *errmsg, size_t sz_errmsg) {
 	esp_err_t rc = ESP_FAIL;
 
-	T_EVT_WHAT *w = NULL;
-	T_COLOR_HSV hsv = {.h=0, .s=0, .v=0};
+	T_EVT_OBJECT_DATA *data;
 
 	char *attr;
-	double val;
 	char sval[64];
-	esp_err_t lrc;
+	double val;
+	t_result lrc;
+	T_COLOR_HSV hsv = {.h=0, .s=0, .v=0};
 
 	do {
-		if ( !(w = create_what(evt, id)))
+		if ( !(data = create_object_data(obj, id))) {
+			snprintf(errmsg, sz_errmsg,"oid=%s, id=%d: could not create data object", obj->oid, id);
 			break;
-		ESP_LOGI(__func__, "wid=%d: 'what' created", id);
+		}
 
 		attr="type";
-		if (evt_get_string(element, attr, sval, sizeof(sval), errmsg, sz_errmsg) != ESP_OK)
+		if (evt_get_string(element, attr, sval, sizeof(sval), errmsg, sz_errmsg) != RES_OK)
 			break;
-		w->type = TEXT2WT(sval);
-		if ( w->type == WT_UNKNOWN) {
-			snprintf(errmsg, sz_errmsg,"wid=%d: what type '%s' unknown", id, sval);
+		data->type = TEXT2WT(sval);
+		if ( data->type == WT_UNKNOWN) {
+			snprintf(errmsg, sz_errmsg,"oid=%s, id=%d: object type '%s' unknown", obj->oid, id, sval);
 			break;
 		}
 
 		attr="pos";
-		if (evt_get_number(element, attr, &val, errmsg, sz_errmsg) == ESP_OK) {
-			w->pos = val;
-			ESP_LOGI(__func__, "wid=%d: %s=%d", id, attr, w->pos);
+		if (evt_get_number(element, attr, &val, errmsg, sz_errmsg) == RES_OK) {
+			data->pos = val;
+			ESP_LOGI(__func__, "oid=%s, id=%d: %s=%d", obj->oid, id, attr, data->pos);
 		}
 
 		attr="len";
-		if (evt_get_number(element, attr, &val, errmsg, sz_errmsg) == ESP_OK) {
-			w->len = val;
-			ESP_LOGI(__func__, "wid=%d: %s=%d", id, attr, w->len);
+		if (evt_get_number(element, attr, &val, errmsg, sz_errmsg) == RES_OK) {
+			data->len = val;
+			ESP_LOGI(__func__, "oid=%s, id=%d: %s=%d", obj->oid, id, attr, data->len);
 		}
 
-		if ( w->type == WT_COLOR_TRANSITION) {
+		if ( data->type == WT_COLOR_TRANSITION) {
 			// a color from needed
 			lrc = decode_json_getcolor(element, "color_from", "hsv_from", "rgb_from", &hsv, errmsg, sz_errmsg);
-			if ( lrc == ESP_OK ) {
-				w->para.tr.hsv_from.h = hsv.h;
-				w->para.tr.hsv_from.s = hsv.s;
-				w->para.tr.hsv_from.v = hsv.v;
-				ESP_LOGI(__func__,"wid=%d, %s", w->id, errmsg);
-			} else if ( lrc == ESP_ERR_NOT_FOUND ) {
-				snprintf(errmsg, sz_errmsg, "wid=%d: no 'color from' specified", w->id);
+			if ( lrc == RES_OK ) {
+				data->para.tr.hsv_from.h = hsv.h;
+				data->para.tr.hsv_from.s = hsv.s;
+				data->para.tr.hsv_from.v = hsv.v;
+				ESP_LOGI(__func__,"oid=%s, id=%d: %s", obj->oid, id, errmsg);
+
+			} else if ( lrc == RES_NOT_FOUND ) {
+				snprintf(errmsg, sz_errmsg, "oid=%s, id=%d: no 'color from' specified", obj->oid);
 				ESP_LOGI(__func__, "%s",errmsg);
 				break;
+
 			} else {
-				ESP_LOGE(__func__, "Error: %s",errmsg);
+				ESP_LOGE(__func__, "oid=%s, id=%d: Error: %s",obj->oid, id, errmsg);
 				break; // failed
 			}
 
 			// a color to needed
 			lrc = decode_json_getcolor(element, "color_to", "hsv_to", "rgb_to", &hsv, errmsg, sz_errmsg);
-			if ( lrc == ESP_OK ) {
-				w->para.tr.hsv_to.h = hsv.h;
-				w->para.tr.hsv_to.s = hsv.s;
-				w->para.tr.hsv_to.v = hsv.v;
-				ESP_LOGI(__func__,"wid=%d, %s", w->id, errmsg);
-			} else if ( lrc == ESP_ERR_NOT_FOUND ) {
-				snprintf(errmsg, sz_errmsg, "wid=%d: no 'color to' from specified", w->id);
+			if ( lrc == RES_OK ) {
+				data->para.tr.hsv_to.h = hsv.h;
+				data->para.tr.hsv_to.s = hsv.s;
+				data->para.tr.hsv_to.v = hsv.v;
+				ESP_LOGI(__func__,"oid=%s, id=%d: %s", obj->oid, id, errmsg);
+
+			} else if ( lrc == RES_NOT_FOUND ) {
+				snprintf(errmsg, sz_errmsg, "oid=%s, id=%d: no 'color to' from specified", obj->oid, id);
 				ESP_LOGI(__func__, "%s",errmsg);
 				break;
 			} else {
-				ESP_LOGE(__func__, "Error: %s",errmsg);
+				ESP_LOGE(__func__, "oid=%s, id=%d: Error: %s", obj->oid, id, errmsg);
 				break; // failed
 			}
 
 		} else {
 			// a color needed
 			lrc = decode_json_getcolor(element, "color", "hsv", "rgb", &hsv, errmsg, sz_errmsg);
-			if ( lrc == ESP_OK ) {
-				w->para.hsv.h = hsv.h;
-				w->para.hsv.s = hsv.s;
-				w->para.hsv.v = hsv.v;
-				ESP_LOGI(__func__,"wid=%d, %s", w->id, errmsg);
-			} else if ( lrc == ESP_ERR_NOT_FOUND ) {
-				snprintf(errmsg, sz_errmsg, "wid=%d: no color specified", w->id);
+			if ( lrc == RES_OK ) {
+				data->para.hsv.h = hsv.h;
+				data->para.hsv.s = hsv.s;
+				data->para.hsv.v = hsv.v;
+				ESP_LOGI(__func__,"oid=%s, id=%d, %s", obj->oid, id, errmsg);
+
+			} else if ( lrc == RES_NOT_FOUND ) {
+				snprintf(errmsg, sz_errmsg, "oid=%s, id=%d: no color specified", obj->oid, id);
 				ESP_LOGI(__func__, "%s",errmsg);
 				break;
+
 			} else {
-				ESP_LOGE(__func__, "Error: %s",errmsg);
+				ESP_LOGE(__func__, "oid=%s, id=%d: Error: %s", obj->oid, id, errmsg);
 				break; // failed
 			}
 		}
@@ -482,7 +488,7 @@ static esp_err_t decode_json4event_what(cJSON *element, uint32_t id, T_EVENT *ev
 	} while(0);
 
 	if ( rc == ESP_OK) {
-		snprintf(errmsg, sz_errmsg,"wid=%d: 'what' created", id);
+		snprintf(errmsg, sz_errmsg,"oid=%s: 'object' created", obj->oid);
 		ESP_LOGI(__func__,"%s", errmsg);
 	} else {
 		ESP_LOGE(__func__, "error: %s", errmsg);
@@ -492,45 +498,139 @@ static esp_err_t decode_json4event_what(cJSON *element, uint32_t id, T_EVENT *ev
 }
 
 
-static esp_err_t decode_json4event_what_list(cJSON *element, T_EVENT *evt, char *errmsg, size_t sz_errmsg) {
+
+/**
+ * reads a single T_EVT_OBJECT element
+ * expected:
+ * - oid
+ * - data list
+ */
+static esp_err_t decode_json4event_object(cJSON *element, bool overwrite, char *errmsg, size_t sz_errmsg) {
+	esp_err_t rc = ESP_FAIL;
+
+	T_EVT_OBJECT *obj = NULL;
+
+	char *attr;
+	char sval[64];
+
+	do {
+		attr="oid";
+		if (evt_get_string(element, attr, sval, sizeof(sval), errmsg, sz_errmsg) != RES_OK)
+			break;
+		ESP_LOGI(__func__, "%s='%s'", attr, sval);
+
+		obj = find_object4oid(sval);
+		if ( obj ) {
+			ESP_LOGI(__func__, "object '%s' found, todo: %s", obj->oid, (overwrite?"overwrite":"add"));
+			if(overwrite)  {
+				if ( delete_object_by_oid(sval) != ESP_OK) {
+					snprintf(errmsg, sz_errmsg,"duplicate object with oid '%s', failed to delete", sval);
+					break;
+				}
+			} else {
+				snprintf(errmsg, sz_errmsg,"duplicate object with oid '%s'", sval);
+				break;
+			}
+		} else {
+			ESP_LOGI(__func__, "object '%s' is new", sval);
+		}
+		obj = create_object(sval);
+		ESP_LOGI(__func__, "object '%s' created", obj->oid);
+
+		// check for data list
+		cJSON *found = NULL;
+		attr = "data";
+	    found = cJSON_GetObjectItemCaseSensitive(element, attr);
+	    if ( !found) {
+			snprintf(errmsg, sz_errmsg, "missing attribute '%s'", attr);
+			return ESP_ERR_NOT_FOUND;
+	    }
+
+	    if (!cJSON_IsArray(found)) {
+			snprintf(errmsg, sz_errmsg, "attribute '%s' is not an array", attr);
+			return ESP_FAIL;
+	    }
+
+		int array_size = cJSON_GetArraySize(found);
+		ESP_LOGI(__func__, "size of '%s'=%d", attr, array_size);
+		if (array_size == 0) {
+			snprintf(errmsg, sz_errmsg, "array '%s' has no content", attr);
+			return ESP_ERR_NOT_FOUND;
+		}
+
+		rc = ESP_OK;
+		for (int i=0; i < array_size; i++) {
+			cJSON *list_element = cJSON_GetArrayItem(found, i);
+			//JSON_Print(list_element);
+			char l_errmsg[64];
+			if (decode_json4event_object_data(list_element, obj, i+1, l_errmsg, sizeof(l_errmsg)) != ESP_OK) {
+				snprintf(&(errmsg[strlen(errmsg)]), sz_errmsg - strlen(errmsg),"[%s]", l_errmsg);
+				rc = ESP_FAIL;
+			}
+		}
+
+	} while(false);
+
+	if ( rc == ESP_OK) {
+		snprintf(errmsg, sz_errmsg,"ok");
+		object_list_add(obj);
+		ESP_LOGI(__func__, "object '%s' added to list", obj->oid);
+	} else {
+		if ( obj) {
+			ESP_LOGI(__func__, "object '%s' not valid, deleted", obj->oid);
+			delete_object(obj);
+		}
+	}
+
+	return rc;
+}
+
+
+/**
+ * "object" structure contains
+ * - a list of
+ *   - an oid and
+ *   - a data list
+ */
+static esp_err_t decode_json4event_object_list(cJSON *element, bool overwrite, char *errmsg, size_t sz_errmsg) {
 	memset(errmsg, 0, sz_errmsg);
 	if ( !element) {
 		snprintf(errmsg, sz_errmsg, "missing parameter 'element'");
 		return ESP_FAIL;
 	}
 	cJSON *found = NULL;
-	char *attr = "what";
+	char *attr = "objects";
     found = cJSON_GetObjectItemCaseSensitive(element, attr);
     if ( !found) {
-		snprintf(errmsg, sz_errmsg, "id=%d: missing attribute '%s'", evt->id, attr);
+		snprintf(errmsg, sz_errmsg, "missing attribute '%s'", attr);
 		return ESP_ERR_NOT_FOUND;
     }
 
     if (!cJSON_IsArray(found)) {
-		snprintf(errmsg, sz_errmsg, "id=%d: attribute '%s' is not an array", evt->id, attr);
+		snprintf(errmsg, sz_errmsg, "attribute '%s' is not an array", attr);
 		return ESP_FAIL;
     }
 
 	int array_size = cJSON_GetArraySize(found);
-	ESP_LOGI(__func__, "id=%d: size of '%s'=%d", evt->id, attr, array_size);
+	ESP_LOGI(__func__, "size of '%s'=%d", attr, array_size);
 	if (array_size == 0) {
-		snprintf(errmsg, sz_errmsg, "id=%d: array '%s' has no content", evt->id, attr);
+		snprintf(errmsg, sz_errmsg, "array '%s' has no content", attr);
 		return ESP_ERR_NOT_FOUND;
 	}
 
 	esp_err_t rc = ESP_OK;
 	for (int i=0; i < array_size; i++) {
 		cJSON *element = cJSON_GetArrayItem(found, i);
-		JSON_Print(element);
+		//JSON_Print(element);
 		char l_errmsg[64];
-		if (decode_json4event_what(element, i+1, evt, l_errmsg, sizeof(l_errmsg)) != ESP_OK) {
+		if (decode_json4event_object(element, overwrite, l_errmsg, sizeof(l_errmsg)) != ESP_OK) {
 			snprintf(&(errmsg[strlen(errmsg)]), sz_errmsg - strlen(errmsg),"[%s]", l_errmsg);
 			rc = ESP_FAIL;
 		}
 	}
 
 	if ( rc == ESP_OK) {
-		snprintf(errmsg, sz_errmsg, "ok", evt->id);
+		snprintf(errmsg, sz_errmsg,"ok");
 	}
 
 	return rc;
@@ -538,7 +638,7 @@ static esp_err_t decode_json4event_what_list(cJSON *element, T_EVENT *evt, char 
 }
 
 
-static esp_err_t decode_json4event_start(cJSON *element, bool overwrite, char *errmsg, size_t sz_errmsg) {
+static esp_err_t decode_json4event_event(cJSON *element, bool overwrite, char *errmsg, size_t sz_errmsg) {
 	if ( !cJSON_IsObject(element)) {
 		snprintf(errmsg, sz_errmsg, "element is not an object");
 		return ESP_FAIL;
@@ -546,6 +646,7 @@ static esp_err_t decode_json4event_start(cJSON *element, bool overwrite, char *e
 
 	char *attr;
 	double val;
+	char sval[64];
 	bool bval;
 	int id = -1;
 	esp_err_t lrc, rc = ESP_FAIL;
@@ -631,17 +732,25 @@ static esp_err_t decode_json4event_start(cJSON *element, bool overwrite, char *e
 			evt->evt_time_list_repeats = val;
 			ESP_LOGI(__func__, "id=%d: %s=%d", id, attr, evt->evt_time_list_repeats);
 		}
-		attr="start_with_wait";
-		if (evt_get_bool(element, attr, &bval, errmsg, sz_errmsg) == ESP_OK) {
-			if ( bval) {
-				evt->flags = EVFL_WAIT; // start with wait
-			}
-			ESP_LOGI(__func__, "id=%d: %s=0x%04x", id, attr, evt->flags);
+
+		attr="oid";
+		if (evt_get_string(element, attr, sval, sizeof(sval), errmsg, sz_errmsg) == RES_OK) {
+			strlcpy(evt->object_oid, sval, LEN_EVT_MARKER);
+			ESP_LOGI(__func__, "id=%d: %s=%s", id, attr, evt->object_oid);
 		}
+
+//		attr="start_with_wait";
+//		if (evt_get_bool(element, attr, &bval, errmsg, sz_errmsg) == ESP_OK) {
+//			if ( bval) {
+//				evt->flags = EVFL_WAIT; // start with wait
+//			}
+//			ESP_LOGI(__func__, "id=%d: %s=0x%04x", id, attr, evt->flags);
+//		}
 		// what to do
-		if ( decode_json4event_what_list(element, evt, errmsg, sz_errmsg) != ESP_OK )
-			break; // no list or decode error
-		ESP_LOGI(__func__,"id=%d: what list created", evt->id);
+//		if ( decode_json4event_what_list(element, evt, errmsg, sz_errmsg) != ESP_OK )
+//			break; // no list or decode error
+//		ESP_LOGI(__func__,"id=%d: what list created", evt->id);
+
 
 		// when to do
 		if ( decode_json4event_evt_time_list(element, evt, errmsg, sz_errmsg) != ESP_OK )
@@ -656,13 +765,60 @@ static esp_err_t decode_json4event_start(cJSON *element, bool overwrite, char *e
 		ESP_LOGI(__func__,"id=%d: %s", evt->id, errmsg);
 		event_list_add(evt);
 	} else {
-		ESP_LOGE(__func__, "id=%d: error: %s", evt->id, errmsg);
+		ESP_LOGE(__func__, "id=%d: error: %s", id, errmsg);
 		// delete created data
 		delete_event(evt);
 	}
 
 	return rc;
 }
+
+static esp_err_t decode_json4event_event_list(cJSON *element, bool overwrite, char *errmsg, size_t sz_errmsg) {
+	memset(errmsg, 0, sz_errmsg);
+	if ( !element) {
+		snprintf(errmsg, sz_errmsg, "missing parameter 'element'");
+		return ESP_FAIL;
+	}
+	cJSON *found = NULL;
+	char *attr = "events";
+    found = cJSON_GetObjectItemCaseSensitive(element, attr);
+    if ( !found) {
+		snprintf(errmsg, sz_errmsg, "missing attribute '%s'", attr);
+		return ESP_ERR_NOT_FOUND;
+    }
+
+    if (!cJSON_IsArray(found)) {
+		snprintf(errmsg, sz_errmsg, "attribute '%s' is not an array", attr);
+		return ESP_FAIL;
+    }
+
+	int array_size = cJSON_GetArraySize(found);
+	ESP_LOGI(__func__, "size of '%s'=%d", attr, array_size);
+	if (array_size == 0) {
+		snprintf(errmsg, sz_errmsg, "array '%s' has no content", attr);
+		return ESP_ERR_NOT_FOUND;
+	}
+
+	esp_err_t rc = ESP_OK;
+	for (int i=0; i < array_size; i++) {
+		cJSON *element = cJSON_GetArrayItem(found, i);
+		//JSON_Print(element);
+		char l_errmsg[64];
+		if (decode_json4event_event(element, overwrite, l_errmsg, sizeof(l_errmsg)) != ESP_OK) {
+			snprintf(&(errmsg[strlen(errmsg)]), sz_errmsg - strlen(errmsg),"[%s]", l_errmsg);
+			rc = ESP_FAIL;
+		}
+	}
+
+	if ( rc == ESP_OK) {
+		snprintf(errmsg, sz_errmsg,"ok");
+	}
+
+	return rc;
+
+}
+
+
 
 esp_err_t decode_json4event(char *content, bool overwrite, char *errmsg, size_t sz_errmsg) {
 	cJSON *tree = NULL;
@@ -678,30 +834,17 @@ esp_err_t decode_json4event(char *content, bool overwrite, char *errmsg, size_t 
 			break;
 		}
 
-		JSON_Print(tree);
+		//JSON_Print(tree);
 
-		if ( !cJSON_IsArray(tree)){
-			snprintf(errmsg, sz_errmsg, "content is not an array");
-			break;
-		}
+		if ( decode_json4event_object_list(tree, overwrite, errmsg, sz_errmsg) != ESP_OK )
+			break; // no list or decode error
+		ESP_LOGI(__func__,"object list created");
 
-		int evtlist_array_size = cJSON_GetArraySize(tree);
-		ESP_LOGI(__func__, "evtlist_array_size=%d", evtlist_array_size);
-		if (evtlist_array_size == 0) {
-			snprintf(errmsg, sz_errmsg, "array has no content");
-			break;
-		}
 
+		if ( decode_json4event_event_list(tree, overwrite, errmsg, sz_errmsg) != ESP_OK )
+			break; // no list or decode error
+		ESP_LOGI(__func__,"event list created");
 		rc = ESP_OK;
-		for (int i=0;i<evtlist_array_size;i++) {
-			cJSON *element = cJSON_GetArrayItem(tree, i);
-			JSON_Print(element);
-			char l_errmsg[64];
-			if (decode_json4event_start(element, overwrite, l_errmsg, sizeof(l_errmsg)) != ESP_OK) {
-				snprintf(&(errmsg[strlen(errmsg)]), sz_errmsg - strlen(errmsg),"[%s]", l_errmsg);
-				rc = ESP_FAIL;
-			}
-		}
 
 	} while(false);
 

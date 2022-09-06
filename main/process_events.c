@@ -7,14 +7,18 @@
 
 #include "esp32_ws2812.h"
 
-T_EVT_WHAT event_clear = {
-		.id=-1,
-		.type=WT_CLEAR,
-		.pos=0,
-		.len=-1,
-		.para.hsv={.h=0,.s=0,.v=0},
-		.nxt=NULL
-	};
+T_EVT_OBJECT_DATA object_data_clear = {
+	.type=WT_CLEAR,
+	.pos=0,
+	.len=-1,
+	.para.hsv={.h=0,.s=0,.v=0},
+	.nxt=NULL
+};
+
+T_EVT_OBJECT event_clear = {
+	.oid="CLEAR",
+	.data = &object_data_clear
+};
 
 
 
@@ -33,7 +37,7 @@ void process_event_where(T_EVENT *evt, uint64_t timer_period) {
 	if ( !wevt ){
 		return; // no changes
 	}
-	// TODO: check a range: is it near the trigger point, which direction
+	// TO DO: check a range: is it near the trigger point, which direction
 	if (evt->working.pos.value < wevt->pos ) {
 		return; // not here
 	}
@@ -108,6 +112,158 @@ void process_event_where(T_EVENT *evt, uint64_t timer_period) {
 	*/
 }
 
+// paint the pixel in the calculated range evt->working.pos and evt->working.len.value
+void process_object(T_EVENT *evt) {
+
+	if ( evt->w_flags & EVFL_WAIT) {
+		return;
+	}
+
+	T_EVT_OBJECT *obj = NULL;
+
+	if ( strlen(evt->w_object_oid)) {
+		obj = find_object4oid(evt->w_object_oid);
+		if ( !obj) {
+			ESP_LOGW(__func__, "evt.id=%d, no object found for oid='%s'", evt->id, evt->w_object_oid);
+		}
+	}
+	if (! obj) {
+		//ESP_LOGI(__func__, "nothing to paint");
+		return;
+	}
+
+	int32_t startpos, endpos;
+	T_COLOR_RGB rgb = {.r=0,.g=0,.b=0};
+	T_COLOR_RGB rgb2 = {.r=0,.g=0,.b=0};
+
+	// whole length of all sections
+	int32_t len = 0;
+	for (T_EVT_OBJECT_DATA *data = obj->data; data; data=data->nxt) {
+		len += data->len;
+	}
+	double flen = len * evt->w_len_factor;
+
+	if ( flen < 1.0 ) {
+		return; // nothing left to display
+	}
+
+	if ( evt->w_flags & EVFL_CLEARPIXEL) {
+		evt->w_flags &= ~EVFL_CLEARPIXEL; // reset the flag
+		startpos = evt->w_pos;
+		endpos   = evt->w_pos + len;
+		strip_set_range(startpos, endpos, &rgb);
+		ESP_LOGI(__func__, "clear pixel %d .. %d", startpos, endpos);
+		return;
+	}
+
+	// display range length:
+	//   len/2 - lenf/2 = (len-lenf)/2
+	//
+	// len   = 10 10   10      11
+	// lenf  =  2  3    1      11
+	// pos   =  4  3.5  4.5     5.5
+	// start =  4  3    4       0
+	// end   =  6  6    5      11
+	//
+	// 0123456789
+	// xxxxxxxxxx
+	//     XX
+
+	startpos = evt->w_pos;
+	endpos   = evt->w_pos + len;
+	int32_t pos = startpos;
+	if ( evt->delta_pos > 0 ) {
+		pos = startpos;
+	} else {
+		pos = endpos;
+	}
+	double f = evt->w_brightness;
+
+	int32_t dstart = startpos + floor(len - flen)/2.0;
+	int32_t dend = ceil(dstart + flen);
+
+	//ESP_LOGI(__func__, "pos=%d..%d, +%d d=%d..%d", startpos, endpos, evt->delta_pos, dstart, dend);
+	double r,g,b;
+
+	// for color transition
+	double df,dr,dg,db;
+
+	bool ende = false;
+	for (T_EVT_OBJECT_DATA *w = obj->data; w; w=w->nxt) {
+		for ( int len=0; len < w->len; len++) {
+			switch (w->type) {
+			case WT_COLOR:
+				if ( len == 0 ) {
+					// initialize
+					c_hsv2rgb(&(w->para.hsv), &rgb);
+					r = f*rgb.r;
+					g = f*rgb.g;
+					b = f*rgb.b;
+					rgb.r = r;
+					rgb.g = g;
+					rgb.r = r;
+				}
+				break;
+			case WT_COLOR_TRANSITION: // linear from one color to another
+				// if lvl2-lvl1 = 100 % and len = 4
+				// use 25% 50% 75% 100%, not start with 0%
+				if (len ==0) {
+					df = 1.0 / w->len;
+					c_hsv2rgb(&(w->para.tr.hsv_from), &rgb);
+					c_hsv2rgb(&(w->para.tr.hsv_to), &rgb2);
+					dr = 1.0 *(rgb2.r - rgb.r) * df;
+					dg = 1.0 *(rgb2.g - rgb.g) * df;
+					db = 1.0 *(rgb2.b - rgb.b) * df;
+					r=rgb.r;
+					g=rgb.g;
+					b=rgb.b;
+					/*ESP_LOGI(__func__,"color transition rgb %d/%d/%d -> %d/%d/%d, drgb=%.1f/%.1f/%.1f, f=%.2f "
+							,rgb.r, rgb.g, rgb.b
+							,rgb2.r, rgb2.g, rgb2.b
+							,dr,dg,db
+							,f
+							);*/
+				}
+				r+=dr;
+				g+=dg;
+				b+=db;
+				rgb.r = f * r;
+				rgb.g = f * g;
+				rgb.b = f * b;
+				/*ESP_LOGI(__func__,"pos=%d, color transition rgb %d/%d/%d"
+						,pos,rgb.r, rgb.g, rgb.b
+						);*/
+				break;
+
+			case WT_RAINBOW:
+				break;
+
+			case WT_SPARKLE:
+				break;
+
+			default:
+				ESP_LOGW(__func__,"what type %d NYI", w->type);
+			}
+
+			//ESP_LOGI(__func__,"paint id=%d, type=%d, len=%d, pos=%d, dpos=%d, startpos=%d, endpos=%d, dstart=%d, dend=%d",
+			//		w->id, w->type, w->len, pos, evt->delta_pos, startpos, endpos, dstart, dend);
+
+			if ( pos >=0 && pos < get_numleds() && pos >= dstart && pos <= dend) {
+				c_checkrgb_abs(&rgb);
+				strip_set_pixel(pos, &rgb);
+			}
+			pos += evt->delta_pos;
+			if ( pos < startpos || pos > endpos) {
+				ende = true;
+				break; // done.
+			}
+		}
+		if ( ende)
+			break;
+	}
+	// ESP_LOGI(__func__, "ENDE");
+}
+
 
 // time dependend events
 // time values in ms
@@ -118,9 +274,6 @@ void process_event_where(T_EVENT *evt, uint64_t timer_period) {
 //  * length or
 //  * brightness (ET_BRIGHTNESS, ET_BRIGHTNESS_DELTA) or
 //  * color (ET_CLEAR)
-// return 1 when all timer events arrived
-
-// TODO prcessing at timer START!
 void  process_event_when(T_EVENT *evt, uint64_t scene_time, uint64_t timer_period) {
 	if (!evt->evt_time_list) {
 		return; // no timing events
@@ -141,6 +294,10 @@ void  process_event_when(T_EVENT *evt, uint64_t scene_time, uint64_t timer_perio
 			// Timer start
 			ESP_LOGI(__func__,"evt.id=%d, tevt.id=%d: timer of %llu ms, type %d(%s), val=%.3f, timer START", evt->id, tevt->id, tevt->time, tevt->type, ET2TEXT(tevt->type), tevt->value);
 
+			if (strlen(tevt->oid)) {
+				strlcpy(evt->w_object_oid, tevt->oid, LEN_EVT_MARKER);
+				ESP_LOGI(__func__,"evt.id=%d, tevt.id=%d: new object_oid='%s'", evt->id, tevt->id, evt->w_object_oid);
+			}
 			// do work at start ********************************************
 			switch(tevt->type) {
 			case ET_WAIT:
@@ -273,152 +430,10 @@ void  process_event_when(T_EVENT *evt, uint64_t scene_time, uint64_t timer_perio
 		} // if finished
 
 	} // while
+
+
 }
 
-// paint the pixel in the calculated range evt->working.pos and evt->working.len.value
-void process_event_what(T_EVENT *evt) {
-
-	if ( evt->w_flags & EVFL_WAIT) {
-		return;
-	}
-
-	T_EVT_WHAT *what_list = evt->what_list;
-	if ( !what_list ) {
-		ESP_LOGI(__func__, "nothing to paint");
-		return;
-	}
-
-	int32_t startpos, endpos;
-	T_COLOR_RGB rgb = {.r=0,.g=0,.b=0};
-	T_COLOR_RGB rgb2 = {.r=0,.g=0,.b=0};
-
-	// whole length of all sections
-	int32_t len = 0;
-	for (T_EVT_WHAT *w = what_list; w; w=w->nxt) {
-		len += w->len;
-	}
-	double flen = len * evt->w_len_factor;
-
-	if ( flen < 1.0 ) {
-		return; // nothing left to display
-	}
-
-	if ( evt->w_flags & EVFL_CLEARPIXEL) {
-		evt->w_flags &= ~EVFL_CLEARPIXEL; // reset the flag
-		startpos = evt->w_pos;
-		endpos   = evt->w_pos + len;
-		strip_set_range(startpos, endpos, &rgb);
-		ESP_LOGI(__func__, "clear pixel %d .. %d", startpos, endpos);
-		return;
-	}
-
-	// display range length:
-	//   len/2 - lenf/2 = (len-lenf)/2
-	//
-	// len   = 10 10   10      11
-	// lenf  =  2  3    1      11
-	// pos   =  4  3.5  4.5     5.5
-	// start =  4  3    4       0
-	// end   =  6  6    5      11
-	//
-	// 0123456789
-	// xxxxxxxxxx
-	//     XX
-
-	startpos = evt->w_pos;
-	endpos   = evt->w_pos + len;
-	int32_t pos = startpos;
-	if ( evt->delta_pos > 0 ) {
-		pos = startpos;
-	} else {
-		pos = endpos;
-	}
-	double f = evt->w_brightness;
-
-	int32_t dstart = startpos + floor(len - flen)/2.0;
-	int32_t dend = ceil(dstart + flen);
-
-	//ESP_LOGI(__func__, "pos=%d..%d, +%d d=%d..%d", startpos, endpos, evt->delta_pos, dstart, dend);
-	double r,g,b;
-
-	// for color transition
-	double df,dr,dg,db;
-
-	bool ende = false;
-	for (T_EVT_WHAT *w = what_list; w; w=w->nxt) {
-		for ( int len=0; len < w->len; len++) {
-			switch (w->type) {
-			case WT_COLOR:
-				if ( len == 0 ) {
-					// initialize
-					c_hsv2rgb(&(w->para.hsv), &rgb);
-					r = f*rgb.r;
-					g = f*rgb.g;
-					b = f*rgb.b;
-					rgb.r = r;
-					rgb.g = g;
-					rgb.r = r;
-				}
-				break;
-			case WT_COLOR_TRANSITION: // linear from one color to another
-				// if lvl2-lvl1 = 100 % and len = 4
-				// use 25% 50% 75% 100%, not start with 0%
-				if (len ==0) {
-					df = 1.0 / w->len;
-					c_hsv2rgb(&(w->para.tr.hsv_from), &rgb);
-					c_hsv2rgb(&(w->para.tr.hsv_to), &rgb2);
-					dr = 1.0 *(rgb2.r - rgb.r) * df;
-					dg = 1.0 *(rgb2.g - rgb.g) * df;
-					db = 1.0 *(rgb2.b - rgb.b) * df;
-					r=rgb.r;
-					g=rgb.g;
-					b=rgb.b;
-					/*ESP_LOGI(__func__,"color transition rgb %d/%d/%d -> %d/%d/%d, drgb=%.1f/%.1f/%.1f, f=%.2f "
-							,rgb.r, rgb.g, rgb.b
-							,rgb2.r, rgb2.g, rgb2.b
-							,dr,dg,db
-							,f
-							);*/
-				}
-				r+=dr;
-				g+=dg;
-				b+=db;
-				rgb.r = f * r;
-				rgb.g = f * g;
-				rgb.b = f * b;
-				/*ESP_LOGI(__func__,"pos=%d, color transition rgb %d/%d/%d"
-						,pos,rgb.r, rgb.g, rgb.b
-						);*/
-				break;
-
-			case WT_RAINBOW:
-				break;
-
-			case WT_SPARKLE:
-				break;
-
-			default:
-				ESP_LOGW(__func__,"what type %d NYI", w->type);
-			}
-
-			//ESP_LOGI(__func__,"paint id=%d, type=%d, len=%d, pos=%d, dpos=%d, startpos=%d, endpos=%d, dstart=%d, dend=%d",
-			//		w->id, w->type, w->len, pos, evt->delta_pos, startpos, endpos, dstart, dend);
-
-			if ( pos >=0 && pos < get_numleds() && pos >= dstart && pos <= dend) {
-				c_checkrgb_abs(&rgb);
-				strip_set_pixel(pos, &rgb);
-			}
-			pos += evt->delta_pos;
-			if ( pos < startpos || pos > endpos) {
-				ende = true;
-				break; // done.
-			}
-		}
-		if ( ende)
-			break;
-	}
-	// ESP_LOGI(__func__, "ENDE");
-}
 
 
 /**
@@ -435,36 +450,21 @@ void process_event(T_EVENT *evt, uint64_t scene_time, uint64_t timer_period) {
 	}
 
 	//ESP_LOGI(__func__, "start process_event_when evt=%d, t=%llu", evt->id, scene_time);
-	process_event_when(evt,scene_time, timer_period);
+	process_event_when(evt, scene_time, timer_period);
 
 	//ESP_LOGI(__func__, "start process_event_what evt=%d", evt->id);
-	process_event_what(evt);
+	process_object(evt);
 
 	if ( evt->w_flags & EVFL_FINISHED )
 		return; // not necessary to do more
 
-//	if ( finished) {
-//		evt->w_flags |= EVFL_FINISHED;
-//
-//		// all events finished, repeat it?
-//		if (evt->evt_time_list_repeats > 0 ) {
-//			if ( evt->w_t_repeats > 0) {
-//				evt->w_t_repeats--;
-//			}
-//		} else {
-//			evt->w_t_repeats = 1; // forever
-//		}
-//
-//		if ( evt->w_t_repeats > 0) {
-//			// reset event, next turn
-//			reset_event(evt);
-//			ESP_LOGI(__func__, "evt.id=%d: repeat events (%d/%d)", evt->id, evt->w_t_repeats, evt->evt_time_list_repeats);
-//			return false;
-//		}
-//		return true;
-//	}
-
 	// next timestep
+	evt->time += timer_period;
+
+	if ( evt->w_flags & EVFL_WAIT )
+		return; // no changes while wait
+
+
 	// calculate speed and length
 	// v = a * t
 	// Δv = a * Δt
@@ -484,7 +484,6 @@ void process_event(T_EVENT *evt, uint64_t scene_time, uint64_t timer_period) {
 	else if(evt->w_brightness > 1.0)
 		evt->w_brightness = 1.0;
 
-	evt->time += timer_period;
 	evt->w_pos += evt->w_speed;
 	//ESP_LOGI(__func__, "finished evt=%d", evt->id);
 	//return false;
@@ -519,6 +518,7 @@ void reset_event( T_EVENT *evt) {
 	evt->w_brightness_delta = evt->brightness_delta;
 	evt->time = 0;
 	evt->delta_pos = 1;
+	memcpy(evt->w_object_oid, evt->object_oid, LEN_EVT_MARKER);
 
 	//reset_timing_events(evt->evt_time_list);
 	ESP_LOGI(__func__, "event %d", evt->id);

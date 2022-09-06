@@ -157,11 +157,12 @@ void app_main() {
 	init_timer_events();
 	set_event_timer_period(gConfig.cycle);
 
-	//start_demo1();
+	/* /start_demo1();
 	T_COLOR_RGB fg_color ={32,0,0};
 	build_demo2(
 			 &fg_color // foreground color
 	) ;
+	// */
 
 	/*
 	TaskHandle_t  Core1TaskHnd ;
