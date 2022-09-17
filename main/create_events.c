@@ -8,7 +8,50 @@
 
 #include "esp32_ws2812.h"
 
-#define ESP_ERR_NO_VALUE -2
+/*
+
+    data example:
+
+
+// decode_json4event: 2 lists: objects, events
+		{
+// decode_json4event_object_list: objects
+			 "objects" : [
+//decode_json4event_object
+				 {  "id":"o1",
+					"list" :[
+// decode_json4event_object_data:
+						{"type":"color_transition", "color_from":"blue", "color_to":"red", "pos":0, "len":7},
+						{"type":"color", "color":"yellow", "pos":7, "len":7},
+						{"type":"color_transition", "color_from":"red", "color_to":"blue", "pos":14, "len":7}
+					 ]
+				  }
+			  ],
+// decode_json4event_event_list: events
+			 "events" : [
+// decode_json4event_event:
+				{
+				 "id":"10",
+// decode_json4event_evt_time_init_list:
+				 "init": [
+// decode_json4event_evt_time  (for_init=true) :
+					{"type":"repeat_count", "value":5},
+					{"type":"jump", "value":10},
+					{"type":"object","value":"o1"}
+				 ],
+// decode_json4event_evt_time_list:
+				 "work": [
+// decode_json4event_evt_time (for_init=false):
+					{"type":"speed", "value":2.5},
+					{"type":"bounce", "time": 1000},
+					{"type":"continue", "time":1000}
+				 ]
+				}
+			 ]
+		}
+
+*/
+
 /**
  * print JSON-Element-Type (for testing)
  * /
@@ -263,46 +306,76 @@ static esp_err_t decode_json_getcolor(cJSON *element, char *attr4colorname, char
 /**
  * reads a single T_EVT_TIME element
  */
-static esp_err_t decode_json4event_evt_time(cJSON *element, uint32_t id, T_EVENT *evt,  char *errmsg, size_t sz_errmsg) {
+static esp_err_t decode_json4event_evt_time(cJSON *element, uint32_t id, T_EVENT *evt, t_processing_type processing_type, char *errmsg, size_t sz_errmsg) {
 	esp_err_t rc = ESP_FAIL;
 
 	T_EVT_TIME *t = NULL;
 
 	char *attr;
 	double val;
+//	bool bval;
 	char sval[64];
+	char hint[32]; // for logging
 
 	do {
-		if ( !(t = create_timing_event(evt, id)))
+		switch ( processing_type) {
+		case PT_INIT:
+			snprintf(hint, sizeof(hint),"%s", "INIT");
+			t = create_timing_event_init(evt,id);
 			break;
-		ESP_LOGI(__func__, "tid=%d: 'time event' created", id);
+		case PT_WORK:
+			snprintf(hint, sizeof(hint),"%s", "WORK");
+			t = create_timing_event(evt, id);
+			break;
+		case PT_FINAL:
+			snprintf(hint, sizeof(hint),"%s", "FINAL");
+			t = create_timing_event_final(evt, id);
+			break;
+		}
+		if ( !t ) {
+			snprintf(errmsg, sz_errmsg,"%s/%s/%d: could not create event data", hint, evt->oid, id);
+			break;
+
+		}
+		ESP_LOGI(__func__, "%s/%s/%d: 'time event' created", hint, evt->oid, id);
 
 		attr="type";
 		if (evt_get_string(element, attr, sval, sizeof(sval), errmsg, sz_errmsg) != RES_OK)
 			break;
 		t->type = TEXT2ET(sval);
 		if ( t->type == ET_UNKNOWN) {
-			snprintf(errmsg, sz_errmsg,"tid=%d: attr='%s' '%s' unknown", id, attr, sval);
+			snprintf(errmsg, sz_errmsg,"%s/%s/%d: attr='%s' '%s' unknown", hint, evt->oid, id, attr, sval);
 			break;
 		}
 
-		attr="time";
+		attr="time"; // optional default 0
+		t->time = 0;
 		if (evt_get_number(element, attr, &val, errmsg, sz_errmsg) == ESP_OK) {
 			t->time = val;
 			ESP_LOGI(__func__, "tid=%d: %s=%llu", id, attr, t->time);
 		}
 
-		attr="marker"; // optional
+		attr="marker"; // optional, for jump to
 		if (evt_get_string(element, attr, sval, sizeof(sval), errmsg, sz_errmsg) == RES_OK) {
 			strlcpy(t->marker, sval,LEN_EVT_MARKER );
-			ESP_LOGI(__func__, "tid=%d: %s='%s'", id, attr, t->marker);
+			ESP_LOGI(__func__, "%s/%s/%d: %s='%s'", hint, evt->oid, id, attr, t->marker);
 		}
 
-		attr="oid"; // optional
-		if (evt_get_string(element, attr, sval, sizeof(sval), errmsg, sz_errmsg) == RES_OK) {
-			strlcpy(t->oid, sval,LEN_EVT_MARKER );
-			ESP_LOGI(__func__, "tid=%d: %s='%s'", id, attr, t->oid);
-		}
+//		attr="init";
+//		if (evt_get_bool(element, attr, &bval, errmsg, sz_errmsg) == ESP_OK) {
+//			if ( bval) {
+//				t->status |= TE_FOR_INIT; // start with wait
+//			}
+//			ESP_LOGI(__func__, "id=%d: %s=%s", id, attr, (bval?"TRUE":"FALSE"));
+//		}
+//		ESP_LOGI(__func__, "id=%d: status=0x%04x", id, t->status);
+
+
+		//		attr="oid"; // optional
+//		if (evt_get_string(element, attr, sval, sizeof(sval), errmsg, sz_errmsg) == RES_OK) {
+//			strlcpy(t->oid, sval,LEN_EVT_MARKER );
+//			ESP_LOGI(__func__, "tid=%d: %s='%s'", id, attr, t->oid);
+//		}
 		/*
 		attr="set_flags";
 		if (evt_get_string(element, attr, sval, sizeof(sval), errmsg, sz_errmsg) == ESP_OK) {
@@ -322,11 +395,30 @@ static esp_err_t decode_json4event_evt_time(cJSON *element, uint32_t id, T_EVENT
 			}
 		}
 	    */
-		attr="value";
+		attr="value"; // may be number or string
 		if (evt_get_number(element, attr, &val, errmsg, sz_errmsg) == RES_OK) {
 			t->value = val;
-			ESP_LOGI(__func__, "tid=%d: %s=%.3f", id, attr, t->value);
+			ESP_LOGI(__func__, "%s/%s/%d: %s=%.3f",hint, evt->oid,  id, attr, t->value);
+			switch(t->type) {
+			case ET_SET_REPEAT_COUNT:
+				switch ( processing_type ) {
+				case PT_INIT:
+					evt->evt_time_list_repeats = t->value;
+					ESP_LOGI(__func__, "%s/%s/%d: repeats -> %d", hint, evt->oid, id, attr, evt->evt_time_list_repeats);
+					break;
+				default:
+					snprintf(errmsg, sz_errmsg,"%s only in 'init' section", ET2TEXT(t->type));
+				}
+				break;
+
+			default:
+				break;
+			}
+		} else if (evt_get_string(element, attr, sval, sizeof(sval), errmsg, sz_errmsg) == RES_OK) {
+			strlcpy(t->svalue, sval,sizeof(t->svalue));
+			ESP_LOGI(__func__, "%s/%s/%d: %s='%s'", hint, evt->oid, id, attr, t->svalue);
 		}
+
 
 
 		rc = ESP_OK;
@@ -342,30 +434,43 @@ static esp_err_t decode_json4event_evt_time(cJSON *element, uint32_t id, T_EVENT
 	return rc;
 }
 
-
-static esp_err_t decode_json4event_evt_time_list(cJSON *element, T_EVENT *evt, char *errmsg, size_t sz_errmsg) {
+static esp_err_t decode_json4event_evt_time_list(cJSON *element, T_EVENT *evt, int *id, t_processing_type processing_type, char *errmsg, size_t sz_errmsg) {
 	memset(errmsg, 0, sz_errmsg);
 	if ( !element) {
 		snprintf(errmsg, sz_errmsg, "missing parameter 'element'");
 		return ESP_FAIL;
 	}
 	cJSON *found = NULL;
-	char *attr = "tevt";
+	char *attr = NULL;
+	switch(processing_type){
+		case PT_INIT:
+			attr="init";
+			break;
+		case PT_WORK:
+			attr="work";
+			break;
+		case PT_FINAL:
+			attr="final";
+			break;
+		default:
+			break;
+	}
     found = cJSON_GetObjectItemCaseSensitive(element, attr);
     if ( !found) {
-		snprintf(errmsg, sz_errmsg, "id=%d:  missing '%s', no timing events", evt->id, attr);
+    	// its ok if there are no items
+		snprintf(errmsg, sz_errmsg, "id=%s:  missing '%s', no timing events", evt->oid, attr);
 		return ESP_OK;
     }
 
     if (!cJSON_IsArray(found)) {
-		snprintf(errmsg, sz_errmsg, "id=%d: attribute '%s' is not an array", evt->id, attr);
+		snprintf(errmsg, sz_errmsg, "id=%s: attribute '%s' is not an array", evt->oid, attr);
 		return ESP_FAIL;
     }
 
 	int array_size = cJSON_GetArraySize(found);
-	ESP_LOGI(__func__, "id=%d: size of '%s'=%d", evt->id, attr, array_size);
+	ESP_LOGI(__func__, "id='%s': size of '%s'=%d", evt->oid, attr, array_size);
 	if (array_size == 0) {
-		snprintf(errmsg, sz_errmsg, "id=%d: array '%s' has no content", evt->id, attr);
+		snprintf(errmsg, sz_errmsg, "id='%s': array '%s' has no content", evt->oid, attr);
 		return ESP_ERR_NOT_FOUND;
 	}
 
@@ -374,14 +479,15 @@ static esp_err_t decode_json4event_evt_time_list(cJSON *element, T_EVENT *evt, c
 		cJSON *element = cJSON_GetArrayItem(found, i);
 		//JSON_Print(element);
 		char l_errmsg[64];
-		if (decode_json4event_evt_time(element, i+1, evt, l_errmsg, sizeof(l_errmsg)) != ESP_OK) {
+		(*id)++;
+		if (decode_json4event_evt_time(element, *id, evt, processing_type, l_errmsg, sizeof(l_errmsg)) != ESP_OK) {
 			snprintf(&(errmsg[strlen(errmsg)]), sz_errmsg - strlen(errmsg),"[%s]", l_errmsg);
 			rc = ESP_FAIL;
 		}
 	}
 
 	if ( rc == ESP_OK) {
-		snprintf(errmsg, sz_errmsg, "ok", evt->id);
+		snprintf(errmsg, sz_errmsg, "id='%s': ok", evt->oid);
 	}
 
 	return rc;
@@ -514,7 +620,7 @@ static esp_err_t decode_json4event_object(cJSON *element, bool overwrite, char *
 	char sval[64];
 
 	do {
-		attr="oid";
+		attr="id";
 		if (evt_get_string(element, attr, sval, sizeof(sval), errmsg, sz_errmsg) != RES_OK)
 			break;
 		ESP_LOGI(__func__, "%s='%s'", attr, sval);
@@ -539,7 +645,7 @@ static esp_err_t decode_json4event_object(cJSON *element, bool overwrite, char *
 
 		// check for data list
 		cJSON *found = NULL;
-		attr = "data";
+		attr = "list";
 	    found = cJSON_GetObjectItemCaseSensitive(element, attr);
 	    if ( !found) {
 			snprintf(errmsg, sz_errmsg, "missing attribute '%s'", attr);
@@ -587,6 +693,7 @@ static esp_err_t decode_json4event_object(cJSON *element, bool overwrite, char *
 
 
 /**
+ * (1)
  * "object" structure contains
  * - a list of
  *   - an oid and
@@ -645,99 +752,104 @@ static esp_err_t decode_json4event_event(cJSON *element, bool overwrite, char *e
 	}
 
 	char *attr;
-	double val;
+	//double val;
 	char sval[64];
-	bool bval;
-	int id = -1;
+	//bool bval;
+	//int id = -1;
 	esp_err_t lrc, rc = ESP_FAIL;
 	T_EVENT *evt = NULL;
 
+	memset(sval, 0, sizeof(sval));
 	do {
-		// *** id *** a must have, if no specified calculate a new one
 		attr="id";
-		if ((lrc=evt_get_number(element, attr, &val, errmsg, sz_errmsg)) == ESP_OK) {
-			id = val;
-			ESP_LOGI(__func__, "id=%d: by json", id);
-			T_EVENT *t = find_event(id);
+		if ((lrc=evt_get_string(element, attr, sval, sizeof(sval), errmsg, sz_errmsg) == RES_OK)) {
+			//id = val;
+			ESP_LOGI(__func__, "id=%s: by json", sval);
+			T_EVENT *t = find_event(sval);
 			if ( t ) {
 				if ( overwrite ) {
-					ESP_LOGI(__func__, "id=%d: event already exists, will be deleted", id);
-					lrc = delete_event_by_id(id);
+					ESP_LOGI(__func__, "id='%s': event already exists, will be deleted", sval);
+					lrc = delete_event_by_id(sval);
 					if ( lrc != ESP_OK) {
-						snprintf(errmsg, sz_errmsg, "event with id %d already exists, delete failed rc=%d", id, lrc);
+						snprintf(errmsg, sz_errmsg, "event with id '%s' already exists, delete failed rc=%d", sval, lrc);
 						break;
 					}
 
 				} else {
-					snprintf(errmsg, sz_errmsg, "event with id %d already exists", id);
+					snprintf(errmsg, sz_errmsg, "event with id '%s' already exists", sval);
 					break;
 				}
 			} else {
-				ESP_LOGI(__func__, "id=%d: doesn't exist", id);
+				ESP_LOGI(__func__, "id='%s': doesn't exist", sval);
 			}
 		} else if (lrc==ESP_ERR_NOT_FOUND) {
 			// calculate a new one
-			id = get_new_event_id();
-			ESP_LOGI(__func__, "id=%d: by max id", id);
+			get_new_event_id(sval, sizeof(sval));
+			ESP_LOGI(__func__, "id='%s': auton´matically created", sval);
 		} else {
 			break; // error
 		}
-		if ( !(evt = create_event(id)))
+		if ( !(evt = create_event(sval)))
 			break;
-		ESP_LOGI(__func__, "id=%d: event created", evt->id);
+		ESP_LOGI(__func__, "id='%s': event created", evt->oid);
 
-		attr="pos";
-		if (evt_get_number(element, attr, &val, errmsg, sz_errmsg) == ESP_OK) {
-			evt->pos = val;
-			ESP_LOGI(__func__, "id=%d: %s=%.2f", id, attr, evt->pos);
-		}
+//		attr="pos";
+//		if (evt_get_number(element, attr, &val, errmsg, sz_errmsg) == ESP_OK) {
+//			evt->pos = val;
+//			ESP_LOGI(__func__, "id=%d: %s=%.2f", id, attr, evt->pos);
+//		}
 
-		attr="len_factor";
-		if (evt_get_number(element, attr, &val, errmsg, sz_errmsg) == ESP_OK) {
-			evt->len_factor = val;
-			ESP_LOGI(__func__, "id=%d: %s=%.2f", id, attr, evt->len_factor);
-		}
+//		attr="len_factor"; // optional, default 1.0
+//		evt->len_factor = 1.0;
+//		if (evt_get_number(element, attr, &val, errmsg, sz_errmsg) == ESP_OK) {
+//			evt->len_factor = val;
+//			ESP_LOGI(__func__, "id=%d: %s=%.2f", id, attr, evt->len_factor);
+//		}
 
-		attr="len_factor_delta";
-		if (evt_get_number(element, attr, &val, errmsg, sz_errmsg) == ESP_OK) {
-			evt->len_factor_delta = val;
-			ESP_LOGI(__func__, "id=%d: %s=%.2f", id, attr, evt->len_factor_delta);
-		}
+//		attr="len_factor_delta"; // optional default 0.0
+//		evt->len_factor_delta = 0.0;
+//		if (evt_get_number(element, attr, &val, errmsg, sz_errmsg) == ESP_OK) {
+//			evt->len_factor_delta = val;
+//			ESP_LOGI(__func__, "id=%d: %s=%.2f", id, attr, evt->len_factor_delta);
+//		}
 
-		attr="speed";
-		if (evt_get_number(element, attr, &val, errmsg, sz_errmsg) == ESP_OK) {
-			evt->speed = val;
-			ESP_LOGI(__func__, "id=%d: %s=%.2f", id, attr, evt->speed);
-		}
-		attr="acceleration";
-		if (evt_get_number(element, attr, &val, errmsg, sz_errmsg) == ESP_OK) {
-			evt->acceleration = val;
-			ESP_LOGI(__func__, "id=%d: %s=%.2f", id, attr, evt->acceleration);
-		}
+//		attr="speed"; // optional default 0.0
+//		evt->speed = 0.0;
+//		if (evt_get_number(element, attr, &val, errmsg, sz_errmsg) == ESP_OK) {
+//			evt->speed = val;
+//			ESP_LOGI(__func__, "id=%d: %s=%.2f", id, attr, evt->speed);
+//		}
 
-		attr="brightness";
-		if (evt_get_number(element, attr, &val, errmsg, sz_errmsg) == ESP_OK) {
-			evt->brightness = val;
-			ESP_LOGI(__func__, "id=%d: %s=%.2f", id, attr, evt->brightness);
-		}
+//		attr="acceleration"; // optional, default 0.0.
+//		evt->acceleration = 0.0;
+//		if (evt_get_number(element, attr, &val, errmsg, sz_errmsg) == ESP_OK) {
+//			evt->acceleration = val;
+//			ESP_LOGI(__func__, "id=%d: %s=%.2f", id, attr, evt->acceleration);
+//		}
 
-		attr="brightness_delta";
-		if (evt_get_number(element, attr, &val, errmsg, sz_errmsg) == ESP_OK) {
-			evt->brightness_delta = val;
-			ESP_LOGI(__func__, "id=%d: %s=%.2f", id, attr, evt->brightness_delta);
-		}
+//		attr="brightness";
+//		if (evt_get_number(element, attr, &val, errmsg, sz_errmsg) == ESP_OK) {
+//			evt->brightness = val;
+//			ESP_LOGI(__func__, "id=%d: %s=%.2f", id, attr, evt->brightness);
+//		}
 
-		attr="repeats";
-		if (evt_get_number(element, attr, &val, errmsg, sz_errmsg) == ESP_OK) {
-			evt->evt_time_list_repeats = val;
-			ESP_LOGI(__func__, "id=%d: %s=%d", id, attr, evt->evt_time_list_repeats);
-		}
+//		attr="brightness_delta";
+//		if (evt_get_number(element, attr, &val, errmsg, sz_errmsg) == ESP_OK) {
+//			evt->brightness_delta = val;
+//			ESP_LOGI(__func__, "id=%d: %s=%.2f", id, attr, evt->brightness_delta);
+//		}
 
-		attr="oid";
-		if (evt_get_string(element, attr, sval, sizeof(sval), errmsg, sz_errmsg) == RES_OK) {
-			strlcpy(evt->object_oid, sval, LEN_EVT_MARKER);
-			ESP_LOGI(__func__, "id=%d: %s=%s", id, attr, evt->object_oid);
-		}
+//		attr="repeats";
+//		if (evt_get_number(element, attr, &val, errmsg, sz_errmsg) == ESP_OK) {
+//			evt->evt_time_list_repeats = val;
+//			ESP_LOGI(__func__, "id=%d: %s=%d", id, attr, evt->evt_time_list_repeats);
+//		}
+
+//		attr="oid";
+//		if (evt_get_string(element, attr, sval, sizeof(sval), errmsg, sz_errmsg) == RES_OK) {
+//			strlcpy(evt->object_oid, sval, LEN_EVT_MARKER);
+//			ESP_LOGI(__func__, "id=%d: %s=%s", id, attr, evt->object_oid);
+//		}
 
 //		attr="start_with_wait";
 //		if (evt_get_bool(element, attr, &bval, errmsg, sz_errmsg) == ESP_OK) {
@@ -751,21 +863,30 @@ static esp_err_t decode_json4event_event(cJSON *element, bool overwrite, char *e
 //			break; // no list or decode error
 //		ESP_LOGI(__func__,"id=%d: what list created", evt->id);
 
+		int id=0;
+		// to do for init (before run)
+		if ( decode_json4event_evt_time_list(element, evt, &id, PT_INIT, errmsg, sz_errmsg) != ESP_OK )
+			break; // no list or decode error
+		ESP_LOGI(__func__,"id='%s': evt_time list INIT created (%s)", evt->oid, errmsg);
 
 		// when to do
-		if ( decode_json4event_evt_time_list(element, evt, errmsg, sz_errmsg) != ESP_OK )
+		if ( decode_json4event_evt_time_list(element, evt, &id, PT_WORK, errmsg, sz_errmsg) != ESP_OK )
 			break; // no list or decode error
-		ESP_LOGI(__func__,"id=%d: evt_time list created", evt->id);
+		ESP_LOGI(__func__,"id='%s': evt_time list WORK created (%s)", evt->oid, errmsg);
+
+		if ( decode_json4event_evt_time_list(element, evt, &id, PT_FINAL, errmsg, sz_errmsg) != ESP_OK )
+			break; // no list or decode error
+		ESP_LOGI(__func__,"id='%s': evt_time list WORK created (%s)", evt->oid, errmsg);
 
 		rc = ESP_OK;
 	} while (0);
 
 	if ( rc == ESP_OK) {
 		snprintf(errmsg, sz_errmsg,"event %d created");
-		ESP_LOGI(__func__,"id=%d: %s", evt->id, errmsg);
+		ESP_LOGI(__func__,"id='%s': %s", evt->oid, errmsg);
 		event_list_add(evt);
 	} else {
-		ESP_LOGE(__func__, "id=%d: error: %s", id, errmsg);
+		ESP_LOGE(__func__, "id='%s': error: %s", sval, errmsg);
 		// delete created data
 		delete_event(evt);
 	}
@@ -819,7 +940,9 @@ static esp_err_t decode_json4event_event_list(cJSON *element, bool overwrite, ch
 }
 
 
-
+/**
+ * (0)
+ */
 esp_err_t decode_json4event(char *content, bool overwrite, char *errmsg, size_t sz_errmsg) {
 	cJSON *tree = NULL;
 	esp_err_t rc = ESP_FAIL;
