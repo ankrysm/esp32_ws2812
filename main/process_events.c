@@ -268,7 +268,7 @@ void process_object(T_EVENT *evt) {
 
 
 static void process_event_when_init(T_EVENT *evt) {
-	ESP_LOGI(__func__, "started");
+	//ESP_LOGI(__func__, "started");
 	for(T_EVT_TIME *e = evt->evt_time_init_list; e; e=e->nxt ) {
 		if (e->status == TE_FINISHED)
 			continue; // init done
@@ -495,7 +495,7 @@ void  process_event_when(T_EVENT *evt, uint64_t scene_time, uint64_t timer_perio
 					reset_event(evt);
 					reset_timing_events(evt->evt_time_init_list);
 					reset_timing_events(tevt_next);
-					ESP_LOGI(__func__, "jump to tid=%d", tevt_next->id );
+					ESP_LOGI(__func__, "next event to tid=%d", tevt_next->id );
 				} else {
 					// done, mark event as finished
 					evt->w_flags |= EVFL_FINISHED;
