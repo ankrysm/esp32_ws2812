@@ -14,10 +14,13 @@ int32_t get_random(int32_t min, uint32_t diff);
 uint32_t crc32b(const uint8_t arr[], size_t sz);
 
 // from process_events.c
-void process_event(T_EVENT *evt, uint64_t scene_time, uint64_t timer_period);
+//void process_event(T_EVENT *evt, uint64_t scene_time, uint64_t timer_period);
 void reset_event( T_EVENT *evt);
 void reset_event_repeats(T_EVENT *evt);
-void reset_timing_events(T_EVT_TIME *tevt);
+//void reset_timing_events(T_EVT_TIME *tevt);
+void process_scene(T_SCENE *scene, uint64_t scene_time, uint64_t timer_period);
+void reset_scene(T_SCENE *scene);
+
 
 // from config.c
 esp_err_t store_config();
@@ -61,8 +64,8 @@ uint64_t get_scene_time();
 
 // from event_util.c
 void delete_event(T_EVENT *evt);
-esp_err_t event_list_free();
-esp_err_t event_list_add(T_EVENT *evt);
+//esp_err_t event_list_free();
+esp_err_t event_list_add(T_SCENE *scene,T_EVENT *evt);
 esp_err_t obtain_eventlist_lock();
 esp_err_t release_eventlist_lock();
 void init_eventlist_utils();
@@ -72,9 +75,12 @@ T_EVT_TIME *find_timer_event4marker(T_EVT_TIME *tevt_list, char *marker);
 T_EVT_TIME *create_timing_event(T_EVENT *evt, uint32_t id);
 T_EVT_TIME *create_timing_event_init(T_EVENT *evt, uint32_t id);
 T_EVT_TIME *create_timing_event_final(T_EVENT *evt, uint32_t id);
-//uint32_t get_new_event_id();
-void get_new_event_id(char *id, size_t sz_id);
-esp_err_t delete_event_by_id(char *id);
+//void get_new_event_id(char *id, size_t sz_id);
+//esp_err_t delete_event_by_id(char *id);
+T_SCENE *create_scene(char *id);
+void delete_scene(T_SCENE *obj);
+esp_err_t scene_list_add(T_SCENE *obj);
+esp_err_t scene_list_free();
 
 
 void delete_object(T_EVT_OBJECT *obj);
@@ -98,7 +104,7 @@ void initialise_netbios();
 
 
 // from create_events.c
-esp_err_t decode_json4event(char *content, bool overwrite, char *errmsg, size_t sz_errmsg);
+esp_err_t decode_json4event_root(char *content, char *errmsg, size_t sz_errmsg);
 
 // from create_demo
 void build_demo2(

@@ -8,7 +8,7 @@
 #include "esp32_ws2812.h"
 
 
-extern T_EVENT *s_event_list;
+extern T_SCENE *s_scene_list;
 extern T_EVT_OBJECT *s_object_list;
 
 // to lock access to event-List
@@ -71,18 +71,20 @@ void delete_event(T_EVENT *evt) {
  * find an event by id
  * (without lock)
  */
+/*
 T_EVENT *find_event(char *id) {
 	if (!s_event_list) {
 		return NULL; // nothing available
 	}
 
 	for( T_EVENT *e = s_event_list; e; e=e->nxt) {
-		if ( !strcasecmp(e->oid, id)) {
+		if ( !strcasecmp(e->id, id)) {
 			return e; // found!
 		}
 	}
 	return NULL; // not found
 }
+*/
 
 T_EVT_TIME *find_timer_event4marker(T_EVT_TIME *tevt_list, char *marker) {
 	if (!tevt_list || !marker || !strlen(marker)) {
@@ -106,19 +108,9 @@ void get_new_event_id(char *id, size_t sz_id) {
 	uint32_t n = get_random(0, UINT32_MAX);
 	snprintf(id,sz_id,"%u", n);
 
-//	uint32_t max_id = 0;
-//	if (s_event_list) {
-//
-//		for( T_EVENT *e = s_event_list; e; e=e->nxt) {
-//			if ( e->id > max_id ) {
-//				max_id = e->id;
-//			}
-//		}
-//	}
-//	return max_id + 1; // not found
 }
 
-
+/*
 esp_err_t delete_event_by_id(char *id) {
 	if (obtain_eventlist_lock() != ESP_OK) {
 		ESP_LOGE(__func__, "couldn't get lock");
@@ -128,7 +120,7 @@ esp_err_t delete_event_by_id(char *id) {
 	if ( s_event_list)  {
 		T_EVENT *prev = NULL;
 		for (T_EVENT *evt=s_event_list; evt; evt=evt->nxt) {
-			if ( !strcasecmp(evt->oid, id) ) {
+			if ( !strcasecmp(evt->id, id) ) {
 				// found, delete it
 				if (prev == NULL ) {
 					s_event_list = evt->nxt;
@@ -154,51 +146,50 @@ esp_err_t delete_event_by_id(char *id) {
 
 	return rc;
 }
+*/
 
 /**
  * frees the event list
  */
-esp_err_t event_list_free() {
+/*
+void event_list_free(T_EVENT *list) {
+
 	if (obtain_eventlist_lock() != ESP_OK) {
 		ESP_LOGE(__func__, "couldn't get lock");
 		return ESP_FAIL;
 	}
-	if ( s_event_list)  {
+	if ( list)  {
 		T_EVENT *nxt;
-		while (s_event_list) {
-			nxt = s_event_list->nxt;
-			delete_event(s_event_list);
-			s_event_list = nxt;
+		while (list) {
+			nxt = list->nxt;
+			delete_event(list);
+			list = nxt;
 		}
 	}
 	// after this s_event_list is NULL
 	return release_eventlist_lock();
 }
+*/
 
 /**
  * adds an event to the list
  */
-esp_err_t event_list_add(T_EVENT *evt) {
+esp_err_t event_list_add(T_SCENE *scene, T_EVENT *evt) {
 	if (obtain_eventlist_lock() != ESP_OK) {
 		ESP_LOGE(__func__, "couldn't get lock");
 		return ESP_FAIL;
 	}
 
 	if ( evt)  {
-		if ( s_event_list) {
+		if ( scene->events) {
 			// add at the end of the list
 			T_EVENT *t;
-			for (t=s_event_list; t->nxt; t=t->nxt){}
-			//evt->id = t->id +1;
+			for (t=scene->events; t->nxt; t=t->nxt){}
 			t->nxt = evt;
 		} else {
 			// first entry
-			//evt->id = 1;
-			s_event_list = evt;
+			scene->events = evt;
 		}
-		reset_event(evt);
-		reset_timing_events(evt->evt_time_list);
-		reset_event_repeats(evt);
 
 	} else {
 		ESP_LOGE(__func__,"couldn't add  NULL to event list");
@@ -214,11 +205,8 @@ T_EVENT *create_event(char *id) {
 		return NULL;
 	}
 	// some useful values:
-	strlcpy(evt->oid, id, sizeof(evt->oid));
-//	evt->pos = 0;
-//	evt->delta_pos = 1;
-//	evt->brightness = 1.0;
-//	evt->len_factor = 1.0;
+	strlcpy(evt->id, id, sizeof(evt->id));
+	evt->t_repeats = 1;
 	return evt;
 }
 
@@ -419,7 +407,7 @@ T_EVT_OBJECT_DATA *create_object_data(T_EVT_OBJECT *obj, uint32_t id) {
 
 	T_EVT_OBJECT_DATA *objdata=calloc(1, sizeof(T_EVT_OBJECT_DATA));
 	if ( !objdata) {
-		ESP_LOGE(__func__,"couldn't allocate %d bytes for new 'object't", sizeof(T_EVT_OBJECT_DATA));
+		ESP_LOGE(__func__,"couldn't allocate %d bytes for new 'object'", sizeof(T_EVT_OBJECT_DATA));
 		return NULL;
 	}
 	// some useful values:
@@ -435,6 +423,84 @@ T_EVT_OBJECT_DATA *create_object_data(T_EVT_OBJECT *obj, uint32_t id) {
 
 	return objdata;
 }
+
+// ############### SCENES ##############################################
+
+// creates a new scene
+T_SCENE *create_scene(char *id) {
+	if ( id == NULL || strlen(id) == 0)
+		return NULL;
+
+	T_SCENE *obj=calloc(1, sizeof(T_SCENE));
+	if ( !obj) {
+		ESP_LOGE(__func__,"couldn't allocate %d bytes for new 'scene'", sizeof(T_SCENE));
+		return NULL;
+	}
+	// some useful values:
+	strlcpy(obj->id, id, sizeof(obj->id));
+
+	return obj;
+}
+
+// add a scene to the tab
+esp_err_t scene_list_add(T_SCENE *obj) {
+	if (obtain_eventlist_lock() != ESP_OK) {
+		ESP_LOGE(__func__, "couldn't get lock");
+		return ESP_FAIL;
+	}
+
+	if ( obj)  {
+		if ( s_scene_list) {
+			// add at the end of the list
+			T_SCENE *t;
+			for (t=s_scene_list; t->nxt; t=t->nxt){}
+			t->nxt = obj;
+		} else {
+			// first entry
+			s_scene_list = obj;
+		}
+
+	} else {
+		ESP_LOGE(__func__,"couldn't add  NULL to scene list");
+	}
+
+	return release_eventlist_lock();
+}
+
+// delete a scene, caller must free obj itselves
+void delete_scene(T_SCENE *obj) {
+	if (!obj)
+		return;
+
+	if ( obj->events) {
+		T_EVENT *t, *d = obj->events;
+		while(d) {
+			t = d->nxt;
+			delete_event(d);
+			d=t;
+		}
+	}
+	free(obj);
+}
+
+esp_err_t scene_list_free() {
+	if (obtain_eventlist_lock() != ESP_OK) {
+		ESP_LOGE(__func__, "couldn't get lock");
+		return ESP_FAIL;
+	}
+	if ( s_scene_list)  {
+		T_SCENE *nxt;
+		while (s_scene_list) {
+			nxt = s_scene_list->nxt;
+			delete_scene(s_scene_list);
+			s_scene_list = nxt;
+		}
+	}
+	// after this s_event_list is NULL
+	return release_eventlist_lock();
+
+}
+
 
 // ******************************************************************************
 

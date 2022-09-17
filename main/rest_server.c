@@ -508,7 +508,7 @@ typedef enum {
 	// GET
 	HP_STATUS,
 	HP_LIST,
-	HP_DELETE,
+	//HP_DELETE,
 	HP_CLEAR,
 	HP_RUN,
 	HP_STOP,
@@ -521,7 +521,6 @@ typedef enum {
 	HP_HELP,
 	// POST
 	HP_ADD,
-	HP_SET,
 	// End of list
 	HP_END_OF_LIST
 } t_http_processing;;
@@ -535,11 +534,10 @@ typedef struct {
 
 static T_HTTP_PROCCESSING_TYPE http_processing[] = {
 		{"/a","/add", HP_ADD, "add event, uses POST-data"},
-		{"","/set", HP_SET, "set event, specified by query parameter 'id=<nn>', uses POST-data"},
 		{"/", "/help", HP_HELP, "API help"},
 		{"/st", "/status", HP_STATUS, "status"},
 		{"/l","/list",HP_LIST, "list events"},
-		{"","/delete",HP_DELETE,"delete an event specified by query parameter 'id=<nn>'"},
+		//{"","/delete",HP_DELETE,"delete an event specified by query parameter 'id=<nn>'"},
 		{"","/clear",HP_CLEAR,"clear event list"},
 		{"/r","/run",HP_RUN,"run"},
 		{"/s","stop",HP_STOP,"stop"},
@@ -558,11 +556,18 @@ static esp_err_t http_help(httpd_req_t *req) {
 	httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
 
 	for  (int i=0; http_processing[i].todo != HP_END_OF_LIST; i++) {
-		snprintf(resp_str, sizeof(resp_str),"'%s' - '%s' - %s\n",
-				http_processing[i].short_path,
-				http_processing[i].path,
-				http_processing[i].help
-		);
+		if (strlen(http_processing[i].short_path)) {
+			snprintf(resp_str, sizeof(resp_str),"'%s' - '%s' - %s\n",
+					http_processing[i].short_path,
+					http_processing[i].path,
+					http_processing[i].help
+			);
+		} else {
+			snprintf(resp_str, sizeof(resp_str),"'%s' - %s\n",
+					http_processing[i].path,
+					http_processing[i].help
+			);
+		}
 		httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
 	}
 	httpd_resp_send_chunk(req, NULL, 0);
@@ -605,7 +610,7 @@ static void get_handler_data_list(httpd_req_t *req) {
 	const size_t sz_buf = sizeof(buf);
 	const int l = HTTPD_RESP_USE_STRLEN;
 
-	extern T_EVENT *s_event_list;
+	extern T_SCENE *s_scene_list;
 	if (obtain_eventlist_lock() != ESP_OK) {
 		snprintf(buf, sz_buf, "%s couldn't get lock on eventlist\n", __func__);
 		httpd_resp_send_chunk(req, buf, l);
@@ -613,7 +618,7 @@ static void get_handler_data_list(httpd_req_t *req) {
 	}
 
 	if ( !s_object_list) {
-		snprintf(buf, sz_buf, "\nno objects in list");
+		snprintf(buf, sz_buf, "\nno objectst");
 		httpd_resp_send_chunk(req, buf, l);
 	} else {
 		for (T_EVT_OBJECT *obj=s_object_list; obj; obj=obj->nxt) {
@@ -636,65 +641,68 @@ static void get_handler_data_list(httpd_req_t *req) {
 	}
 
 
-	if ( !s_event_list) {
-		snprintf(buf, sz_buf, "\nno events in list");
+	if ( !s_scene_list) {
+		snprintf(buf, sz_buf, "\nno scenes");
 		httpd_resp_send_chunk(req, buf, l);
 
 	} else {
-		for ( T_EVENT *evt= s_event_list; evt; evt = evt->nxt) {
-			snprintf(buf, sz_buf, "\nEvent id='%s', repeats=%u:", evt->oid, evt->evt_time_list_repeats);
-			httpd_resp_send_chunk(req, buf, l);
-
-			//			snprintf(buf, sz_buf,", flags=0x%04x, obj.oid='%s', len_f=%.1f, len_f_delta=%.2f, v=%.2f, v_delta=%.3f, brightn.=%.2f, brightn.delta=%.3f"
-			//					, evt->flags, evt->object_oid, evt->len_factor, evt->len_factor_delta, evt->speed, evt->acceleration, evt->brightness, evt->brightness_delta);
-			//			httpd_resp_send_chunk(req, buf, l);
-
-			// INIT events
-			if (evt->evt_time_init_list) {
-				snprintf(buf, sz_buf,"\n  INIT events:");
+		for (T_SCENE *scene = s_scene_list; scene; scene=scene->nxt) {
+			if ( !scene->events) {
+				snprintf(buf, sz_buf, "\nno events");
 				httpd_resp_send_chunk(req, buf, l);
-
-				for (T_EVT_TIME *tevt = evt->evt_time_init_list; tevt; tevt=tevt->nxt) {
-					snprintf(buf, sz_buf,"\n    id=%d, time=%llu ms, type=%d/%s, val=%.3f, sval='%s', marker='%s",
-							tevt->id, tevt->time, tevt->type, ET2TEXT(tevt->type), tevt->value, tevt->svalue, tevt->marker);
+			} else {
+				for ( T_EVENT *evt= scene->events; evt; evt = evt->nxt) {
+					snprintf(buf, sz_buf, "\nEvent id='%s', repeats=%u:", evt->id, evt->t_repeats);
 					httpd_resp_send_chunk(req, buf, l);
 
+					// INIT events
+					if (evt->evt_time_init_list) {
+						snprintf(buf, sz_buf,"\n  INIT events:");
+						httpd_resp_send_chunk(req, buf, l);
+
+						for (T_EVT_TIME *tevt = evt->evt_time_init_list; tevt; tevt=tevt->nxt) {
+							snprintf(buf, sz_buf,"\n    id=%d, time=%llu ms, type=%d/%s, val=%.3f, sval='%s', marker='%s",
+									tevt->id, tevt->time, tevt->type, ET2TEXT(tevt->type), tevt->value, tevt->svalue, tevt->marker);
+							httpd_resp_send_chunk(req, buf, l);
+
+						}
+					} else {
+						snprintf(buf, sz_buf,"\n  no INIT events.");
+						httpd_resp_send_chunk(req, buf, l);
+					}
+
+					// WORK events
+					if (evt->evt_time_list) {
+						snprintf(buf, sz_buf,"\n  WORK events:");
+						httpd_resp_send_chunk(req, buf, l);
+
+						for (T_EVT_TIME *tevt = evt->evt_time_list; tevt; tevt=tevt->nxt) {
+							snprintf(buf, sz_buf,"\n    id=%d, time=%llu ms, type=%d/%s, val=%.3f, sval='%s', marker='%s'",
+									tevt->id, tevt->time, tevt->type, ET2TEXT(tevt->type), tevt->value, tevt->svalue, tevt->marker);
+							httpd_resp_send_chunk(req, buf, l);
+
+						}
+					} else {
+						snprintf(buf, sz_buf,"\n  no WORK events.");
+						httpd_resp_send_chunk(req, buf, l);
+					}
+
+					// FINAL events
+					if (evt->evt_time_final_list) {
+						snprintf(buf, sz_buf,"\n  FINAL events:");
+						httpd_resp_send_chunk(req, buf, l);
+
+						for (T_EVT_TIME *tevt = evt->evt_time_final_list; tevt; tevt=tevt->nxt) {
+							snprintf(buf, sz_buf,"\n    id=%d, time=%llu ms, type=%d/%s, val=%.3f, sval='%s', marker='%s'",
+									tevt->id, tevt->time, tevt->type, ET2TEXT(tevt->type), tevt->value, tevt->svalue, tevt->marker);
+							httpd_resp_send_chunk(req, buf, l);
+
+						}
+					} else {
+						snprintf(buf, sz_buf,"\n  no FINAL events.");
+						httpd_resp_send_chunk(req, buf, l);
+					}
 				}
-			} else {
-				snprintf(buf, sz_buf,"\n  no INIT events.");
-				httpd_resp_send_chunk(req, buf, l);
-			}
-
-			// WORK events
-			if (evt->evt_time_list) {
-				snprintf(buf, sz_buf,"\n  WORK events:");
-				httpd_resp_send_chunk(req, buf, l);
-
-				for (T_EVT_TIME *tevt = evt->evt_time_list; tevt; tevt=tevt->nxt) {
-					snprintf(buf, sz_buf,"\n    id=%d, time=%llu ms, type=%d/%s, val=%.3f, sval='%s', marker='%s'",
-							tevt->id, tevt->time, tevt->type, ET2TEXT(tevt->type), tevt->value, tevt->svalue, tevt->marker);
-					httpd_resp_send_chunk(req, buf, l);
-
-				}
-			} else {
-				snprintf(buf, sz_buf,"\n  no WORK events.");
-				httpd_resp_send_chunk(req, buf, l);
-			}
-
-			// FINAL events
-			if (evt->evt_time_final_list) {
-				snprintf(buf, sz_buf,"\n  FINAL events:");
-				httpd_resp_send_chunk(req, buf, l);
-
-				for (T_EVT_TIME *tevt = evt->evt_time_final_list; tevt; tevt=tevt->nxt) {
-					snprintf(buf, sz_buf,"\n    id=%d, time=%llu ms, type=%d/%s, val=%.3f, sval='%s', marker='%s'",
-							tevt->id, tevt->time, tevt->type, ET2TEXT(tevt->type), tevt->value, tevt->svalue, tevt->marker);
-					httpd_resp_send_chunk(req, buf, l);
-
-				}
-			} else {
-				snprintf(buf, sz_buf,"\n  no FINAL events.");
-				httpd_resp_send_chunk(req, buf, l);
 			}
 		}
 	}
@@ -749,7 +757,7 @@ static void get_handler_data_clear(httpd_req_t *req) {
 	char resp_str[64];
 	get_handler_data_scene_status(req, RUN_STATUS_STOPPED);
 
-	if (event_list_free() == ESP_OK) {
+	if (scene_list_free() == ESP_OK) {
 		snprintf(resp_str,sizeof(resp_str),"event list cleared");
 	} else {
 		snprintf(resp_str,sizeof(resp_str),"clear event list failed");
@@ -802,6 +810,7 @@ static void get_handler_data_blank(httpd_req_t *req) {
 
 }
 
+/*
 static void get_handler_data_delete(httpd_req_t *req) {
 	char resp_str[255];
 	char *buf;
@@ -836,6 +845,7 @@ static void get_handler_data_delete(httpd_req_t *req) {
 
 	httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
 }
+*/
 
 static void get_handler_data_config(httpd_req_t *req) {
 	bool restart_needed = false;
@@ -987,9 +997,6 @@ static esp_err_t get_handler_data(httpd_req_t *req)
 
 	char resp_str[255];
 
-	//snprintf(resp_str, sizeof(resp_str),"path='%s' to do %d\n", path, pt->todo);
-	//httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
-
 	switch(pt->todo) {
 	case HP_STATUS:
 		get_handler_data_status_current(req);
@@ -1000,9 +1007,9 @@ static esp_err_t get_handler_data(httpd_req_t *req)
 	case HP_LIST:
 		get_handler_data_list(req);
 		break;
-	case HP_DELETE:
+/*	case HP_DELETE:
 		get_handler_data_delete(req);
-		break;
+		break;*/
 	case HP_CLEAR:
 		get_handler_data_clear(req);
 		break;
@@ -1031,7 +1038,6 @@ static esp_err_t get_handler_data(httpd_req_t *req)
 		get_handler_data_reset(req);
 		break;
 	case HP_ADD:
-	case HP_SET:
 		snprintf(resp_str, sizeof(resp_str),"path='%s' POST only\n", path);
 		httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
 		return http_help(req);
@@ -1067,13 +1073,8 @@ static esp_err_t post_handler_data(httpd_req_t *req)
 		return http_help(req);
 	}
 
-    bool overwrite = true;
     switch(pt->todo) {
     case HP_ADD:
-    	overwrite=false;
-    	break;
-    case HP_SET:
-    	overwrite=true;
     	break;
     default:
 		snprintf(resp_str, sizeof(resp_str),"path='%s' GET only\n", path);
@@ -1121,7 +1122,7 @@ static esp_err_t post_handler_data(httpd_req_t *req)
     }
 
     char errmsg[64];
-    esp_err_t res = decode_json4event(buf, overwrite, errmsg, sizeof(errmsg));
+    esp_err_t res = decode_json4event_root(buf, errmsg, sizeof(errmsg));
     if (res != ESP_OK) {
         snprintf(resp_str,sizeof(resp_str),"Decoding data failed: %s\n",errmsg);
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, resp_str);

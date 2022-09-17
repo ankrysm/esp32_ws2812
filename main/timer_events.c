@@ -27,7 +27,7 @@ static const int EVENT_BITS_ALL = 0xFF;
 static volatile run_status_type s_run_status = RUN_STATUS_STOPPED;
 static volatile uint64_t s_scene_time = 0;
 
-T_EVENT *s_event_list = NULL;
+T_SCENE *s_scene_list = NULL;
 T_EVT_OBJECT *s_object_list = NULL;
 
 extern T_CONFIG gConfig;
@@ -120,7 +120,6 @@ static void periodic_timer_callback(void* arg) {
 		if ( s_run_status != RUN_STATUS_PAUSED ) {
 			ESP_LOGI(__func__, "Pause scenes");
 			s_run_status = RUN_STATUS_PAUSED;
-			// TODO do pause
 		}
 	}
 
@@ -142,11 +141,12 @@ static void periodic_timer_callback(void* arg) {
 	if ( do_reset) {
 		s_scene_time = 0;
 		// reset all event data + repeat data
-		if ( s_event_list) {
-			for ( T_EVENT *evt= s_event_list; evt; evt = evt->nxt) {
-				reset_event(evt);
-				reset_timing_events(evt->evt_time_list);
-				reset_event_repeats(evt);
+		if ( s_scene_list) {
+			for ( T_SCENE *scene= s_scene_list; scene; scene = scene->nxt) {
+				reset_scene(scene);
+				//reset_event(evt);
+				//reset_timing_events(evt->evt_time_list);
+				//reset_event_repeats(evt);
 			}
 		} else {
 			// clear the strip
@@ -159,10 +159,11 @@ static void periodic_timer_callback(void* arg) {
 
 	// paint scenes
 	bool finished = true;
-	if ( s_event_list) {
-		for ( T_EVENT *evt= s_event_list; evt; evt = evt->nxt) {
-			process_event(evt, s_scene_time, s_timer_period);
-			if (! (evt->w_flags &  EVFL_FINISHED))
+	if ( s_scene_list) {
+		for ( T_SCENE *scene= s_scene_list; scene; scene = scene->nxt) {
+			process_scene(scene, s_scene_time, s_timer_period);
+			//process_event(evt, s_scene_time, s_timer_period);
+			if (! (scene->flags &  EVFL_FINISHED))
 				finished = false;
 		}
 	}

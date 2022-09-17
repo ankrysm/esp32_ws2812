@@ -88,7 +88,7 @@ typedef enum {
 	ET_SET_BRIGHTNESS,       // I Ws F
 	ET_SET_BRIGHTNESS_DELTA, // I Ws -
 	ET_SET_OBJECT,           // I We - oid for object
-	ET_SET_REPEAT_COUNT,     // I -- - (init only after start event running)
+	//ET_SET_REPEAT_COUNT,     // I -- - (init only after start event running)
 	ET_UNKNOWN
 } event_type;
 
@@ -107,7 +107,7 @@ typedef enum {
 	!strcasecmp(c,"brightness") ? ET_SET_BRIGHTNESS : \
 	!strcasecmp(c,"brightness_delta") ? ET_SET_BRIGHTNESS_DELTA : \
 	!strcasecmp(c,"object") ? ET_SET_OBJECT : \
-	!strcasecmp(c,"repeat_count") ? ET_SET_REPEAT_COUNT : \
+	/*!strcasecmp(c,"repeat_count") ? ET_SET_REPEAT_COUNT :*/ \
 	ET_UNKNOWN \
 )
 
@@ -125,7 +125,7 @@ typedef enum {
 	c==ET_SET_BRIGHTNESS ? "brightness" : \
 	c==ET_SET_BRIGHTNESS_DELTA ? "brightness_delta" : \
 	c==ET_SET_OBJECT ? "object" : \
-	c==ET_SET_REPEAT_COUNT ? "repeat_count" : \
+	/* c==ET_SET_REPEAT_COUNT ? "repeat_count" : */ \
 	"unknown" \
 )
 
@@ -137,6 +137,7 @@ typedef struct EVT_WHAT_COLORTRANSITION {
 
 #define LEN_EVT_MARKER 8+1
 #define LEN_EVT_OID 16
+#define LEN_EVT_ID 16
 
 typedef struct EVT_OBJECT_DATA {
 	int32_t id;
@@ -203,47 +204,23 @@ typedef enum {
 		!strcasecmp(c,"finished") ? EVFL_FINISHED : \
 		EVFL_UNKNOWN)
 
-typedef struct EVENT{
-	//uint32_t id; // for reference
-	char oid[LEN_EVT_OID];
+typedef struct EVENT {
+	char id[LEN_EVT_ID];
 
 	int64_t time; // event time
-
-	//uint32_t flags;
 	uint32_t w_flags;
-
-	//double pos;
 	double w_pos;
-
-	//double len_factor; // 0..1.0
 	double w_len_factor;
-
-	//double len_factor_delta;
 	double w_len_factor_delta;
-
-	//double speed;
 	double w_speed;
-
-	//double acceleration;
 	double w_acceleration;
-
-	//double brightness;
 	double w_brightness;
-
-	//double brightness_delta;
 	double w_brightness_delta;
-
 	int32_t delta_pos; // +1 or -1
-
-	//char object_oid[LEN_EVT_OID];
 	char w_object_oid[LEN_EVT_OID];
 
-	// what, example: 10 red pixels, with fade in and fade out
-	//T_EVT_WHAT *what_list;
-
 	// time dependend events,
-	// example: 1.) wait 10 sec, 2.) move with 5 pixel/second
-	uint32_t evt_time_list_repeats; // 0=for evener
+	uint32_t t_repeats; // 0=for evener
 	uint32_t w_t_repeats;
 	T_EVT_TIME *evt_time_list;
 	T_EVT_TIME *evt_time_init_list;
@@ -255,5 +232,14 @@ typedef struct EVENT{
 
 	struct EVENT *nxt;
 } T_EVENT;
+
+typedef struct SCENE {
+	char id[LEN_EVT_ID];
+	uint32_t flags;
+	T_EVENT *event; // actual working event
+	T_EVENT *events;
+	struct SCENE *nxt;
+} T_SCENE;
+
 
 #endif /* MAIN_TIMER_EVENTS_H_ */
