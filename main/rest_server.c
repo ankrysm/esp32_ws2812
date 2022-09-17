@@ -642,25 +642,58 @@ static void get_handler_data_list(httpd_req_t *req) {
 
 	} else {
 		for ( T_EVENT *evt= s_event_list; evt; evt = evt->nxt) {
-			snprintf(buf, sz_buf, "\nEvent id=%d, startpos=%.2f", evt->id, evt->pos);
+			snprintf(buf, sz_buf, "\nEvent id='%s', repeats=%u:", evt->oid, evt->evt_time_list_repeats);
 			httpd_resp_send_chunk(req, buf, l);
 
-			snprintf(buf, sz_buf,", flags=0x%04x, obj.oid='%s', len_f=%.1f, len_f_delta=%.2f, v=%.2f, v_delta=%.3f, brightn.=%.2f, brightn.delta=%.3f"
-					, evt->flags, evt->object_oid, evt->len_factor, evt->len_factor_delta, evt->speed, evt->acceleration, evt->brightness, evt->brightness_delta);
-			httpd_resp_send_chunk(req, buf, l);
+			//			snprintf(buf, sz_buf,", flags=0x%04x, obj.oid='%s', len_f=%.1f, len_f_delta=%.2f, v=%.2f, v_delta=%.3f, brightn.=%.2f, brightn.delta=%.3f"
+			//					, evt->flags, evt->object_oid, evt->len_factor, evt->len_factor_delta, evt->speed, evt->acceleration, evt->brightness, evt->brightness_delta);
+			//			httpd_resp_send_chunk(req, buf, l);
 
-			if (evt->evt_time_list) {
-				snprintf(buf, sz_buf,"\n  time events:");
+			// INIT events
+			if (evt->evt_time_init_list) {
+				snprintf(buf, sz_buf,"\n  INIT events:");
 				httpd_resp_send_chunk(req, buf, l);
 
-				for (T_EVT_TIME *tevt = evt->evt_time_list; tevt; tevt=tevt->nxt) {
-					snprintf(buf, sz_buf,"\n    id=%d, time=%llu ms, type=%d/%s, val=%.3f, obj.oid='%s', marker='%s'",
-							tevt->id, tevt->time, tevt->type, ET2TEXT(tevt->type), tevt->value, tevt->oid, tevt->marker);
+				for (T_EVT_TIME *tevt = evt->evt_time_init_list; tevt; tevt=tevt->nxt) {
+					snprintf(buf, sz_buf,"\n    id=%d, time=%llu ms, type=%d/%s, val=%.3f, sval='%s', marker='%s",
+							tevt->id, tevt->time, tevt->type, ET2TEXT(tevt->type), tevt->value, tevt->svalue, tevt->marker);
 					httpd_resp_send_chunk(req, buf, l);
 
 				}
 			} else {
-				snprintf(buf, sz_buf,"\n  no time events.");
+				snprintf(buf, sz_buf,"\n  no INIT events.");
+				httpd_resp_send_chunk(req, buf, l);
+			}
+
+			// WORK events
+			if (evt->evt_time_list) {
+				snprintf(buf, sz_buf,"\n  WORK events:");
+				httpd_resp_send_chunk(req, buf, l);
+
+				for (T_EVT_TIME *tevt = evt->evt_time_list; tevt; tevt=tevt->nxt) {
+					snprintf(buf, sz_buf,"\n    id=%d, time=%llu ms, type=%d/%s, val=%.3f, sval='%s', marker='%s'",
+							tevt->id, tevt->time, tevt->type, ET2TEXT(tevt->type), tevt->value, tevt->svalue, tevt->marker);
+					httpd_resp_send_chunk(req, buf, l);
+
+				}
+			} else {
+				snprintf(buf, sz_buf,"\n  no WORK events.");
+				httpd_resp_send_chunk(req, buf, l);
+			}
+
+			// FINAL events
+			if (evt->evt_time_final_list) {
+				snprintf(buf, sz_buf,"\n  FINAL events:");
+				httpd_resp_send_chunk(req, buf, l);
+
+				for (T_EVT_TIME *tevt = evt->evt_time_final_list; tevt; tevt=tevt->nxt) {
+					snprintf(buf, sz_buf,"\n    id=%d, time=%llu ms, type=%d/%s, val=%.3f, sval='%s', marker='%s'",
+							tevt->id, tevt->time, tevt->type, ET2TEXT(tevt->type), tevt->value, tevt->svalue, tevt->marker);
+					httpd_resp_send_chunk(req, buf, l);
+
+				}
+			} else {
+				snprintf(buf, sz_buf,"\n  no FINAL events.");
 				httpd_resp_send_chunk(req, buf, l);
 			}
 		}
@@ -781,17 +814,16 @@ static void get_handler_data_delete(httpd_req_t *req) {
 			char val[256];
 			if (httpd_query_key_value(buf, paramname, val, sizeof(val)) == ESP_OK) {
 				// doit
-				int id = atoi(val);
-				esp_err_t rc=delete_event_by_id(id);
+				esp_err_t rc=delete_event_by_id(val);
 				switch(rc) {
 				case ESP_OK:
-					snprintf(resp_str, sizeof(resp_str),"event %d deleted\n", id);
+					snprintf(resp_str, sizeof(resp_str),"event '%s' deleted\n", val);
 					break;
 				case ESP_ERR_NOT_FOUND:
-					snprintf(resp_str, sizeof(resp_str),"event %d not found\n", id);
+					snprintf(resp_str, sizeof(resp_str),"event '%s' not found\n", val);
 					break;
 				default:
-					snprintf(resp_str, sizeof(resp_str),"delete event %d FAILED\n", id);
+					snprintf(resp_str, sizeof(resp_str),"delete event '%s' FAILED\n", val);
 				}
 			} else {
 				snprintf(resp_str, sizeof(resp_str),"ERROR: missing query parameter 'id=<nn>'\n");

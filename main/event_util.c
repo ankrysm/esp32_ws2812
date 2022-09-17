@@ -71,13 +71,13 @@ void delete_event(T_EVENT *evt) {
  * find an event by id
  * (without lock)
  */
-T_EVENT *find_event(uint32_t id) {
+T_EVENT *find_event(char *id) {
 	if (!s_event_list) {
 		return NULL; // nothing available
 	}
 
 	for( T_EVENT *e = s_event_list; e; e=e->nxt) {
-		if ( e->id == id ) {
+		if ( !strcasecmp(e->oid, id)) {
 			return e; // found!
 		}
 	}
@@ -101,22 +101,25 @@ T_EVT_TIME *find_timer_event4marker(T_EVT_TIME *tevt_list, char *marker) {
  * find a new event id larger than the max id,
  * (without lock)
  */
-uint32_t get_new_event_id() {
+void get_new_event_id(char *id, size_t sz_id) {
 
-	uint32_t max_id = 0;
-	if (s_event_list) {
+	uint32_t n = get_random(0, UINT32_MAX);
+	snprintf(id,sz_id,"%u", n);
 
-		for( T_EVENT *e = s_event_list; e; e=e->nxt) {
-			if ( e->id > max_id ) {
-				max_id = e->id;
-			}
-		}
-	}
-	return max_id + 1; // not found
+//	uint32_t max_id = 0;
+//	if (s_event_list) {
+//
+//		for( T_EVENT *e = s_event_list; e; e=e->nxt) {
+//			if ( e->id > max_id ) {
+//				max_id = e->id;
+//			}
+//		}
+//	}
+//	return max_id + 1; // not found
 }
 
 
-esp_err_t delete_event_by_id(uint32_t id) {
+esp_err_t delete_event_by_id(char *id) {
 	if (obtain_eventlist_lock() != ESP_OK) {
 		ESP_LOGE(__func__, "couldn't get lock");
 		return ESP_FAIL;
@@ -125,7 +128,7 @@ esp_err_t delete_event_by_id(uint32_t id) {
 	if ( s_event_list)  {
 		T_EVENT *prev = NULL;
 		for (T_EVENT *evt=s_event_list; evt; evt=evt->nxt) {
-			if ( evt->id == id ) {
+			if ( !strcasecmp(evt->oid, id) ) {
 				// found, delete it
 				if (prev == NULL ) {
 					s_event_list = evt->nxt;
@@ -141,9 +144,9 @@ esp_err_t delete_event_by_id(uint32_t id) {
 	}
 
 	if (found)
-		ESP_LOGI(__func__,"event %d deleted", id);
+		ESP_LOGI(__func__,"event %s deleted", id);
 	else
-		ESP_LOGI(__func__,"event %d not found", id);
+		ESP_LOGI(__func__,"event %s not found", id);
 
 	esp_err_t rc = release_eventlist_lock();
 	if ( rc == ESP_OK && !found )
@@ -204,18 +207,18 @@ esp_err_t event_list_add(T_EVENT *evt) {
 }
 
 // creates a new event body
-T_EVENT *create_event(uint32_t id) {
+T_EVENT *create_event(char *id) {
 	T_EVENT *evt=calloc(1, sizeof(T_EVENT));
 	if ( !evt) {
 		ESP_LOGE(__func__,"couldn't allocate %d bytes for new event", sizeof(T_EVENT));
 		return NULL;
 	}
 	// some useful values:
-	evt->id=id;
-	evt->pos = 0;
-	evt->delta_pos = 1;
-	evt->brightness = 1.0;
-	evt->len_factor = 1.0;
+	strlcpy(evt->oid, id, sizeof(evt->oid));
+//	evt->pos = 0;
+//	evt->delta_pos = 1;
+//	evt->brightness = 1.0;
+//	evt->len_factor = 1.0;
 	return evt;
 }
 
@@ -234,6 +237,48 @@ T_EVT_TIME *create_timing_event(T_EVENT *evt, uint32_t id) {
 	} else {
 		T_EVT_TIME *t;
 		for (t = evt->evt_time_list; t->nxt; t=t->nxt ) {}
+		t->nxt = tevt; // added at the end of the list
+	}
+
+	return tevt;
+}
+
+// creates a new init timing event and adds it to the event body
+T_EVT_TIME *create_timing_event_init(T_EVENT *evt, uint32_t id) {
+	T_EVT_TIME *tevt=calloc(1,sizeof(T_EVT_TIME));
+	if ( !tevt) {
+		ESP_LOGE(__func__,"couldn't allocate %d bytes for new init timing event", sizeof(T_EVT_TIME));
+		return NULL;
+	}
+	// some useful values:
+	tevt->id=id;
+
+	if ( !evt->evt_time_init_list) {
+		evt->evt_time_init_list = tevt; // first in list
+	} else {
+		T_EVT_TIME *t;
+		for (t = evt->evt_time_init_list; t->nxt; t=t->nxt ) {}
+		t->nxt = tevt; // added at the end of the list
+	}
+
+	return tevt;
+}
+
+// creates a new init timing event and adds it to the event body
+T_EVT_TIME *create_timing_event_final(T_EVENT *evt, uint32_t id) {
+	T_EVT_TIME *tevt=calloc(1,sizeof(T_EVT_TIME));
+	if ( !tevt) {
+		ESP_LOGE(__func__,"couldn't allocate %d bytes for new init timing event", sizeof(T_EVT_TIME));
+		return NULL;
+	}
+	// some useful values:
+	tevt->id=id;
+
+	if ( !evt->evt_time_final_list) {
+		evt->evt_time_final_list = tevt; // first in list
+	} else {
+		T_EVT_TIME *t;
+		for (t = evt->evt_time_final_list; t->nxt; t=t->nxt ) {}
 		t->nxt = tevt; // added at the end of the list
 	}
 

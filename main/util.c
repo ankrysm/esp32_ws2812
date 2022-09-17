@@ -12,7 +12,11 @@ int32_t get_random(int32_t min, uint32_t diff) {
 	if ( diff == 0)
 		return min;
 
-	int64_t drr = (int64_t)(diff)*esp_random() / UINT32_MAX ;
+	int64_t drr;
+	if (diff == UINT32_MAX)
+		drr= esp_random();
+	else
+		drr = (int64_t)(diff)*esp_random() / UINT32_MAX ;
 	return min + drr;
 }
 

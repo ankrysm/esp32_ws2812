@@ -66,12 +66,15 @@ esp_err_t event_list_add(T_EVENT *evt);
 esp_err_t obtain_eventlist_lock();
 esp_err_t release_eventlist_lock();
 void init_eventlist_utils();
-T_EVENT *create_event(uint32_t id);
-T_EVENT *find_event(uint32_t id);
+T_EVENT *create_event(char *id);
+T_EVENT *find_event(char *id);
 T_EVT_TIME *find_timer_event4marker(T_EVT_TIME *tevt_list, char *marker);
 T_EVT_TIME *create_timing_event(T_EVENT *evt, uint32_t id);
-uint32_t get_new_event_id();
-esp_err_t delete_event_by_id(uint32_t id);
+T_EVT_TIME *create_timing_event_init(T_EVENT *evt, uint32_t id);
+T_EVT_TIME *create_timing_event_final(T_EVENT *evt, uint32_t id);
+//uint32_t get_new_event_id();
+void get_new_event_id(char *id, size_t sz_id);
+esp_err_t delete_event_by_id(char *id);
 
 
 void delete_object(T_EVT_OBJECT *obj);

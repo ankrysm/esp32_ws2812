@@ -39,9 +39,9 @@ typedef enum {
  * timing status of a single scene
  ***********************************************/
 typedef enum {
-	TE_WAIT_FOR_START, // wait for start
-	TE_RUNNING,   // timer is running, wait for expire
-	TE_FINISHED    // timer expired
+	TE_WAIT_FOR_START = 0x0000, // wait for start
+	TE_RUNNING        = 0x0001, // timer is running, wait for expire
+	TE_FINISHED       = 0x0002 // timer expired
 } timer_event_status_type;
 
 typedef enum {
@@ -70,53 +70,63 @@ typedef enum {
 	c==WT_SPARKLE ? "sparkle" : "unknown" \
 )
 
+// I - init - no timing
+// W - at work with timing parameters, s-start, r-running, e-end
+// F - finally (all repeats done) - no timing
 typedef enum {
-	ET_NONE, // nothing to do
-	ET_CONTINUE, // continue with actual parameter
-	ET_WAIT, // do nothing
-	ET_SPEED, // set speed
-	ET_SPEEDUP, // set acceleration
-	ET_BOUNCE, // change direction speed=-speed
-	ET_REVERSE, // change delta_pos to -delta_pos
-	ET_JUMP, // jump to position (relative to scene)
-	ET_JUMP_MARKER, // jump to event with the marker
-	ET_CLEAR,  // clear pixels
-	ET_STOP, // end of event
-	ET_SET_BRIGHTNESS,
-	ET_SET_BRIGHTNESS_DELTA,
+	ET_NONE,                 // - -- - nothing to do
+	ET_PAUSE,                // - Wsr - do nothing
+	ET_GO_ON,                // - Wr - continue with actual parameter
+	ET_SPEED,                // I Ws - set speed
+	ET_SPEEDUP,              // I Ws - set acceleration
+	ET_BOUNCE,               // - We - change direction speed=-speed
+	ET_REVERSE,              // - We - change delta_pos to -delta_pos
+	ET_GOTO_POS,             // I We - goto to position
+	ET_JUMP_MARKER,          // - We - jump to event with the marker
+	ET_CLEAR,                // I Wr F clear pixels
+	ET_STOP,                 // - We - end of event
+	ET_SET_BRIGHTNESS,       // I Ws F
+	ET_SET_BRIGHTNESS_DELTA, // I Ws -
+	ET_SET_OBJECT,           // I We - oid for object
+	ET_SET_REPEAT_COUNT,     // I -- - (init only after start event running)
 	ET_UNKNOWN
 } event_type;
 
 
 #define TEXT2ET(c) ( \
-	!strcasecmp(c,"wait") ? ET_WAIT : \
-	!strcasecmp(c,"continue") ? ET_CONTINUE : \
+	!strcasecmp(c,"pause") ? ET_PAUSE : \
+	!strcasecmp(c,"go") ? ET_GO_ON : \
 	!strcasecmp(c,"speed") ? ET_SPEED : \
 	!strcasecmp(c,"speedup") ? ET_SPEEDUP : \
 	!strcasecmp(c,"bounce") ? ET_BOUNCE : \
 	!strcasecmp(c,"reverse") ? ET_REVERSE : \
-	!strcasecmp(c,"jump") ? ET_JUMP : \
+	!strcasecmp(c,"goto") ? ET_GOTO_POS : \
 	!strcasecmp(c,"jump_marker") ? ET_JUMP_MARKER : \
 	!strcasecmp(c,"stop") ? ET_STOP : \
 	!strcasecmp(c,"clear") ? ET_CLEAR : \
 	!strcasecmp(c,"brightness") ? ET_SET_BRIGHTNESS : \
 	!strcasecmp(c,"brightness_delta") ? ET_SET_BRIGHTNESS_DELTA : \
+	!strcasecmp(c,"object") ? ET_SET_OBJECT : \
+	!strcasecmp(c,"repeat_count") ? ET_SET_REPEAT_COUNT : \
 	ET_UNKNOWN \
 )
 
 #define ET2TEXT(c) ( \
-	c==ET_WAIT ? "wait" : \
-	c==ET_CONTINUE ? "continue" : \
+	c==ET_PAUSE ? "pause" : \
+	c==ET_GO_ON ? "go" : \
 	c==ET_SPEED ? "speed" : \
 	c==ET_SPEEDUP ? "speedup" : \
 	c==ET_BOUNCE ? "bounce" : \
 	c==ET_REVERSE ? "reverse" : \
-	c==ET_JUMP ? "jump" : \
+	c==ET_GOTO_POS ? "goto" : \
 	c==ET_JUMP_MARKER ? "jump_marker" : \
 	c==ET_STOP ? "stop" : \
 	c==ET_CLEAR ? "clear" : \
 	c==ET_SET_BRIGHTNESS ? "brightness" : \
-	c==ET_SET_BRIGHTNESS_DELTA ? "brightness_delta" : "unknown" \
+	c==ET_SET_BRIGHTNESS_DELTA ? "brightness_delta" : \
+	c==ET_SET_OBJECT ? "object" : \
+	c==ET_SET_REPEAT_COUNT ? "repeat_count" : \
+	"unknown" \
 )
 
 // *** what will happen
@@ -126,6 +136,7 @@ typedef struct EVT_WHAT_COLORTRANSITION {
 } T_EVT_WHAT_COLORTRANSITION;
 
 #define LEN_EVT_MARKER 8+1
+#define LEN_EVT_OID 16
 
 typedef struct EVT_OBJECT_DATA {
 	int32_t id;
@@ -142,7 +153,7 @@ typedef struct EVT_OBJECT_DATA {
 } T_EVT_OBJECT_DATA;
 
 typedef struct EVT_OBJECT {
-	char oid[LEN_EVT_MARKER];
+	char oid[LEN_EVT_OID];
 	T_EVT_OBJECT_DATA *data;
 
 	struct EVT_OBJECT *nxt;
@@ -151,18 +162,14 @@ typedef struct EVT_OBJECT {
 //  *** when will something happens ***
 typedef struct EVT_TIME {
 	uint32_t id;
-	timer_event_status_type status;
 	event_type type; // what to do
+	char marker[LEN_EVT_MARKER]; // destination for jump, value for ET_ JUMP_MARKER
 	uint64_t time; // initial duration, when 0 execute immediately
 	int64_t w_time; // working time, count doun from 'time'
+	timer_event_status_type status;
 
-	char oid[LEN_EVT_MARKER]; // which object shoud be processed
-
-	// what to change when timer arrives
-	//uint32_t set_flags;
-	//uint32_t clear_flags;
+	char svalue[32];
 	double value;
-	char marker[LEN_EVT_MARKER]; // destination for jump, value for ET_ JUMP_MARKER
 
 	struct EVT_TIME *nxt; // next event
 } T_EVT_TIME;
@@ -184,6 +191,12 @@ typedef enum {
 	EVFL_UNKNOWN   =  0xFFFF
 } event_flags;
 
+typedef enum {
+	PT_INIT,
+	PT_WORK,
+	PT_FINAL
+} t_processing_type;
+
 #define TEXT2EVFL(c) ( \
 		!strcasecmp(c,"wait") ? ET_WAIT : \
 		!strcasecmp(c,"clearpixel") ? EVFL_CLEARPIXEL : \
@@ -191,38 +204,39 @@ typedef enum {
 		EVFL_UNKNOWN)
 
 typedef struct EVENT{
-	uint32_t id; // for reference
+	//uint32_t id; // for reference
+	char oid[LEN_EVT_OID];
 
 	int64_t time; // event time
 
-	uint32_t flags;
+	//uint32_t flags;
 	uint32_t w_flags;
 
-	double pos;
+	//double pos;
 	double w_pos;
 
-	double len_factor; // 0..1.0
+	//double len_factor; // 0..1.0
 	double w_len_factor;
 
-	double len_factor_delta;
+	//double len_factor_delta;
 	double w_len_factor_delta;
 
-	double speed;
+	//double speed;
 	double w_speed;
 
-	double acceleration;
+	//double acceleration;
 	double w_acceleration;
 
-	double brightness;
+	//double brightness;
 	double w_brightness;
 
-	double brightness_delta;
+	//double brightness_delta;
 	double w_brightness_delta;
 
 	int32_t delta_pos; // +1 or -1
 
-	char object_oid[LEN_EVT_MARKER];
-	char w_object_oid[LEN_EVT_MARKER];
+	//char object_oid[LEN_EVT_OID];
+	char w_object_oid[LEN_EVT_OID];
 
 	// what, example: 10 red pixels, with fade in and fade out
 	//T_EVT_WHAT *what_list;
@@ -232,6 +246,8 @@ typedef struct EVENT{
 	uint32_t evt_time_list_repeats; // 0=for evener
 	uint32_t w_t_repeats;
 	T_EVT_TIME *evt_time_list;
+	T_EVT_TIME *evt_time_init_list;
+	T_EVT_TIME *evt_time_final_list;
 
 	// location based events, example
 	// example start at position 30, stop at position 200 with blank
