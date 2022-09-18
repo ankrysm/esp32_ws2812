@@ -227,8 +227,7 @@ typedef struct EVENT {
 	T_EVT_TIME *evt_time_final_list;
 
 	// location based events, example
-	// example start at position 30, stop at position 200 with blank
-	T_EVT_WHERE *evt_where_list;
+	//T_EVT_WHERE *evt_where_list;
 
 	struct EVENT *nxt;
 } T_EVENT;

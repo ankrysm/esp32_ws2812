@@ -28,26 +28,6 @@ typedef struct rest_server_context {
 
 #define CHECK_FILE_EXTENSION(filename, ext) (strcasecmp(&filename[strlen(filename) - strlen(ext)], ext) == 0)
 
-/* Set HTTP response content type according to file extension * /
-static esp_err_t set_content_type_from_file(httpd_req_t *req, const char *filepath)
-{
-    const char *type = "text/plain";
-    if (CHECK_FILE_EXTENSION(filepath, ".html")) {
-        type = "text/html";
-    } else if (CHECK_FILE_EXTENSION(filepath, ".js")) {
-        type = "application/javascript";
-    } else if (CHECK_FILE_EXTENSION(filepath, ".css")) {
-        type = "text/css";
-    } else if (CHECK_FILE_EXTENSION(filepath, ".png")) {
-        type = "image/png";
-    } else if (CHECK_FILE_EXTENSION(filepath, ".ico")) {
-        type = "image/x-icon";
-    } else if (CHECK_FILE_EXTENSION(filepath, ".svg")) {
-        type = "text/xml";
-    }
-    return httpd_resp_set_type(req, type);
-}
-// */
 
 
 /**
@@ -61,454 +41,12 @@ static uint32_t trufal(char *txt) {
 	}
 }
 
-/*
-static esp_err_t get_handler_strip_setcolor(httpd_req_t *req)
-{
-    char*  buf;
-    size_t buf_len;
-    char resp_str[160];
 
-    // Read URL query string length and allocate memory for length + 1,
-    // extra byte for null termination
-    uint32_t start_idx=1;
-    uint32_t end_idx=2; //strip_numleds()-1;
-
-    T_COLOR_HSV hsv = {.h=0, .s=0, .v=0};
-    T_COLOR_RGB rgb = {.r=0, .g=0, .b=0};
-
-    if ( !strip_initialized()) {
-         snprintf(resp_str, sizeof(resp_str),"NOT INITIALIZED\n");
-         ESP_LOGI(__func__,"response=%s", resp_str);
-         httpd_resp_send(req, resp_str, HTTPD_RESP_USE_STRLEN);
-         return ESP_OK;
-    }
-
-    buf_len = httpd_req_get_url_query_len(req) + 1;
-    if (buf_len > 1) {
-    	buf = malloc(buf_len);
-    	if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK) {
-    		ESP_LOGI(__func__, "Found URL query => %s", buf);
-    		char param[256];
-    		char *paramname;
-    		char *tok1, *tok2, *tok3, *s, *l;
-    		//                    0       1     2     3
-    		char *paramnames[] = {"range","rgb","hsv","effect",""};
-    		int i;
-    		for(i=0; strlen(paramnames[i]); i++) {
-    			paramname = paramnames[i];
-    			if (!httpd_query_key_value(buf, paramname, param, sizeof(param)) == ESP_OK) {
-    				continue;
-    			}
-    			ESP_LOGI(__func__, "Found URL query parameter => %s=%s", paramname, param);
-    			switch(i) {
-    			case 0: // range
-    			{
-    				// expected: start,end
-    				s=strdup(param);
-    				tok1=strtok_r(s,   ",", &l);
-    				tok2=strtok_r(NULL,",", &l);
-    				start_idx = atoi(tok1);
-    				if (tok2) {
-    					end_idx = atoi(tok2);
-    				} else {
-    					end_idx = start_idx +1;
-    				}
-    				free(s);
-    			}
-    			break;
-
-    			case 1: // rgb
-    			{
-    				// expected: r,g,b
-    				s=strdup(param);
-    				tok1=strtok_r(s,   ",", &l);
-    				tok2=strtok_r(NULL,",", &l);
-    				tok3=tok2 ? strtok_r(NULL,",", &l) : NULL;
-    				rgb.r = atoi(tok1);
-    				if (tok2) {
-    					rgb.g = atoi(tok2);
-    				}
-    				if (tok3) {
-    					rgb.b = atoi(tok3);
-    				}
-    				free(s);
-    				strip_set_color_rgb(start_idx, end_idx, &rgb);
-    				strip_show();
-    				ESP_LOGI(__func__,"done: %d-%d rgb=%d/%d/%d\n",
-    						start_idx, end_idx, rgb.r, rgb.g, rgb.b);
-    			}
-    			break;
-
-    			case 2: // hsv
-    			{
-    				// expected: h,s,v
-    				s=strdup(param);
-    				tok1=strtok_r(s,   ",", &l);
-    				tok2=strtok_r(NULL,",", &l);
-    				tok3=tok2 ? strtok_r(NULL,",", &l) : NULL;
-    				hsv.h = atoi(tok1);
-    				if (tok2) {
-    					hsv.s = atoi(tok2);
-    				}
-    				if (tok3) {
-    					hsv.v = atoi(tok3);
-    				}
-    				free(s);
-    				c_hsv2rgb(&hsv, &rgb);
-    				strip_set_color_rgb(start_idx, end_idx, &rgb);
-    				strip_show();
-    				ESP_LOGI(__func__,"done: %d-%d hsv=%d/%d/%d rgb=%d/%d/%d\n",
-    						start_idx, end_idx, hsv.h, hsv.s, hsv.v, rgb.r, rgb.g, rgb.b);
-
-    			}
-    			break;
-
-    			case 3: // effect
-    			{
-    				// expected typ,parameter,parameter ...
-    				// type 'solid' parameter: startpixel, #pixel, h,s,v
-    				// type 'smooth' parameter: startpixel, #pixel, fade in pixel, fade out pixel, start-h,s,v, middle-h,s,v, end-h,s,v
-    				// effects with different types (moving, location based etc.)
-    				// can be in a list separated bei ';'
-    				T_EVENT evt;
-    				if (decode_effect_list(param, &evt) == ESP_OK) {
-    					ESP_LOGI(__func__,"done: %s\n", param);
-    					evt.isdirty=1;
-    					process_loc_event(&evt);
-    					strip_show();
-    				} else {
-    					ESP_LOGI(__func__,"FAILED: %s\n", param);
-    				}
-
-    			}
-    			break;
-    			default:
-    				ESP_LOGW(__func__,"NYI: %s\n", param);
-    			}
-    		} // for
-    	}
-    	free(buf);
-    }
-
-	snprintf(resp_str, sizeof(resp_str),"done\n");
-    ESP_LOGI(__func__,"response=%s", resp_str);
-
-    httpd_resp_send(req, resp_str, HTTPD_RESP_USE_STRLEN);
-
-    return ESP_OK;
-}
-// */
-
-/// ##########################################################################
-/* / new handler
-static esp_err_t get_handler_strip_config(httpd_req_t *req)
-{
-	char*  buf;
-	size_t buf_len;
-	int restart_needed = 0;
-	int store_config_needed = 0;
-
-	ESP_LOGI(__func__,"running on core %d",xPortGetCoreID());
-
-	// Read URL query string length and allocate memory for length + 1,
-	// extra byte for null termination
-
-	buf_len = httpd_req_get_url_query_len(req) + 1;
-	if (buf_len > 1) {
-		buf = malloc(buf_len);
-		if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK) {
-			ESP_LOGI(__func__, "Found URL query => %s", buf);
-			char *paramname;
-			char param[32];
-			// Get value of expected key from query string
-
-			paramname = "autoplay";
-			if (httpd_query_key_value(buf, paramname, param, sizeof(param)) == ESP_OK) {
-				ESP_LOGI(__func__, "query parameter: %s=%s", paramname, param);
-				gConfig.flags &= !CFG_AUTOPLAY;
-				if ( trufal(param)) {
-					gConfig.flags |= CFG_AUTOPLAY;
-				}
-				store_config_needed = 1;
-			}
-
-			paramname = "autoplayfile";
-			if (httpd_query_key_value(buf, paramname, param, sizeof(param)) == ESP_OK) {
-				ESP_LOGI(__func__, "query parameter: %s=%s", paramname, param);
-				snprintf(gConfig.autoplayfile, sizeof(gConfig.autoplayfile), "%s", param);
-				store_config_needed = 1;
-			}
-
-			paramname = "numleds";
-			if (httpd_query_key_value(buf, paramname, param, sizeof(param)) == ESP_OK) {
-				ESP_LOGI(__func__, "query parameter: %s=%s", paramname, param);
-				int numleds = atoi(param);
-				gConfig.numleds = numleds;
-
-				store_config_needed = 1;
-				restart_needed  = 1;
-			}
-			paramname = "cycle";
-			if (httpd_query_key_value(buf, paramname, param, sizeof(param)) == ESP_OK) {
-				ESP_LOGI(__func__, "query parameter: %s=%s", paramname, param);
-				gConfig.cycle = atoi(param);
-				// stop playing when cycle changed
-				//scenes_stop();
-				set_event_timer_period(gConfig.cycle);
-				store_config_needed = 1;
-			}
-			paramname = "showstatus";
-			if (httpd_query_key_value(buf, paramname, param, sizeof(param)) == ESP_OK) {
-				ESP_LOGI(__func__, "query parameter: %s=%s", paramname, param);
-				gConfig.flags &= !CFG_SHOW_STATUS;
-				if ( trufal(param)) {
-					gConfig.flags |= CFG_SHOW_STATUS;
-				}
-				store_config_needed = 1;
-			}
-		}
-		free(buf);
-		if (store_config_needed) {
-			ESP_LOGI(__func__, "store config");
-			store_config();
-		}
-	}
-
-
-    httpd_resp_set_type(req, "application/json");
-    cJSON *root = cJSON_CreateObject();
-
-    // system informations
-    esp_chip_info_t chip_info;
-    esp_chip_info(&chip_info);
-    cJSON_AddStringToObject(root, "version", IDF_VER);
-    cJSON_AddNumberToObject(root, "cores", chip_info.cores);
-
-    cJSON_AddNumberToObject(root, "numleds", gConfig.numleds);
-    cJSON_AddStringToObject(root, "autoplayfile", gConfig.autoplayfile);
-    if ( gConfig.flags & CFG_AUTOPLAY ) {
-        cJSON_AddTrueToObject(root, "autoplay");
-    } else {
-        cJSON_AddFalseToObject(root, "autoplay");
-    }
-    if ( gConfig.flags & CFG_SHOW_STATUS ) {
-        cJSON_AddTrueToObject(root, "showstatus");
-    } else {
-        cJSON_AddFalseToObject(root, "showstatus");
-    }
-    if ( gConfig.flags & CFG_WITH_WIFI ) {
-        cJSON_AddTrueToObject(root, "with_wifi");
-    } else {
-        cJSON_AddFalseToObject(root, "with_wifi");
-    }
-    cJSON_AddNumberToObject(root, "cycle", gConfig.cycle);
-
-    cJSON *fs_size = cJSON_AddObjectToObject(root,"filesystem");
-
-
-    size_t total,used;
-    storage_info(&total,&used);
-    cJSON_AddNumberToObject(fs_size, "total", total);
-    cJSON_AddNumberToObject(fs_size, "used", used);
-
-
-    // led strip configuration
-    const char *resp = cJSON_PrintUnformatted(root);
-    ESP_LOGI(__func__,"resp=%s", resp?resp:"nix");
-	httpd_resp_send_chunk(req, resp, strlen(resp));
-	httpd_resp_send_chunk(req, "\n", 1);
-
-    free((void *)resp);
-    cJSON_Delete(root);
-
-	// End response
-	httpd_resp_send_chunk(req, NULL, 0);
-
-	if ( restart_needed ) {
-		ESP_LOGI(__func__,"Restarting in a second...\n");
-		vTaskDelay(1000 / portTICK_PERIOD_MS);
-	    ESP_LOGI(__func__, "Restarting now.\n");
-	    fflush(stdout);
-	    esp_restart();
-	}
-	return ESP_OK;
-}
-// */
-
-/**
- * play control: run stop pause add del ...
- * /
-static esp_err_t get_handler_ctrl(httpd_req_t *req)
-{
-	char*  buf;
-	size_t buf_len;
-
-	extern T_CONFIG gConfig;
-	ESP_LOGI(__func__,"running on core %d",xPortGetCoreID());
-
-	// Read URL query string length and allocate memory for length + 1,
-	// extra byte for null termination
-
-	run_status_type old_status = RUN_STATUS_STOPPED;
-	run_status_type new_status = RUN_STATUS_NOT_SET;
-
-	char resp_str[255];
-
-	buf_len = httpd_req_get_url_query_len(req) + 1;
-	int cnt=0;
-	if (buf_len > 1) {
-		buf = malloc(buf_len);
-		if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK) {
-			ESP_LOGI(__func__, "Found URL query => %s", buf);
-
-			//                   0       1
-			char *paramnames[]={"cycle", "cmd", ""};
-			for (int i=0; strlen(paramnames[i]); i++) {
-				char param[256];
-				if (httpd_query_key_value(buf, paramnames[i], param, sizeof(param)) != ESP_OK) {
-					continue;
-				}
-				cnt++;
-				switch(i) {
-				case 0: // cycle
-				{
-					int new_val = atoi(param);
-					if ( new_val < 10 ) {
-						snprintf(resp_str,sizeof(resp_str),"new cycle time %d invalid, minimum value: 10 \n", new_val);
-					} else {
-						int old_val = set_event_timer_period(new_val);
-						snprintf(resp_str,sizeof(resp_str),"cycle time %d -> %d\n", old_val, new_val);
-					}
-					httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
-				}
-					break;
-
-				case 1: // cmd
-				{
-					if ( param[0] == 'r' ) {
-						new_status = RUN_STATUS_RUNNING;
-
-					} else if (param[0] == 's' ) {
-						new_status = RUN_STATUS_STOPPED;
-
-					} else if (param[0] == 'p' ) {
-						new_status = RUN_STATUS_PAUSED;
-
-					} else if (param[0] == 'l' ) {
-						// list events
-						extern T_EVENT *s_event_list;
-						if (obtain_eventlist_lock() != ESP_OK) {
-							ESP_LOGE(__func__, "couldn't get lock on eventlist");
-							break;
-						}
-						char buf[100];
-						if ( !s_event_list) {
-							snprintf(buf,sizeof(buf),"no events in list\n");
-							httpd_resp_send_chunk(req, buf, strlen(buf));
-						} else {
-							for ( T_EVENT *evt= s_event_list; evt; evt = evt->nxt) {
-								event2text(evt,resp_str,sizeof(resp_str));
-								httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
-							}
-						}
-						release_eventlist_lock();
-
-					} else if (param[0] == 'c' ) {
-						// clear - sets status stop
-						new_status = RUN_STATUS_STOPPED;
-						if (event_list_free() == ESP_OK) {
-							snprintf(resp_str,sizeof(resp_str),"event list cleared");
-						} else {
-							snprintf(resp_str,sizeof(resp_str),"clear event list failed");
-						}
-						httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
-					}
-
-					if (new_status != RUN_STATUS_NOT_SET) {
-						old_status = set_scene_status(new_status);
-						snprintf(resp_str,sizeof(resp_str),"New status %s -> %s\nTimer cycle=%lld ms\nScene time=%lld\n",
-								RUN_STATUS_TYPE2TEXT(old_status), RUN_STATUS_TYPE2TEXT(new_status),
-								get_event_timer_period(), get_scene_time());
-					} else {
-						old_status = get_scene_status();
-						snprintf(resp_str,sizeof(resp_str),"Status %s\nTimer cycle=%lld ms\nScene time=%lld\n",
-								RUN_STATUS_TYPE2TEXT(old_status),
-								get_event_timer_period(), get_scene_time());
-					}
-					httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
-				}
-					break;
-
-				default:
-					snprintf(resp_str,sizeof(resp_str),"%d NYI",i);
-					httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
-					cnt--;
-				}
-			}
-			free(buf);
-		}
-	} else {
-		old_status = get_scene_status();
-		snprintf(resp_str,sizeof(resp_str),"Status %s\nTimer cycle=%lld ms\nScene time=%lld\n",
-				RUN_STATUS_TYPE2TEXT(old_status),
-				get_event_timer_period(), get_scene_time());
-		httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
-	}
-
-	snprintf(resp_str,sizeof(resp_str),"DONE(cnt=%d)\n",cnt);
-	httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
-
-	// End response
-	httpd_resp_send_chunk(req, NULL, 0);
-
-	return ESP_OK;
-}
-// */
-
-/*
-static esp_err_t get_handler_reset(httpd_req_t *req)
-{
-	//size_t buf_len;
-
-	// clear nvs
-	nvs_flash_erase();
-	scenes_stop();
-
-	char resp_str[255];
-	snprintf(resp_str, sizeof(resp_str),"RESET done\n");
-
-	httpd_resp_send(req, resp_str, HTTPD_RESP_USE_STRLEN);
-
-	ESP_LOGI(__func__,"Restarting in a second...\n");
-	vTaskDelay(1000 / portTICK_PERIOD_MS);
-    ESP_LOGI(__func__, "Restarting now.\n");
-    fflush(stdout);
-    esp_restart();
-
-	return ESP_OK;
-}
-*/
-
-/**
- * expected uri's
- * /l /list - list events
- *    /delete?id=<id> - delete event with id
- *    /clear - clears event list
- * /r /run - start playing
- * /s /stop - stop playing
- * /p /pause - pause playing
- *    /config?numleds=<nn>&cycle=<nn>&autostart=<fname>
- *    /save?fn=<fname> - save playlist to MVS
- *    /reset - reset stored values to default
- *    /restart - restart the ESP32
- * default: help
- */
 
 typedef enum {
 	// GET
 	HP_STATUS,
 	HP_LIST,
-	//HP_DELETE,
 	HP_CLEAR,
 	HP_RUN,
 	HP_STOP,
@@ -520,7 +58,7 @@ typedef enum {
 	HP_RESET,
 	HP_HELP,
 	// POST
-	HP_ADD,
+	HP_LOAD,
 	// End of list
 	HP_END_OF_LIST
 } t_http_processing;;
@@ -533,11 +71,10 @@ typedef struct {
 } T_HTTP_PROCCESSING_TYPE;
 
 static T_HTTP_PROCCESSING_TYPE http_processing[] = {
-		{"/a","/add", HP_ADD, "add event, uses POST-data"},
+		{"","/load", HP_LOAD, "load events, replaces stored data, uses POST-data"},
 		{"/", "/help", HP_HELP, "API help"},
 		{"/st", "/status", HP_STATUS, "status"},
 		{"/l","/list",HP_LIST, "list events"},
-		//{"","/delete",HP_DELETE,"delete an event specified by query parameter 'id=<nn>'"},
 		{"","/clear",HP_CLEAR,"clear event list"},
 		{"/r","/run",HP_RUN,"run"},
 		{"/s","stop",HP_STOP,"stop"},
@@ -711,15 +248,20 @@ static void get_handler_data_list(httpd_req_t *req) {
 	release_eventlist_lock();
 }
 
-static void get_handler_data_status(httpd_req_t *req, bool changed, run_status_type status) {
+/**
+ * delivers status informations in JSON
+ */
+static void get_handler_data_status(httpd_req_t *req, char *msg, run_status_type status) {
     httpd_resp_set_type(req, "application/json");
     cJSON *root = cJSON_CreateObject();
 
-    if ( changed ) {
-         cJSON_AddTrueToObject(root, "changed");
-     } else {
-         cJSON_AddFalseToObject(root, "changed");
-     }
+//    if ( changed ) {
+//         cJSON_AddTrueToObject(root, "changed");
+//     } else {
+//         cJSON_AddFalseToObject(root, "changed");
+//     }
+    if (msg && strlen(msg))
+    	cJSON_AddStringToObject(root, "msg", msg);
     cJSON_AddStringToObject(root, "status", RUN_STATUS_TYPE2TEXT(status));
     cJSON_AddNumberToObject(root, "scene_time", get_scene_time());
     cJSON_AddNumberToObject(root, "timer_period", get_event_timer_period());
@@ -733,16 +275,18 @@ static void get_handler_data_status(httpd_req_t *req, bool changed, run_status_t
     cJSON_AddNumberToObject(fs_size, "used", used);
 
     const char *resp = cJSON_PrintUnformatted(root);
-    ESP_LOGI(__func__,"resp=%s", resp?resp:"nix");
+    ESP_LOGI(__func__,"RESP=%s", resp?resp:"nix");
+
+    httpd_resp_send_chunk(req, "STATUS=", HTTPD_RESP_USE_STRLEN);
 	httpd_resp_send_chunk(req, resp, strlen(resp));
-	httpd_resp_send_chunk(req, "\n", 1);
+	httpd_resp_send_chunk(req, "\n", 1); // response more readable
 
     free((void *)resp);
     cJSON_Delete(root);
 }
 
 static void get_handler_data_status_current(httpd_req_t *req) {
-	get_handler_data_status(req, false, get_scene_status());
+	get_handler_data_status(req, "", get_scene_status());
 }
 
 static void get_handler_data_scene_status(httpd_req_t *req, run_status_type new_status) {
@@ -750,26 +294,48 @@ static void get_handler_data_scene_status(httpd_req_t *req, run_status_type new_
 	if ( old_status != new_status) {
 		old_status = set_scene_status(new_status);
 	}
-	get_handler_data_status(req, old_status != new_status, new_status);
+	get_handler_data_status(req, old_status != new_status ? "new status set" : "", new_status);
 }
 
-static void get_handler_data_clear(httpd_req_t *req) {
-	char resp_str[64];
-	get_handler_data_scene_status(req, RUN_STATUS_STOPPED);
+static esp_err_t clear_data(char *msg, size_t sz_msg, run_status_type new_status) {
+	memset(msg, 0, sz_msg);
 
-	if (scene_list_free() == ESP_OK) {
-		snprintf(resp_str,sizeof(resp_str),"event list cleared");
-	} else {
-		snprintf(resp_str,sizeof(resp_str),"clear event list failed");
+	// stop display program
+	run_status_type old_status = get_scene_status();
+	if ( old_status != new_status) {
+		old_status = set_scene_status(new_status);
+		snprintf(msg, sz_msg,"new status set, ");
 	}
-	httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
+
+	bool hasError = false;
+	if (scene_list_free() == ESP_OK) {
+		snprintf(&(msg[strlen(msg)]),sz_msg - strlen(msg),"event list cleared, ");
+	} else {
+		hasError=true;
+		snprintf(&(msg[strlen(msg)]),sz_msg - strlen(msg),"clear event list failed, ");
+	}
 
 	if ( object_list_free() == ESP_OK) {
-		snprintf(resp_str,sizeof(resp_str),"object list cleared");
+		snprintf(&(msg[strlen(msg)]),sz_msg - strlen(msg),"object list cleared");
 	} else {
-		snprintf(resp_str,sizeof(resp_str),"clear object list failed");
+		hasError = true;
+		snprintf(&(msg[strlen(msg)]),sz_msg - strlen(msg),"clear object list failed");
 	}
-	httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
+	return hasError ? ESP_FAIL : ESP_OK;
+
+}
+
+
+static esp_err_t get_handler_data_clear(httpd_req_t *req) {
+	char msg[255];
+
+	// stop display program
+	run_status_type new_status = RUN_STATUS_STOPPED;
+	esp_err_t res = clear_data(msg, sizeof(msg), new_status);
+
+	get_handler_data_status(req, msg, new_status);
+
+	return res;
 }
 
 static void get_handler_data_restart(httpd_req_t *req) {
@@ -809,43 +375,6 @@ static void get_handler_data_blank(httpd_req_t *req) {
 	httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
 
 }
-
-/*
-static void get_handler_data_delete(httpd_req_t *req) {
-	char resp_str[255];
-	char *buf;
-	size_t buf_len = httpd_req_get_url_query_len(req) + 1;
-	if (buf_len > 1) {
-		buf = malloc(buf_len);
-		if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK) {
-			ESP_LOGI(__func__, "Found URL query => %s", buf);
-			char *paramname="id";
-			char val[256];
-			if (httpd_query_key_value(buf, paramname, val, sizeof(val)) == ESP_OK) {
-				// doit
-				esp_err_t rc=delete_event_by_id(val);
-				switch(rc) {
-				case ESP_OK:
-					snprintf(resp_str, sizeof(resp_str),"event '%s' deleted\n", val);
-					break;
-				case ESP_ERR_NOT_FOUND:
-					snprintf(resp_str, sizeof(resp_str),"event '%s' not found\n", val);
-					break;
-				default:
-					snprintf(resp_str, sizeof(resp_str),"delete event '%s' FAILED\n", val);
-				}
-			} else {
-				snprintf(resp_str, sizeof(resp_str),"ERROR: missing query parameter 'id=<nn>'\n");
-			}
-		}
-		free(buf);
-	} else {
-		ESP_LOGI(__func__,"buf_len == 0");
-	}
-
-	httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
-}
-*/
 
 static void get_handler_data_config(httpd_req_t *req) {
 	bool restart_needed = false;
@@ -1007,9 +536,6 @@ static esp_err_t get_handler_data(httpd_req_t *req)
 	case HP_LIST:
 		get_handler_data_list(req);
 		break;
-/*	case HP_DELETE:
-		get_handler_data_delete(req);
-		break;*/
 	case HP_CLEAR:
 		get_handler_data_clear(req);
 		break;
@@ -1037,7 +563,7 @@ static esp_err_t get_handler_data(httpd_req_t *req)
 	case HP_RESET:
 		get_handler_data_reset(req);
 		break;
-	case HP_ADD:
+	case HP_LOAD:
 		snprintf(resp_str, sizeof(resp_str),"path='%s' POST only\n", path);
 		httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
 		return http_help(req);
@@ -1052,6 +578,44 @@ static esp_err_t get_handler_data(httpd_req_t *req)
 	httpd_resp_send_chunk(req, NULL, 0);
 
 	return ESP_OK;
+}
+
+
+static esp_err_t post_handler_data_load(httpd_req_t *req, char *buf) {
+	char msg[255];
+	memset(msg, 0, sizeof(msg));
+	// stop display, clear data
+
+	run_status_type new_status = RUN_STATUS_STOPPED;
+	esp_err_t res = clear_data(msg, sizeof(msg),new_status);
+
+	//get_handler_data_status(req, msg, new_status);
+
+
+//	esp_err_t res = get_handler_data_clear(req);
+//	if ( res != ESP_OK) {
+//		snprintf(resp_str,sizeof(resp_str),"clear old data data failed\n");
+//		httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, resp_str);
+//		return ESP_FAIL;
+//	}
+
+	char errmsg[64];
+	res = decode_json4event_root(buf, errmsg, sizeof(errmsg));
+	if (res == ESP_OK) {
+		snprintf(&msg[strlen(msg)],sizeof(msg) - strlen(msg), ", decoding data done: %s",errmsg);
+	} else {
+		snprintf(&msg[strlen(msg)],sizeof(msg) - strlen(msg), ", decoding data failed: %s",errmsg);
+	//	httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, resp_str);
+	//	return ESP_FAIL;
+	}
+
+	//snprintf(resp_str,sizeof(resp_str),"DONE\n");
+	//httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
+
+	get_handler_data_status(req, msg, new_status);
+
+	return res;
+
 }
 
 /**
@@ -1072,16 +636,6 @@ static esp_err_t post_handler_data(httpd_req_t *req)
 	if (!pt ) {
 		return http_help(req);
 	}
-
-    switch(pt->todo) {
-    case HP_ADD:
-    	break;
-    default:
-		snprintf(resp_str, sizeof(resp_str),"path='%s' GET only\n", path);
-		httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
-		return http_help(req);
-    }
-
 
 	if ( req->content_len > SCRATCH_BUFSIZE) {
         ESP_LOGE(__func__, "Content too large : %d bytes\n", req->content_len);
@@ -1121,8 +675,28 @@ static esp_err_t post_handler_data(httpd_req_t *req)
         remaining -= received;
     }
 
+    esp_err_t res;
+    switch(pt->todo) {
+    case HP_LOAD:
+    	res = post_handler_data_load(req, buf);
+    	break;
+    default:
+		snprintf(resp_str, sizeof(resp_str),"path='%s' GET only\n", path);
+		httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
+		return http_help(req);
+    }
+
+    /*
+    // stop display, clear data
+    esp_err_t res = get_handler_data_clear(req);
+    if ( res != ESP_OK) {
+        snprintf(resp_str,sizeof(resp_str),"clear old data data failed\n");
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, resp_str);
+        return ESP_FAIL;
+    }
+
     char errmsg[64];
-    esp_err_t res = decode_json4event_root(buf, errmsg, sizeof(errmsg));
+    res = decode_json4event_root(buf, errmsg, sizeof(errmsg));
     if (res != ESP_OK) {
         snprintf(resp_str,sizeof(resp_str),"Decoding data failed: %s\n",errmsg);
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, resp_str);
@@ -1131,11 +705,11 @@ static esp_err_t post_handler_data(httpd_req_t *req)
 
 	snprintf(resp_str,sizeof(resp_str),"DONE\n");
 	httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
-
+*/
 	// End response
 	httpd_resp_send_chunk(req, NULL, 0);
 
-	return ESP_OK;
+	return res;
 }
 
 

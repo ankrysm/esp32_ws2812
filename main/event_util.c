@@ -52,7 +52,7 @@ void delete_event(T_EVENT *evt) {
 			w=t;
 		}
 	}
-
+/*
 	if (evt->evt_where_list) {
 		T_EVT_WHERE *t, *w = evt->evt_where_list;
 		while(w) {
@@ -61,7 +61,7 @@ void delete_event(T_EVENT *evt) {
 			w=t;
 		}
 	}
-
+*/
 	free(evt);
 
 }

@@ -3,8 +3,13 @@
 		 {  "id":"o1",
 			"list" :[
 			    {"type":"color_transition", "color_from":"blue", "color_to":"red", "pos":0, "len":7},
-			 	{"type":"color", "color":"yellow", "pos":7, "len":7},
+			 	{"type":"color", "color":"red", "pos":7, "len":7},
 			 	{"type":"color_transition", "color_from":"red", "color_to":"blue", "pos":14, "len":7}
+			 ]
+		  },
+		  {  "id":"o2",
+			"list" :[
+			 	{"type":"color", "color":"green", "pos":0, "len":10}
 			 ]
 		  }
 	  ],
@@ -23,6 +28,8 @@
 			 	 ],
 		     	 "work": [
 				 	{"type":"bounce", "time": 1000},
+				 	{"type":"go", "time":1000},
+				 	{"type":"bounce", "time": 1000},
 				 	{"type":"go", "time":1000}
 				 ],
 				 "final":[
@@ -36,7 +43,7 @@
 			 	 	{"type":"brightness", "value":0.1},
 		     	 	{"type":"goto", "value":30},
 				 	{"type":"speed", "value":-0.5},
-		     	 	{"type":"object","value":"o1"}
+		     	 	{"type":"object","value":"o2"}
 			 	 ],
 		     	 "work": [
 				 	{"type":"bounce", "time": 1000},
@@ -57,8 +64,8 @@
 			 	 "init": [
 			 	 	{"type":"brightness", "value":0.1},
 		     	 	{"type":"goto", "value":50},
-				 	{"type":"speed", "value":0.1},
-		     	 	{"type":"object","value":"o1"}
+				 	{"type":"speed", "value":1},
+		     	 	{"type":"object","value":"o2"}
 			 	 ],
 		     	 "work": [
 				 	{"type":"bounce", "time": 1000},
@@ -73,8 +80,8 @@
 			 	 "init": [
 			 	 	{"type":"brightness", "value":0.1},
 		     	 	{"type":"goto", "value":70},
-				 	{"type":"speed", "value":-0.1},
-		     	 	{"type":"object","value":"o1"}
+				 	{"type":"speed", "value":-1},
+		     	 	{"type":"object","value":"o2"}
 			 	 ],
 		     	 "work": [
 				 	{"type":"bounce", "time": 1000},

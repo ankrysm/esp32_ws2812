@@ -151,8 +151,8 @@ void process_object(T_EVENT *evt) {
 
 	if ( evt->w_flags & EVFL_CLEARPIXEL) {
 		evt->w_flags &= ~EVFL_CLEARPIXEL; // reset the flag
-		startpos = evt->w_pos;
-		endpos   = evt->w_pos + len;
+		startpos = floor(evt->w_pos);
+		endpos   = ceil(evt->w_pos + len);
 		strip_set_range(startpos, endpos, &rgb);
 		ESP_LOGI(__func__, "clear pixel %d .. %d", startpos, endpos);
 		return;
@@ -275,7 +275,6 @@ static void process_event_when_init(T_EVENT *evt) {
 
 		ESP_LOGI(__func__,"INIT evt.id='%s', tevt.id=%d: type %d(%s), val=%.3f, sval='%s'",
 				evt->id, e->id, e->type, ET2TEXT(e->type), e->value, e->svalue);
-
 		switch(e->type) {
 		case ET_SPEED:
 			evt->w_speed = e->value;
@@ -299,9 +298,6 @@ static void process_event_when_init(T_EVENT *evt) {
 				ESP_LOGI(__func__,"evt.id='%s', tevt.id=%d: new object_oid='%s'", evt->id, e->id, evt->w_object_oid);
 			}
 			break;
-	//	case ET_SET_REPEAT_COUNT:
-			// processed in reset_event_repeats
-		//	break;
 
 		default:
 			break;
@@ -320,7 +316,7 @@ static void process_event_when_final(T_EVENT *evt) {
 
 		ESP_LOGI(__func__,"FINAL evt.id='%s', tevt.id=%d: type %d(%s), val=%.3f, sval='%s'",
 				evt->id, e->id, e->type, ET2TEXT(e->type), e->value, e->svalue);
-
+		ESP_LOGI(__func__,"FINAL evt.id='%s', pos=%.2f", evt->id, evt->w_pos);
 		switch(e->type) {
 		case ET_CLEAR:
 			evt->w_flags |= EVFL_CLEARPIXEL;
@@ -337,13 +333,7 @@ static void process_event_when_final(T_EVENT *evt) {
 
 // time dependend events
 // time values in ms
-// sets
-//  * speed (ET_SPEED, ET_BOUNCE) or
-//  * acceleration (ET_SPEEDUP) or
-//  * position (ET_JUMP. ET_REVERSE) or
-//  * length or
-//  * brightness (ET_BRIGHTNESS, ET_BRIGHTNESS_DELTA) or
-//  * color (ET_CLEAR)
+// sets several parameters
 void  process_event_when(T_EVENT *evt, uint64_t scene_time, uint64_t timer_period) {
 	if (!evt->evt_time_list) {
 		return; // no timing events
@@ -432,12 +422,15 @@ void  process_event_when(T_EVENT *evt, uint64_t scene_time, uint64_t timer_perio
 					ESP_LOGI(__func__,"evt.id='%s', tevt.id=%d: new object_oid='%s'", evt->id, tevt->id, evt->w_object_oid);
 				}
 				break;
+
 			case ET_BOUNCE:
 				evt->w_speed = -evt->w_speed;
 				break;
+
 			case ET_GOTO_POS:
 				evt->w_pos = tevt->value;
 				break;
+
 			case ET_REVERSE:
 				evt->delta_pos = evt->delta_pos < 0 ? +1 : -1;
 				break;
@@ -446,6 +439,7 @@ void  process_event_when(T_EVENT *evt, uint64_t scene_time, uint64_t timer_perio
 				tevt_next = evt->evt_time_list; // go to start of the list
 				check_for_repeat = true;
 				break;
+
 			case ET_JUMP_MARKER:
 				// find event with marker
 				tevt_next = find_timer_event4marker (evt->evt_time_list, tevt->marker);
@@ -479,6 +473,7 @@ void  process_event_when(T_EVENT *evt, uint64_t scene_time, uint64_t timer_perio
 				tevt_next = evt->evt_time_list; // go to start of the list
 			}
 
+			// check for repeat ********************************************************************
 			if ( check_for_repeat) {
 				// all events finished, repeat it?
 				if (evt->t_repeats > 0 ) {
@@ -490,11 +485,15 @@ void  process_event_when(T_EVENT *evt, uint64_t scene_time, uint64_t timer_perio
 				}
 
 				if ( evt->w_t_repeats > 0) {
+					// have to be repeated **************************************************************
 					// reset event, next turn
 					ESP_LOGI(__func__, "evt.id='%s': repeat events (%d/%d)", evt->id, evt->w_t_repeats, evt->t_repeats);
+
 					reset_event(evt);
-					reset_timing_events(evt->evt_time_init_list);
 					reset_timing_events(tevt_next);
+					// process init events
+					process_event_when_init(evt);
+
 					ESP_LOGI(__func__, "next event to tid=%d", tevt_next->id );
 				} else {
 					// done, mark event as finished
@@ -588,13 +587,14 @@ static void reset_timing_events(T_EVT_TIME *tevt) {
 	for ( T_EVT_TIME *e = tevt; e; e=e->nxt) {
 		e->w_time = e->time;
 		e->status = TE_WAIT_FOR_START;
-		ESP_LOGI(__func__, "id=%d: status=0x%04x", e->id, e->status);
+		//ESP_LOGI(__func__, "id=%d: status=0x%04x", e->id, e->status);
 	}
 }
 
 
 /**
- *  reset an event, except repeat parameter
+ *  reset an event,
+ *  except repeat parameter and working events
  */
 void reset_event( T_EVENT *evt) {
 	evt->w_flags = 0; //evt->flags;
@@ -612,7 +612,6 @@ void reset_event( T_EVENT *evt) {
 	reset_timing_events(evt->evt_time_init_list);
 
 	ESP_LOGI(__func__, "event '%s'", evt->id);
-
 }
 
 /**
@@ -622,18 +621,6 @@ void reset_event( T_EVENT *evt) {
 void reset_event_repeats(T_EVENT *evt) {
 
 	evt->w_t_repeats = evt->t_repeats;
-	/*
-	for(T_EVT_TIME *e = evt->evt_time_init_list; e; e=e->nxt ) {
-		switch(e->type) {
-		case ET_SET_REPEAT_COUNT:
-			evt->w_t_repeats = e->value;
-			e->status = TE_FINISHED;
-			break;
-		default:
-			break;
-		}
-	}
-	*/
 	reset_timing_events(evt->evt_time_final_list);
 
 	ESP_LOGI(__func__, "event '%s' repeates=%d", evt->id, evt->w_t_repeats);
@@ -647,6 +634,9 @@ void process_scene(T_SCENE *scene, uint64_t scene_time, uint64_t timer_period) {
 		return;
 	}
 
+	if ( scene->flags & EVFL_FINISHED)
+		return;
+
 	if ( !scene->event) {
 		// first event
 		scene->event=scene->events;
@@ -655,13 +645,17 @@ void process_scene(T_SCENE *scene, uint64_t scene_time, uint64_t timer_period) {
 
 	bool finished = true;
 	for ( ; scene->event; scene->event = scene->event->nxt) {
-		if (scene->event->w_flags & EVFL_FINISHED)
+		if (scene->event->w_flags & EVFL_FINISHED) {
+			ESP_LOGI(__func__,"scene '%s', event '%s' already finished", scene->id, scene->event->id );
 			continue; // step over
-
+		}
 		// not finished, process it
 		process_event(scene->event, scene_time, timer_period);
-		if ( !(scene->event->w_flags & EVFL_FINISHED))
+		if ( !(scene->event->w_flags & EVFL_FINISHED)) {
 			finished = false;
+		} else {
+			ESP_LOGI(__func__,"scene '%s', event '%s' just finished", scene->id, scene->event->id );
+		}
 
 		break;
 	}
@@ -670,17 +664,17 @@ void process_scene(T_SCENE *scene, uint64_t scene_time, uint64_t timer_period) {
 		scene->flags |= EVFL_FINISHED;
 		ESP_LOGI(__func__, "scene '%s' finished", scene->id);
 	}
-
-
-
 }
 
 
 void reset_scene(T_SCENE *scene) {
 	ESP_LOGI(__func__, "scene '%s'", scene->id);
 	scene->flags = 0;
+	scene->event = NULL;
 	for( T_EVENT *evt = scene->events; evt; evt=evt->nxt) {
 		reset_event(evt);
+		// additional reset working events
+		reset_timing_events(evt->evt_time_list);
 		reset_event_repeats(evt);
 	}
 

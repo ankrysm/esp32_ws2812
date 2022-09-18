@@ -163,8 +163,9 @@ static void periodic_timer_callback(void* arg) {
 		for ( T_SCENE *scene= s_scene_list; scene; scene = scene->nxt) {
 			process_scene(scene, s_scene_time, s_timer_period);
 			//process_event(evt, s_scene_time, s_timer_period);
-			if (! (scene->flags &  EVFL_FINISHED))
+			if (! (scene->flags & EVFL_FINISHED)) {
 				finished = false;
+			}
 		}
 	}
 

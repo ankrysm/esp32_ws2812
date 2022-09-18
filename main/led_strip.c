@@ -15,16 +15,25 @@ extern uint8_t *led_strip_pixels;
 
 static uint32_t last_hash = 0;
 
+static bool is_dirty = false;
+
 #define STRIP_INITIALIZED (led_strip_pixels ? true : false)
 
 static void do_set_pixel(int32_t idx, T_COLOR_RGB *rgb) {
 	if ( idx < 0 || idx >= get_numleds()) {
 		return;
 	}
+
+	if (!is_dirty) {
+		memset(led_strip_pixels, 0, s_size_led_strip_pixels);
+	}
+
 	uint32_t pos = 3 * idx;
 	led_strip_pixels[pos++] = rgb ? rgb->g : 0;
 	led_strip_pixels[pos++] = rgb ? rgb->r : 0;
 	led_strip_pixels[pos]   = rgb ? rgb->b : 0;
+
+	is_dirty = true;
 }
 
 
@@ -64,7 +73,7 @@ void strip_clear()  {
 		return;
 	}
 	memset(led_strip_pixels, 0, s_size_led_strip_pixels);
-	//is_dirty = 1;
+	is_dirty = true;
 }
 
 /**
@@ -76,16 +85,14 @@ void strip_show(bool forced) {
 		return;
 	}
 	uint32_t hash = crc32b(led_strip_pixels, s_size_led_strip_pixels);
-	if (!forced && hash == last_hash)
+	if (!forced && !is_dirty && hash == last_hash)
 		return;
 
-	last_hash = hash;
-//	is_dirty = 0;
 #ifdef STRIP_DEMO
 	{
 		char txt[1024];
 		uint32_t pos=0;
-		snprintf(txt,sizeof(txt),"#### LED:<");
+		snprintf(txt,sizeof(txt),"%s%u->%u #### LED:<", (forced?"(f)":""), last_hash, hash);
 		for (int i=0; i<get_numleds(); i++) {
 			uint32_t g= led_strip_pixels[pos++]; // g
 			uint32_t r= led_strip_pixels[pos++]; // r
@@ -107,10 +114,12 @@ void strip_show(bool forced) {
 		ESP_LOGI(__func__, "%s", txt);
 	}
 #endif
+	// send data to strip
 	led_strip_refresh();
 	// clear all pixels for next cycle
-	memset(led_strip_pixels, 0, s_size_led_strip_pixels);
-
+	// memset(led_strip_pixels, 0, s_size_led_strip_pixels);
+	last_hash = hash;
+	is_dirty = false;
 }
 
 /**
