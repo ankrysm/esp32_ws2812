@@ -4,7 +4,7 @@
 idf_component_register(SRCS
 					"main.c" "rest_server.c" "led_strip.c" "config.c"
 					"wifi_config.c" "timer_events.c" "process_events.c" "color.c" "create_events.c"
-					"create_demo.c" "event_util.c" "util.c"
+					"create_demo.c" "event_util.c" "util.c" "global_data.c"
 					#"location_based_events.c" "move_events.c"
 					#"paint_pixel.c"
                     INCLUDE_DIRS ".")
@@ -12,4 +12,6 @@ idf_component_register(SRCS
 #register_component()
 #"rest_server.c" "handle_fs.c"
 
-component_compile_options(-Wno-error=format= -Wno-format)
+#component_compile_options(-Wno-error=format= -Wno-format)
+#component_compile_options(-Wno-error=format=)
+component_compile_options(-Wno-format)

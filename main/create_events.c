@@ -8,70 +8,7 @@
 
 #include "esp32_ws2812.h"
 
-/*
-
-    data example:
-
-
-// decode_json4event: 2 lists: objects, events
-		{
-// decode_json4event_object_list: objects
-			 "objects" : [
-//decode_json4event_object
-				 {  "id":"o1",
-					"list" :[
-// decode_json4event_object_data:
-						{"type":"color_transition", "color_from":"blue", "color_to":"red", "pos":0, "len":7},
-						{"type":"color", "color":"yellow", "pos":7, "len":7},
-						{"type":"color_transition", "color_from":"red", "color_to":"blue", "pos":14, "len":7}
-					 ]
-				  }
-			  ],
-// decode_json4event_event_list: events
-			 "events" : [
-// decode_json4event_event:
-				{
-				 "id":"10",
-// decode_json4event_evt_time_init_list:
-				 "init": [
-// decode_json4event_evt_time  (for_init=true) :
-					{"type":"repeat_count", "value":5},
-					{"type":"jump", "value":10},
-					{"type":"object","value":"o1"}
-				 ],
-// decode_json4event_evt_time_list:
-				 "work": [
-// decode_json4event_evt_time (for_init=false):
-					{"type":"speed", "value":2.5},
-					{"type":"bounce", "time": 1000},
-					{"type":"continue", "time":1000}
-				 ]
-				}
-			 ]
-		}
-
-*/
-
-/**
- * print JSON-Element-Type (for testing)
- * /
-static void JSON_Print(cJSON *element) {
-	if (!element) {
-		ESP_LOGI(__func__, "data missing");
-		return;
-	}
-	if (element->type == cJSON_Invalid) ESP_LOGI(__func__, "cJSON_Invalid");
-	if (element->type == cJSON_False) ESP_LOGI(__func__, "cJSON_False");
-	if (element->type == cJSON_True) ESP_LOGI(__func__, "cJSON_True");
-	if (element->type == cJSON_NULL) ESP_LOGI(__func__, "cJSON_NULL");
-	if (element->type == cJSON_Number) ESP_LOGI(__func__, "cJSON_Number int=%d double=%f", element->valueint, element->valuedouble);
-	if (element->type == cJSON_String) ESP_LOGI(__func__, "cJSON_String string=%s", element->valuestring);
-	if (element->type == cJSON_Array) ESP_LOGI(__func__, "cJSON_Array");
-	if (element->type == cJSON_Object) ESP_LOGI(__func__, "cJSON_Object");
-	if (element->type == cJSON_Raw) ESP_LOGI(__func__, "cJSON_Raw");
-}
-//*/
-
+// ************ common functions ****************************
 /**
  * reads a boolean value for an attribute in the current JSON node
  */
@@ -167,7 +104,9 @@ static t_result evt_get_string(cJSON *element, char *attr, char *sval, size_t sz
 
 }
 
-
+/**
+ * reads a list from a JSON node
+ */
 static t_result evt_get_list(cJSON *element, char *attr, cJSON **found, int *array_size, char *errmsg, size_t sz_errmsg) {
 	memset(errmsg, 0, sz_errmsg);
 
@@ -198,6 +137,7 @@ static t_result evt_get_list(cJSON *element, char *attr, cJSON **found, int *arr
 	return RES_OK;
 }
 
+// *************************** color get functions *********************************************************
 /**
  * reads a color by name from the attribute and converts it to HSV
  */
@@ -334,6 +274,8 @@ static esp_err_t decode_json_getcolor(cJSON *element, char *attr4colorname, char
 	return rc;
 }
 
+// *************** get functions from JSON nodes ************************************************
+
 /**
  * reads a single T_EVT_TIME element
  */
@@ -395,21 +337,6 @@ static esp_err_t decode_json4event_scene_event_events_data(cJSON *element, uint3
 		if (evt_get_number(element, attr, &val, errmsg, sz_errmsg) == RES_OK) {
 			tevt->value = val;
 			ESP_LOGI(__func__, "%s/%s/%d: %s=%.3f",hint, evt->id,  id, attr, tevt->value);
-//			switch(tevt->type) {
-//			case ET_SET_REPEAT_COUNT:
-//				switch ( processing_type ) {
-//				case PT_INIT:
-//					evt->evt_time_list_repeats = tevt->value;
-//					ESP_LOGI(__func__, "%s/%s/%d: repeats -> %d", hint, evt->id, id, attr, evt->evt_time_list_repeats);
-//					break;
-//				default:
-//					snprintf(errmsg, sz_errmsg,"%s only in 'init' section", ET2TEXT(tevt->type));
-//				}
-//				break;
-//
-//			default:
-//				break;
-//			}
 		} else if (evt_get_string(element, attr, sval, sizeof(sval), errmsg, sz_errmsg) == RES_OK) {
 			strlcpy(tevt->svalue, sval,sizeof(tevt->svalue));
 			ESP_LOGI(__func__, "%s/%s/%d: %s='%s'", hint, evt->id, id, attr, tevt->svalue);
@@ -610,23 +537,6 @@ static esp_err_t decode_json4event_object(cJSON *element,  char *errmsg, size_t 
 		attr="id";
 		if (evt_get_string(element, attr, sval, sizeof(sval), errmsg, sz_errmsg) != RES_OK)
 			break;
-	//	ESP_LOGI(__func__, "%s='%s'", attr, sval);
-
-/*		obj = find_object4oid(sval);
-		if ( obj ) {
-			ESP_LOGI(__func__, "object '%s' found, todo: %s", obj->oid, (overwrite?"overwrite":"add"));
-			if(overwrite)  {
-				if ( delete_object_by_oid(sval) != ESP_OK) {
-					snprintf(errmsg, sz_errmsg,"duplicate object with oid '%s', failed to delete", sval);
-					break;
-				}
-			} else {
-				snprintf(errmsg, sz_errmsg,"duplicate object with oid '%s'", sval);
-				break;
-			}
-		} else {
-			ESP_LOGI(__func__, "object '%s' is new", sval);
-		} */
 		obj = create_object(sval);
 		ESP_LOGI(__func__, "object '%s' created", obj->oid);
 
@@ -791,6 +701,7 @@ static esp_err_t decode_json4event_scene(cJSON *element, char *errmsg, size_t sz
 
 
 		rc = ESP_OK;
+
 		for (int i=0; i < array_size; i++) {
 			cJSON *list_element = cJSON_GetArrayItem(found, i);
 			char l_errmsg[64];
@@ -800,7 +711,6 @@ static esp_err_t decode_json4event_scene(cJSON *element, char *errmsg, size_t sz
 				rc = ESP_FAIL;
 			}
 		}
-
 	} while(false);
 
 	if ( rc == ESP_OK) {
@@ -916,16 +826,14 @@ esp_err_t decode_json4event_root(char *content, char *errmsg, size_t sz_errmsg) 
 			break;
 		}
 
-		//JSON_Print(tree);
-
 		if ( decode_json4event_object_list(tree, errmsg, sz_errmsg) != ESP_OK )
 			break; // no list or decode error
 		ESP_LOGI(__func__,"object list created");
 
-
 		if ( decode_json4event_scenes_list(tree, errmsg, sz_errmsg) != ESP_OK )
 			break; // no list or decode error
 		ESP_LOGI(__func__,"event list created");
+
 		rc = ESP_OK;
 
 	} while(false);

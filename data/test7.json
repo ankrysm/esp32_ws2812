@@ -19,13 +19,13 @@
 			 	 "init": [
 			 	 	{"type":"brightness", "value":0.1},
 		     	 	{"type":"goto", "value":10},
-				 	{"type":"speed", "value":1},
+				 	{"type":"speed", "value":5},
 		     	 	{"type":"object","value":"rb"}
 			 	 ],
 		     	 "work": [
-				 	{"type":"reverse","time":1000},
+				 	{"type":"reverse", "time":3000},
 				 	{"type":"bounce"},
-				 	{"type":"go", "time":1000}
+				 	{"type":"go", "time":3000}
 				 ],
 				 "final":[
 				 	{"type":"clear"}

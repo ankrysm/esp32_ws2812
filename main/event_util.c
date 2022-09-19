@@ -37,34 +37,6 @@ void init_eventlist_utils() {
 	xSemaphore = xSemaphoreCreateMutex();
 }
 
-/**
- * free an event
- */
-void delete_event(T_EVENT *evt) {
-	if (!evt)
-		return;
-
-	if (evt->evt_time_list) {
-		T_EVT_TIME *t, *w = evt->evt_time_list;
-		while(w) {
-			t = w->nxt;
-			free(w);
-			w=t;
-		}
-	}
-/*
-	if (evt->evt_where_list) {
-		T_EVT_WHERE *t, *w = evt->evt_where_list;
-		while(w) {
-			t = w->nxt;
-			free(w);
-			w=t;
-		}
-	}
-*/
-	free(evt);
-
-}
 
 
 /**
@@ -145,29 +117,6 @@ esp_err_t delete_event_by_id(char *id) {
 		rc = ESP_ERR_NOT_FOUND;
 
 	return rc;
-}
-*/
-
-/**
- * frees the event list
- */
-/*
-void event_list_free(T_EVENT *list) {
-
-	if (obtain_eventlist_lock() != ESP_OK) {
-		ESP_LOGE(__func__, "couldn't get lock");
-		return ESP_FAIL;
-	}
-	if ( list)  {
-		T_EVENT *nxt;
-		while (list) {
-			nxt = list->nxt;
-			delete_event(list);
-			list = nxt;
-		}
-	}
-	// after this s_event_list is NULL
-	return release_eventlist_lock();
 }
 */
 
@@ -274,21 +223,8 @@ T_EVT_TIME *create_timing_event_final(T_EVENT *evt, uint32_t id) {
 }
 
 // ***********************************************************************
-void delete_object(T_EVT_OBJECT *obj) {
-	if (!obj)
-		return;
 
-	if ( obj->data) {
-		T_EVT_OBJECT_DATA *t, *d = obj->data;
-		while(d) {
-			t = d->nxt;
-			free(d);
-			d=t;
-		}
-	}
-	free(obj);
-}
-
+/*
 esp_err_t delete_object_by_oid(char *oid) {
 	if (obtain_eventlist_lock() != ESP_OK) {
 		ESP_LOGE(__func__, "couldn't get lock");
@@ -325,25 +261,7 @@ esp_err_t delete_object_by_oid(char *oid) {
 
 	return rc;
 }
-
-
-esp_err_t object_list_free() {
-	if (obtain_eventlist_lock() != ESP_OK) {
-		ESP_LOGE(__func__, "couldn't get lock");
-		return ESP_FAIL;
-	}
-
-	if (s_object_list) {
-		T_EVT_OBJECT *nxt;
-		while(s_object_list) {
-			nxt = s_object_list->nxt;
-			delete_object(s_object_list);
-			s_object_list = nxt;
-		}
-	}
-
-	return release_eventlist_lock();
-}
+*/
 
 T_EVT_OBJECT* find_object4oid(char *oid) {
 	if (!s_object_list) {
@@ -467,6 +385,81 @@ esp_err_t scene_list_add(T_SCENE *obj) {
 	return release_eventlist_lock();
 }
 
+// #################### Free data structures ########################################
+
+
+void delete_object(T_EVT_OBJECT *obj) {
+	if (!obj)
+		return;
+
+	if ( obj->data) {
+		T_EVT_OBJECT_DATA *t, *obj_data = obj->data;
+		while(obj_data) {
+			t = obj_data->nxt;
+			free(obj_data);
+			obj_data=t;
+		}
+	}
+	free(obj);
+}
+
+esp_err_t object_list_free() {
+	if (obtain_eventlist_lock() != ESP_OK) {
+		ESP_LOGE(__func__, "couldn't get lock");
+		return ESP_FAIL;
+	}
+
+	if (s_object_list) {
+		T_EVT_OBJECT *nxt;
+		while(s_object_list) {
+			nxt = s_object_list->nxt;
+			delete_object(s_object_list);
+			s_object_list = nxt;
+		}
+	}
+
+	return release_eventlist_lock();
+}
+
+
+void delete_event_list(T_EVT_TIME *list) {
+	if (list) {
+		T_EVT_TIME *t, *w = list;
+		while(w) {
+			t = w->nxt;
+			free(w);
+			w=t;
+		}
+	}
+}
+
+
+/**
+ * free an event
+ */
+void delete_event(T_EVENT *evt) {
+	if (!evt)
+		return;
+
+	delete_event_list(evt->evt_time_init_list);
+	delete_event_list(evt->evt_time_list);
+	delete_event_list(evt->evt_time_final_list);
+
+	/*
+	if (evt->evt_where_list) {
+		T_EVT_WHERE *t, *w = evt->evt_where_list;
+		while(w) {
+			t = w->nxt;
+			free(w);
+			w=t;
+		}
+	}
+	*/
+	free(evt);
+
+}
+
+
 // delete a scene, caller must free obj itselves
 void delete_scene(T_SCENE *obj) {
 	if (!obj)
@@ -488,6 +481,8 @@ esp_err_t scene_list_free() {
 		ESP_LOGE(__func__, "couldn't get lock");
 		return ESP_FAIL;
 	}
+
+	// s_scene_list will be NULL after all frees
 	if ( s_scene_list)  {
 		T_SCENE *nxt;
 		while (s_scene_list) {
@@ -496,6 +491,7 @@ esp_err_t scene_list_free() {
 			s_scene_list = nxt;
 		}
 	}
+
 	// after this s_event_list is NULL
 	return release_eventlist_lock();
 

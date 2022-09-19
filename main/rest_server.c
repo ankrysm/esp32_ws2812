@@ -17,7 +17,7 @@
 #define SCRATCH_BUFSIZE (10240)
 
 extern T_CONFIG gConfig;
-extern T_EVENT *s_event_list;
+//extern T_EVENT *s_event_list;
 extern T_EVT_OBJECT *s_object_list;
 
 
@@ -28,6 +28,7 @@ typedef struct rest_server_context {
 
 #define CHECK_FILE_EXTENSION(filename, ext) (strcasecmp(&filename[strlen(filename) - strlen(ext)], ext) == 0)
 
+#define LOG_MEM(c) {ESP_LOGI(__func__, "MEMORY(%d): free_heap_size=%lu, minimum_free_heap_size=%lu", c, esp_get_free_heap_size(), esp_get_minimum_free_heap_size());}
 
 
 /**
@@ -260,6 +261,7 @@ static void get_handler_data_status(httpd_req_t *req, char *msg, run_status_type
 //     } else {
 //         cJSON_AddFalseToObject(root, "changed");
 //     }
+
     if (msg && strlen(msg))
     	cJSON_AddStringToObject(root, "msg", msg);
     cJSON_AddStringToObject(root, "status", RUN_STATUS_TYPE2TEXT(status));
@@ -329,11 +331,13 @@ static esp_err_t clear_data(char *msg, size_t sz_msg, run_status_type new_status
 static esp_err_t get_handler_data_clear(httpd_req_t *req) {
 	char msg[255];
 
+    LOG_MEM(1);
 	// stop display program
 	run_status_type new_status = RUN_STATUS_STOPPED;
 	esp_err_t res = clear_data(msg, sizeof(msg), new_status);
 
 	get_handler_data_status(req, msg, new_status);
+    LOG_MEM(2);
 
 	return res;
 }
@@ -584,33 +588,24 @@ static esp_err_t get_handler_data(httpd_req_t *req)
 static esp_err_t post_handler_data_load(httpd_req_t *req, char *buf) {
 	char msg[255];
 	memset(msg, 0, sizeof(msg));
-	// stop display, clear data
 
+    LOG_MEM(1);
+
+	// stop display, clear data
 	run_status_type new_status = RUN_STATUS_STOPPED;
 	esp_err_t res = clear_data(msg, sizeof(msg),new_status);
 
-	//get_handler_data_status(req, msg, new_status);
-
-
-//	esp_err_t res = get_handler_data_clear(req);
-//	if ( res != ESP_OK) {
-//		snprintf(resp_str,sizeof(resp_str),"clear old data data failed\n");
-//		httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, resp_str);
-//		return ESP_FAIL;
-//	}
+    LOG_MEM(2);
 
 	char errmsg[64];
 	res = decode_json4event_root(buf, errmsg, sizeof(errmsg));
+
 	if (res == ESP_OK) {
 		snprintf(&msg[strlen(msg)],sizeof(msg) - strlen(msg), ", decoding data done: %s",errmsg);
 	} else {
 		snprintf(&msg[strlen(msg)],sizeof(msg) - strlen(msg), ", decoding data failed: %s",errmsg);
-	//	httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, resp_str);
-	//	return ESP_FAIL;
 	}
-
-	//snprintf(resp_str,sizeof(resp_str),"DONE\n");
-	//httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
+    LOG_MEM(3);
 
 	get_handler_data_status(req, msg, new_status);
 
@@ -633,6 +628,7 @@ static esp_err_t post_handler_data(httpd_req_t *req)
 	char resp_str[255];
 
 	T_HTTP_PROCCESSING_TYPE *pt = get_http_processing(path);
+
 	if (!pt ) {
 		return http_help(req);
 	}
@@ -686,26 +682,6 @@ static esp_err_t post_handler_data(httpd_req_t *req)
 		return http_help(req);
     }
 
-    /*
-    // stop display, clear data
-    esp_err_t res = get_handler_data_clear(req);
-    if ( res != ESP_OK) {
-        snprintf(resp_str,sizeof(resp_str),"clear old data data failed\n");
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, resp_str);
-        return ESP_FAIL;
-    }
-
-    char errmsg[64];
-    res = decode_json4event_root(buf, errmsg, sizeof(errmsg));
-    if (res != ESP_OK) {
-        snprintf(resp_str,sizeof(resp_str),"Decoding data failed: %s\n",errmsg);
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, resp_str);
-        return ESP_FAIL;
-    }
-
-	snprintf(resp_str,sizeof(resp_str),"DONE\n");
-	httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
-*/
 	// End response
 	httpd_resp_send_chunk(req, NULL, 0);
 

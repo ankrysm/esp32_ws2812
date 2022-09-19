@@ -137,6 +137,8 @@ void process_object(T_EVENT *evt) {
 	int32_t startpos, endpos;
 	T_COLOR_RGB rgb = {.r=0,.g=0,.b=0};
 	T_COLOR_RGB rgb2 = {.r=0,.g=0,.b=0};
+	T_COLOR_HSV hsv;
+	double dh;
 
 	// whole length of all sections
 	int32_t len = 0;
@@ -191,13 +193,13 @@ void process_object(T_EVENT *evt) {
 	double df,dr,dg,db;
 
 	bool ende = false;
-	for (T_EVT_OBJECT_DATA *w = obj->data; w; w=w->nxt) {
-		for ( int len=0; len < w->len; len++) {
-			switch (w->type) {
+	for (T_EVT_OBJECT_DATA *data = obj->data; data; data=data->nxt) {
+		for ( int len=0; len < data->len; len++) {
+			switch (data->type) {
 			case WT_COLOR:
 				if ( len == 0 ) {
 					// initialize
-					c_hsv2rgb(&(w->para.hsv), &rgb);
+					c_hsv2rgb(&(data->para.hsv), &rgb);
 					r = f*rgb.r;
 					g = f*rgb.g;
 					b = f*rgb.b;
@@ -210,9 +212,9 @@ void process_object(T_EVENT *evt) {
 				// if lvl2-lvl1 = 100 % and len = 4
 				// use 25% 50% 75% 100%, not start with 0%
 				if (len ==0) {
-					df = 1.0 / w->len;
-					c_hsv2rgb(&(w->para.tr.hsv_from), &rgb);
-					c_hsv2rgb(&(w->para.tr.hsv_to), &rgb2);
+					df = 1.0 / data->len;
+					c_hsv2rgb(&(data->para.tr.hsv_from), &rgb);
+					c_hsv2rgb(&(data->para.tr.hsv_to), &rgb2);
 					dr = 1.0 *(rgb2.r - rgb.r) * df;
 					dg = 1.0 *(rgb2.g - rgb.g) * df;
 					db = 1.0 *(rgb2.b - rgb.b) * df;
@@ -238,13 +240,27 @@ void process_object(T_EVENT *evt) {
 				break;
 
 			case WT_RAINBOW:
+				if ( len==0) {
+					// init
+					hsv.h=0;
+					hsv.s=100;
+					hsv.v=100;
+					dh = 360.0 / data->len;
+				}
+				c_hsv2rgb(&hsv, &rgb);
+				rgb.r = f * rgb.r;
+				rgb.g = f * rgb.g;
+				rgb.b = f * rgb.b;
+				hsv.h += dh;
+				if ( hsv.h > 360)
+					hsv.h=360;
 				break;
 
 			case WT_SPARKLE:
 				break;
 
 			default:
-				ESP_LOGW(__func__,"what type %d NYI", w->type);
+				ESP_LOGW(__func__,"what type %d NYI", data->type);
 			}
 
 			//ESP_LOGI(__func__,"paint id=%d, type=%d, len=%d, pos=%d, dpos=%d, startpos=%d, endpos=%d, dstart=%d, dend=%d",
@@ -339,7 +355,7 @@ void  process_event_when(T_EVENT *evt, uint64_t scene_time, uint64_t timer_perio
 		return; // no timing events
 	}
 
-	evt->delta_pos = evt->w_speed < 0.0 ? -1 : +1;
+	//evt->delta_pos = evt->w_speed < 0.0 ? -1 : +1;
 
 	// **** INIT events *************
 	process_event_when_init(evt);

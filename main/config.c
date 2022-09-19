@@ -10,7 +10,7 @@
 #include "config.h"
 
 
-T_CONFIG gConfig;
+extern T_CONFIG gConfig;
 
 static esp_vfs_spiffs_conf_t conf = {
   .base_path = "/spiffs",
