@@ -20,7 +20,7 @@
 			 	 	{"type":"brightness", "value":0.1},
 		     	 	{"type":"goto", "value":10},
 				 	{"type":"speed", "value":5},
-		     	 	{"type":"object","value":"rb"}
+		     	 	{"type":"object","value":"o1"}
 			 	 ],
 		     	 "work": [
 				 	{"type":"reverse", "time":3000},
