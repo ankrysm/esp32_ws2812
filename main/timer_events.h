@@ -88,7 +88,6 @@ typedef enum {
 	ET_SET_BRIGHTNESS,       // I Ws F
 	ET_SET_BRIGHTNESS_DELTA, // I Ws -
 	ET_SET_OBJECT,           // I We - oid for object
-	//ET_SET_REPEAT_COUNT,     // I -- - (init only after start event running)
 	ET_UNKNOWN
 } event_type;
 
@@ -107,7 +106,6 @@ typedef enum {
 	!strcasecmp(c,"brightness") ? ET_SET_BRIGHTNESS : \
 	!strcasecmp(c,"brightness_delta") ? ET_SET_BRIGHTNESS_DELTA : \
 	!strcasecmp(c,"object") ? ET_SET_OBJECT : \
-	/*!strcasecmp(c,"repeat_count") ? ET_SET_REPEAT_COUNT :*/ \
 	ET_UNKNOWN \
 )
 
@@ -125,7 +123,6 @@ typedef enum {
 	c==ET_SET_BRIGHTNESS ? "brightness" : \
 	c==ET_SET_BRIGHTNESS_DELTA ? "brightness_delta" : \
 	c==ET_SET_OBJECT ? "object" : \
-	/* c==ET_SET_REPEAT_COUNT ? "repeat_count" : */ \
 	"unknown" \
 )
 

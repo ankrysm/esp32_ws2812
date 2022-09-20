@@ -12,6 +12,7 @@
 #include <math.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include "sdkconfig.h"
 
 #include "freertos/FreeRTOS.h"

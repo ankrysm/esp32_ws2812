@@ -43,3 +43,12 @@ uint32_t crc32b(const uint8_t arr[], size_t sz) {
     return ~crc;
 }
 
+// like snprintf, but appends then new data
+int snprintfapp(char *txt, size_t sz_txt, char *fmt, ... ) {
+	va_list	ap;
+	int len = strlen(txt);
+	va_start(ap, fmt);
+	int res=vsnprintf(&txt[len], sz_txt - len, fmt, ap);
+	va_end(ap);
+	return res;
+}

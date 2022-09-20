@@ -10,10 +10,8 @@
 #define MAIN_ESP32_WS2812_PROTOS_H_
 
 // from process_events.c
-//void process_event(T_EVENT *evt, uint64_t scene_time, uint64_t timer_period);
 void reset_event( T_EVENT *evt);
 void reset_event_repeats(T_EVENT *evt);
-//void reset_timing_events(T_EVT_TIME *tevt);
 void process_scene(T_SCENE *scene, uint64_t scene_time, uint64_t timer_period);
 void reset_scene(T_SCENE *scene);
 
@@ -33,6 +31,7 @@ esp_err_t store_config();
 esp_err_t init_storage();
 char *config2txt(char *txt, size_t sz);
 esp_err_t storage_info(size_t *total, size_t *used);
+void add_base_path(char *filename, size_t sz_filename);
 
 // from color.c
 void c_hsv2rgb(T_COLOR_HSV *hsv, T_COLOR_RGB *rgb);
@@ -80,8 +79,6 @@ T_EVT_TIME *find_timer_event4marker(T_EVT_TIME *tevt_list, char *marker);
 T_EVT_TIME *create_timing_event(T_EVENT *evt, uint32_t id);
 T_EVT_TIME *create_timing_event_init(T_EVENT *evt, uint32_t id);
 T_EVT_TIME *create_timing_event_final(T_EVENT *evt, uint32_t id);
-//void get_new_event_id(char *id, size_t sz_id);
-//esp_err_t delete_event_by_id(char *id);
 T_SCENE *create_scene(char *id);
 void delete_scene(T_SCENE *obj);
 esp_err_t scene_list_add(T_SCENE *obj);
@@ -109,7 +106,7 @@ void initialise_netbios();
 
 
 // from create_events.c
-esp_err_t decode_json4event_root(char *content, char *errmsg, size_t sz_errmsg);
+esp_err_t decode_json4event_root(char *content, char *errmsg, size_t sz_errmsg, bool store_it);
 
 // from create_config.c
 esp_err_t decode_json4config_root(char *content, char *errmsg, size_t sz_errmsg);

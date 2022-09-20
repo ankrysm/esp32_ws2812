@@ -25,6 +25,12 @@ static esp_vfs_spiffs_conf_t conf = {
   .format_if_mount_failed = true
 };
 
+void add_base_path(char *filename, size_t sz_filename) {
+	char *f = strdup(filename);
+	snprintf(filename,sz_filename,"%s/%s", conf.base_path, f);
+	free(f);
+}
+
 /**
  * store the gConfig blob into storage
  */
@@ -114,7 +120,6 @@ esp_err_t init_storage() {
         ESP_LOGI(__func__, "Partition size: total: %d, used: %d", total, used);
     }
 
-
     // Check consistency of reported partiton size info.
     if (used > total) {
         ESP_LOGW(__func__, "Number of used bytes cannot be larger than total. Performing SPIFFS_check().");
@@ -130,9 +135,6 @@ esp_err_t init_storage() {
     }
 
     // ** init Config ***
-    //memset(&gConfig, 0, sizeof(gConfig));
-
-    size_t size;
 
     nvs_handle_t my_handle;
     ret = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &my_handle);
@@ -200,9 +202,6 @@ esp_err_t init_storage() {
 
     } while(0);
 
-    //size = sizeof(gConfig);
-    //ret = nvs_get_blob(my_handle, STORAGE_KEY_CONFIG, &gConfig, &size);
-
     // close handle immediately, if it's necessary to open it again, it will be done later
     nvs_close(my_handle);
 
@@ -214,29 +213,6 @@ esp_err_t init_storage() {
     	}
     }
 
-    /*
-    if  ( ret == ESP_OK ) {
-        ESP_LOGI(__func__, "nvs_get_blob() successful");
-
-    } else if ( ret == ESP_ERR_NVS_NOT_FOUND ) {
-    	// has to initialized
-    	snprintf(gConfig.autoplayfile, LEN_SCENEFILE, "%s", "autoplay");
-    	gConfig.flags = CFG_AUTOPLAY | CFG_SHOW_STATUS;
-    	gConfig.cycle = 50;
-    	gConfig.numleds = 60;
-
-    	ret = store_config();
-        if (ret != ESP_OK) {
-            ESP_LOGE(__func__, "store_config() failed (%s)", esp_err_to_name(ret));
-        	return ret;
-        }
-
-    } else {
-        ESP_LOGE(__func__, "nvs_get_blob() failed (%s)", esp_err_to_name(ret));
-    	return ret;
-    }
-    gConfig.flags &= CFG_PERSISTENCE_MASK;
-    */
     return ESP_OK;
 
 }

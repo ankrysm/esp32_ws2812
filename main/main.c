@@ -85,6 +85,9 @@ void timmi_task(void *para) {
 
 void app_main() {
 
+	get_random(1,1000);
+
+
 	cfg_trans_flags =0;
 	// init storage and get/initalize config
 	ESP_ERROR_CHECK(nvs_flash_init());
@@ -94,13 +97,11 @@ void app_main() {
 	led_strip_init(cfg_numleds);
 	strip_clear();
 	strip_show(true);
-	//ESP_ERROR_CHECK(strip_init(gConfig.numleds));
 
 
 	firstled(32, 32, 32);
 	TickType_t xDelay = 500 / portTICK_PERIOD_MS;
 
-	// *
 	ESP_ERROR_CHECK(esp_netif_init());
 	ESP_ERROR_CHECK(esp_event_loop_create_default());
 
@@ -108,13 +109,11 @@ void app_main() {
 	initialise_netbios();
 
 	initialise_wifi();
-	// esp_err_t res =	waitforConnect();
 
 	xDelay = 500 / portTICK_PERIOD_MS;
 
 	wifi_status_type done = 0;
 	while(done==0) {
-		//printf("xxx\n");
 		vTaskDelay(xDelay);
 		wifi_status_type s = wifi_connect_status();
 		ESP_LOGI(__func__, "connection status=%d(%s)", s, wifi_connect_status2text(s));
@@ -141,7 +140,6 @@ void app_main() {
 		}
 	}
 
-
 	if ( done == WIFI_CONNECTED ) {
 		init_restservice();
 		cfg_trans_flags |=CFG_WITH_WIFI;
@@ -163,12 +161,6 @@ void app_main() {
 	init_timer_events();
 	set_event_timer_period(cfg_cycle);
 
-	/* /start_demo1();
-	T_COLOR_RGB fg_color ={32,0,0};
-	build_demo2(
-			 &fg_color // foreground color
-	) ;
-	// */
 
 	/*
 	TaskHandle_t  Core1TaskHnd ;
@@ -177,20 +169,7 @@ void app_main() {
 
 	ESP_LOGI(__func__,"running on core %d",xPortGetCoreID());
 	xDelay = 50000 / portTICK_PERIOD_MS;
-	//int logcnt =0;
 	while(1) {
-		//printf("xxx\n");
-		/*
-		int64_t t_start = esp_timer_get_time();
-
-		timmi();
-		int64_t t_end = esp_timer_get_time();
-		if ( logcnt== 0 ) {
-			ESP_LOGI(__func__,"processing time %lld mikrosec", (t_end - t_start));
-			logcnt=20;
-		}
-		logcnt--;
-		 */
 		vTaskDelay(xDelay);
 	}
 }

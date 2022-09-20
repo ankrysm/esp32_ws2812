@@ -608,7 +608,7 @@ static esp_err_t post_handler_data_load(httpd_req_t *req, char *buf) {
     LOG_MEM(2);
 
 	char errmsg[64];
-	res = decode_json4event_root(buf, errmsg, sizeof(errmsg));
+	res = decode_json4event_root(buf, errmsg, sizeof(errmsg), true);
 
 	if (res == ESP_OK) {
 		snprintf(&msg[strlen(msg)],sizeof(msg) - strlen(msg), ", decoding data done: %s",errmsg);
