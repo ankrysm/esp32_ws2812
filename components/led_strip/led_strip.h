@@ -15,6 +15,7 @@ void led_strip_firstled(int red, int green, int blue);
 void led_strip_clear();
 void led_strip_set_pixel(int32_t idx, uint8_t r, uint8_t g, uint8_t b);
 size_t get_numleds();
+esp_err_t set_numleds(uint32_t numleds);
 uint32_t get_led_strip_data_hash();
 bool is_led_strip_initialized();
 void led_strip_demo(char *msg);

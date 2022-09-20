@@ -627,23 +627,18 @@ static esp_err_t post_handler_config_load(httpd_req_t *req, char *buf) {
 	char msg[255];
 	memset(msg, 0, sizeof(msg));
 
-    LOG_MEM(1);
-
 	// stop display, clear data
 	run_status_type new_status = RUN_STATUS_STOPPED;
-	esp_err_t res = clear_data(msg, sizeof(msg),new_status);
-
-    LOG_MEM(2);
+	set_scene_status(new_status);
 
 	char errmsg[64];
-	res = decode_json4config_root(buf, errmsg, sizeof(errmsg));
+	esp_err_t res = decode_json4config_root(buf, errmsg, sizeof(errmsg));
 
 	if (res == ESP_OK) {
 		snprintf(&msg[strlen(msg)],sizeof(msg) - strlen(msg), ", decoding data done: %s",errmsg);
 	} else {
 		snprintf(&msg[strlen(msg)],sizeof(msg) - strlen(msg), ", decoding data failed: %s",errmsg);
 	}
-    LOG_MEM(3);
 
 	get_handler_data_status(req, msg, new_status);
 

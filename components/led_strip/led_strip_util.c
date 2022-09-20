@@ -26,6 +26,7 @@ static rmt_transmit_config_t tx_config = {
 };
 
 
+
 void led_strip_init(uint32_t numleds)
 {
     s_numleds= numleds;
@@ -57,7 +58,7 @@ void led_strip_init(uint32_t numleds)
     s_size_led_strip_pixels = 3 * s_numleds;
     led_strip_pixels = calloc(s_size_led_strip_pixels, sizeof(uint8_t));
 
-    ESP_LOGI(__func__, "LED-Strip with %d Pixel, init done.", s_numleds);
+    ESP_LOGI(__func__, "LED-strip with %d pixel, init done.", s_numleds);
 }
 
 void led_strip_refresh() {
@@ -104,6 +105,25 @@ size_t get_numleds() {
 	return s_numleds;
 }
 
+esp_err_t set_numleds(uint32_t numleds) {
+	if ( numleds < 1 || numleds > 1000) {
+		ESP_LOGE(__func__, "new numleds (%d) out of range 1 .. 999", numleds);
+		return ESP_FAIL;
+	}
+	if ( led_strip_pixels)
+		free(led_strip_pixels);
+
+	s_numleds = numleds;
+    s_size_led_strip_pixels = 3 * s_numleds;
+    led_strip_pixels = calloc(s_size_led_strip_pixels, sizeof(uint8_t));
+    if ( !led_strip_pixels) {
+    	ESP_LOGE(__func__,"could not allocate %d bytes", s_size_led_strip_pixels);
+    	return ESP_FAIL;
+    }
+    ESP_LOGI(__func__, "LED-strip with new size %d pixel", s_numleds);
+
+	return ESP_OK;
+}
 
 uint32_t get_led_strip_data_hash() {
 	return crc32b(led_strip_pixels, s_size_led_strip_pixels);

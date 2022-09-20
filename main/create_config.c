@@ -42,6 +42,10 @@ esp_err_t decode_json4config_root(char *content, char *errmsg, size_t sz_errmsg)
 			if ( ival == cfg_numleds) {
 				ESP_LOGI(__func__, "%s=%d not changed", attr, cfg_numleds);
 			} else {
+				if (set_numleds(ival) != ESP_OK) {
+					snprintf(errmsg, sz_errmsg, "set_numleds(%d) failed ",ival);
+					break;
+				}
 				cfg_numleds = ival;
 				store_it = true;
 				ESP_LOGI(__func__, "%s=%d changed", attr, cfg_numleds);
