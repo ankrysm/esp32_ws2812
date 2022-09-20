@@ -10,7 +10,13 @@
 #include "config.h"
 
 
-extern T_CONFIG gConfig;
+//extern T_CONFIG gConfig;
+
+extern uint32_t cfg_flags;
+extern uint32_t cfg_trans_flags;
+extern uint32_t cfg_numleds;
+extern uint32_t cfg_cycle;
+extern char *cfg_autoplayfile;
 
 static esp_vfs_spiffs_conf_t conf = {
   .base_path = "/spiffs",
@@ -31,12 +37,18 @@ esp_err_t store_config() {
 		ESP_LOGE(__func__, "nvs_open() failed (%s)", esp_err_to_name(ret));
 		return ret;
 	}
+	/*
 	size_t size = sizeof(gConfig);
 	ret = nvs_set_blob(my_handle, STORAGE_KEY_CONFIG, &gConfig, size);
 	if (ret != ESP_OK) {
 		ESP_LOGE(__func__, "nvs_set_blob() failed (%s)", esp_err_to_name(ret));
 		return ret;
 	}
+	 */
+	nvs_set_u32(my_handle, CFG_KEY_FLAGS, cfg_flags);
+	nvs_set_u32(my_handle, CFG_KEY_NUMLEDS, cfg_numleds);
+	nvs_set_str(my_handle, CFG_KEY_AUTOPLAY_FILE, cfg_autoplayfile?cfg_autoplayfile:"");
+	nvs_set_u32(my_handle, CFG_KEY_CYCLE, cfg_cycle);
 
 	ret = nvs_commit(my_handle);
 	if (ret != ESP_OK) {
@@ -118,7 +130,7 @@ esp_err_t init_storage() {
     }
 
     // ** init Config ***
-    memset(&gConfig, 0, sizeof(gConfig));
+    //memset(&gConfig, 0, sizeof(gConfig));
 
     size_t size;
 
@@ -129,11 +141,80 @@ esp_err_t init_storage() {
     	return ret;
     }
 
-    size = sizeof(gConfig);
-    ret = nvs_get_blob(my_handle, STORAGE_KEY_CONFIG, &gConfig, &size);
+	bool store_needed = false;
+    do {
+
+    	ret = nvs_get_u32(my_handle, CFG_KEY_FLAGS, &cfg_flags);
+    	if (ret == ESP_OK) {
+            ESP_LOGI(__func__, "retrieve '%s' successful: 0x%04x", CFG_KEY_FLAGS, cfg_flags);
+    	} else if (ret == ESP_ERR_NVS_NOT_FOUND) {
+    		store_needed = true;
+    		cfg_flags = CFG_SHOW_STATUS | CFG_STRIP_DEMO;
+            ESP_LOGI(__func__, "retrieve '%s' not found, initial value: 0x%04x", CFG_KEY_FLAGS, cfg_flags);
+    	} else {
+            ESP_LOGI(__func__, "retrieve '%s' failed, ret=%d", CFG_KEY_FLAGS, ret);
+    		break;
+    	}
+
+    	ret = nvs_get_u32(my_handle, CFG_KEY_NUMLEDS, &cfg_numleds);
+    	if (ret == ESP_OK) {
+            ESP_LOGI(__func__, "retrieve '%s' successful: %d", CFG_KEY_NUMLEDS, cfg_numleds);
+    	} else if (ret == ESP_ERR_NVS_NOT_FOUND) {
+    		store_needed = true;
+    		cfg_numleds = 60;
+            ESP_LOGI(__func__, "retrieve '%s' not found, initial value: %d", CFG_KEY_NUMLEDS, cfg_numleds);
+    	} else {
+            ESP_LOGI(__func__, "retrieve '%s' failed, ret=%d", CFG_KEY_NUMLEDS, ret);
+    		break;
+    	}
+
+    	ret = nvs_get_u32(my_handle, CFG_KEY_CYCLE, &cfg_cycle);
+    	if (ret == ESP_OK) {
+            ESP_LOGI(__func__, "retrieve '%s' successful: %d", CFG_KEY_CYCLE, cfg_cycle);
+    	} else if (ret == ESP_ERR_NVS_NOT_FOUND) {
+    		store_needed = true;
+    		cfg_cycle = 50;
+            ESP_LOGI(__func__, "retrieve '%s' not found, initial value: %d", CFG_KEY_CYCLE, cfg_cycle);
+    	} else {
+            ESP_LOGI(__func__, "retrieve '%s' failed, ret=%d", CFG_KEY_CYCLE, ret);
+    		break;
+    	}
+
+    	size_t len;
+    	if ( cfg_autoplayfile) {
+    		free(cfg_autoplayfile);
+    		cfg_autoplayfile = NULL;
+    	}
+    	ret = nvs_get_str(my_handle, CFG_KEY_AUTOPLAY_FILE, NULL, &len); ///call for length
+    	if (ret == ESP_OK) {
+        	nvs_get_str(my_handle, CFG_KEY_AUTOPLAY_FILE, cfg_autoplayfile, &len); // call for value
+            ESP_LOGI(__func__, "retrieve '%s' successful: '%s'", CFG_KEY_AUTOPLAY_FILE, cfg_autoplayfile);
+    	} else if (ret == ESP_ERR_NVS_NOT_FOUND) {
+    		// it is ok missing it
+            ESP_LOGI(__func__, "retrieve '%s' not found", CFG_KEY_AUTOPLAY_FILE);
+    	} else {
+            ESP_LOGI(__func__, "retrieve '%s' failed, ret=%d", CFG_KEY_AUTOPLAY_FILE, ret);
+    		break;
+    	}
+
+
+    } while(0);
+
+    //size = sizeof(gConfig);
+    //ret = nvs_get_blob(my_handle, STORAGE_KEY_CONFIG, &gConfig, &size);
+
     // close handle immediately, if it's necessary to open it again, it will be done later
     nvs_close(my_handle);
 
+    if ( store_needed) {
+    	ret = store_config();
+    	if (ret != ESP_OK) {
+    		ESP_LOGE(__func__, "store_config() failed (%s)", esp_err_to_name(ret));
+    		return ret;
+    	}
+    }
+
+    /*
     if  ( ret == ESP_OK ) {
         ESP_LOGI(__func__, "nvs_get_blob() successful");
 
@@ -155,6 +236,7 @@ esp_err_t init_storage() {
     	return ret;
     }
     gConfig.flags &= CFG_PERSISTENCE_MASK;
+    */
     return ESP_OK;
 
 }
@@ -164,16 +246,22 @@ char *config2txt(char *txt, size_t sz) {
 			"config:\n" \
 			"numleds=%d\n" \
 			"autoplayfile=%s\n" \
-			"autoplay=%s\n" \
-			"showstatus=%s\n" \
-			"with_wifi=%s\n" \
+			"cfg_flags=0x%04x\n" \
+			"  autoplay=%s\n" \
+			"  showstatus=%s\n" \
+			"  strip_demo=%s\n" \
+			"cfg_trans_flags=0x%04x\n" \
+			"  with_wifi=%s\n" \
 			"cycle=%d\n" ,
-			gConfig.numleds,
-			gConfig.autoplayfile,
-			(gConfig.flags & CFG_AUTOPLAY ? "true" : "false"),
-			(gConfig.flags & CFG_SHOW_STATUS ? "true" : "false"),
-			(gConfig.flags & CFG_WITH_WIFI ? "true" : "false"),
-			gConfig.cycle
+			cfg_numleds,
+			cfg_autoplayfile ? cfg_autoplayfile:"",
+			cfg_flags,
+			(cfg_flags & CFG_AUTOPLAY ? "true" : "false"),
+			(cfg_flags & CFG_SHOW_STATUS ? "true" : "false"),
+			(cfg_flags & CFG_STRIP_DEMO ? "true" : "false"),
+			cfg_trans_flags,
+			(cfg_trans_flags & CFG_WITH_WIFI ? "true" : "false"),
+			cfg_cycle
 	);
 	return txt;
 }

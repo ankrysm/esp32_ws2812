@@ -20,20 +20,25 @@ static const int EVENT_BIT_STOP = BIT1;
 static const int EVENT_BIT_PAUSE = BIT2;
 static const int EVENT_BIT_BLANK = BIT3;
 
-
 static const int EVENT_BITS_ALL = 0xFF;
-
 
 static volatile run_status_type s_run_status = RUN_STATUS_STOPPED;
 static volatile uint64_t s_scene_time = 0;
 
 extern T_SCENE *s_scene_list;
-extern T_EVT_OBJECT *s_object_list;
-extern T_CONFIG gConfig;
+//extern T_EVT_OBJECT *s_object_list;
+//extern T_CONFIG gConfig;
+
+extern uint32_t cfg_flags;
+extern uint32_t cfg_trans_flags;
+//extern uint32_t cfg_numleds;
+//extern uint32_t cfg_cycle;
+//extern char *cfg_autoplayfile;
+
 
 static void show_status() {
-	if ( gConfig.flags & CFG_SHOW_STATUS) {
-		if (gConfig.flags & CFG_WITH_WIFI) {
+	if ( cfg_flags & CFG_SHOW_STATUS) {
+		if (cfg_trans_flags & CFG_WITH_WIFI) {
 			// green
 			firstled(0,32,0);
 		} else {

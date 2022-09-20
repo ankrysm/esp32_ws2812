@@ -6,7 +6,7 @@
    software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
    CONDITIONS OF ANY KIND, either express or implied.
 */
-#define MAIN
+//#define MAIN
 #include "esp32_ws2812.h"
 
 
@@ -15,7 +15,12 @@ int main_flags=0;
 
 //uint64_t timmi_dt =22;
 
-extern T_CONFIG gConfig;
+//extern T_CONFIG gConfig;
+extern uint32_t cfg_flags;
+extern uint32_t cfg_trans_flags;
+extern uint32_t cfg_numleds;
+extern uint32_t cfg_cycle;
+extern char *cfg_autoplayfile;
 
 void firstled(int red, int green, int blue) ;
 
@@ -80,12 +85,13 @@ void timmi_task(void *para) {
 
 void app_main() {
 
+	cfg_trans_flags =0;
 	// init storage and get/initalize config
 	ESP_ERROR_CHECK(nvs_flash_init());
 	ESP_ERROR_CHECK(init_storage());
 
 	// init led-strip
-	led_strip_init(gConfig.numleds);
+	led_strip_init(cfg_numleds);
 	strip_clear();
 	strip_show(true);
 	//ESP_ERROR_CHECK(strip_init(gConfig.numleds));
@@ -138,12 +144,12 @@ void app_main() {
 
 	if ( done == WIFI_CONNECTED ) {
 		init_restservice();
-		gConfig.flags |=CFG_WITH_WIFI;
+		cfg_trans_flags |=CFG_WITH_WIFI;
 		// green
 		firstled(0,32,0);
 		ESP_LOGI(__func__, "with WIFI");
 	} else {
-		gConfig.flags &= ~CFG_WITH_WIFI;
+		cfg_trans_flags &= ~CFG_WITH_WIFI;
 		// red
 		firstled(32,0,0);
 		ESP_LOGI(__func__, "without WIFI");
@@ -155,7 +161,7 @@ void app_main() {
 
 	// init timer
 	init_timer_events();
-	set_event_timer_period(gConfig.cycle);
+	set_event_timer_period(cfg_cycle);
 
 	/* /start_demo1();
 	T_COLOR_RGB fg_color ={32,0,0};

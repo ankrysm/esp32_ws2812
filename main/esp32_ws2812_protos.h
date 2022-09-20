@@ -9,10 +9,6 @@
 #ifndef MAIN_ESP32_WS2812_PROTOS_H_
 #define MAIN_ESP32_WS2812_PROTOS_H_
 
-// from util.h
-int32_t get_random(int32_t min, uint32_t diff);
-uint32_t crc32b(const uint8_t arr[], size_t sz);
-
 // from process_events.c
 //void process_event(T_EVENT *evt, uint64_t scene_time, uint64_t timer_period);
 void reset_event( T_EVENT *evt);
@@ -20,6 +16,16 @@ void reset_event_repeats(T_EVENT *evt);
 //void reset_timing_events(T_EVT_TIME *tevt);
 void process_scene(T_SCENE *scene, uint64_t scene_time, uint64_t timer_period);
 void reset_scene(T_SCENE *scene);
+
+// from json_util.c
+t_result evt_get_bool(cJSON *element, char *attr, bool *val, char *errmsg, size_t sz_errmsg);
+t_result evt_get_number(cJSON *element, char *attr, double *val, char *errmsg, size_t sz_errmsg);
+t_result evt_get_string(cJSON *element, char *attr, char *sval, size_t sz_sval, char *errmsg, size_t sz_errmsg);
+t_result evt_get_list(cJSON *element, char *attr, cJSON **found, int *array_size, char *errmsg, size_t sz_errmsg);
+t_result decode_json_getcolor_by_name(cJSON *element, char *attr, T_COLOR_HSV *hsv, char *errmsg, size_t sz_errmsg);
+t_result decode_json_getcolor_as_hsv(cJSON *element, char *attr, T_COLOR_HSV *hsv, char *errmsg, size_t sz_errmsg);
+t_result decode_json_getcolor_as_rgb(cJSON *element, char *attr, T_COLOR_HSV *hsv, char *errmsg, size_t sz_errmsg);
+t_result decode_json_getcolor(cJSON *element, char *attr4colorname, char *attr4hsv, char *attr4rgb, T_COLOR_HSV *hsv, char *errmsg, size_t sz_errmsg);
 
 
 // from config.c
@@ -41,7 +47,6 @@ void strip_set_pixel(int32_t idx, T_COLOR_RGB *rgb);
 void strip_clear();
 void strip_show(bool forced);
 void firstled(int red, int green, int blue);
-size_t get_numleds();
 
 // from led_strip_util.c
 void led_strip_init(uint32_t numleds);
@@ -105,6 +110,10 @@ void initialise_netbios();
 
 // from create_events.c
 esp_err_t decode_json4event_root(char *content, char *errmsg, size_t sz_errmsg);
+
+// from create_config.c
+esp_err_t decode_json4config_root(char *content, char *errmsg, size_t sz_errmsg);
+
 
 // from create_demo
 void build_demo2(

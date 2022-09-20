@@ -9,14 +9,15 @@
 #include "esp_log.h"
 #include "driver/rmt_tx.h"
 #include "led_strip_encoder.h"
+#include "common_util.h"
 
 
 #define RMT_LED_STRIP_RESOLUTION_HZ 10000000 // 10MHz resolution, 1 tick = 0.1us (led strip needs a high resolution)
 #define RMT_LED_STRIP_GPIO_NUM      13
 
-size_t s_numleds=0;
-size_t s_size_led_strip_pixels = 0;
-uint8_t *led_strip_pixels=NULL;
+static size_t s_numleds=0;
+static size_t s_size_led_strip_pixels = 0;
+static uint8_t *led_strip_pixels=NULL;
 
 static rmt_channel_handle_t led_chan = NULL;
 static rmt_encoder_handle_t led_encoder = NULL;
@@ -79,6 +80,61 @@ void led_strip_firstled(int red, int green, int blue) {
 
 }
 
+void led_strip_clear() {
+	memset(led_strip_pixels, 0, s_size_led_strip_pixels);
+}
+
+void led_strip_set_pixel(int32_t idx, uint8_t r, uint8_t g, uint8_t b) {
+	if ( idx < 0 || idx >= s_numleds) {
+		return;
+	}
+
+	uint32_t pos = 3 * idx;
+	led_strip_pixels[pos++] = g;
+	led_strip_pixels[pos++] = r;
+	led_strip_pixels[pos]   = b;
+
+}
+
+bool is_led_strip_initialized() {
+	return led_strip_pixels ? true : false;
+}
+
 size_t get_numleds() {
 	return s_numleds;
 }
+
+
+uint32_t get_led_strip_data_hash() {
+	return crc32b(led_strip_pixels, s_size_led_strip_pixels);
+}
+
+/**
+ * pseudo graphics
+ */
+void led_strip_demo(char *msg){
+	char txt[1024];
+	uint32_t pos=0;
+	snprintf(txt,sizeof(txt),"#### LED(%s):<", msg?msg:"");
+	for (int i=0; i<get_numleds(); i++) {
+		uint32_t g= led_strip_pixels[pos++]; // g
+		uint32_t r= led_strip_pixels[pos++]; // r
+		uint32_t b= led_strip_pixels[pos++]; //b
+		uint32_t s = g+r+b;
+		if ( s>0) {
+			if (g>r && g>b)
+				strlcat(txt,"G",sizeof(txt));
+			else if(r>g && r>b)
+				strlcat(txt,"R",sizeof(txt));
+			else if(b>r && b>g)
+				strlcat(txt,"B",sizeof(txt));
+			else strlcat(txt,"X",sizeof(txt));
+		} else {
+			strlcat(txt,".",sizeof(txt));
+		}
+	}
+	strlcat(txt,">",sizeof(txt));
+	ESP_LOGI(__func__, "%s", txt);
+}
+
+

@@ -16,7 +16,7 @@
 #define FILE_PATH_MAX (ESP_VFS_PATH_MAX + 128)
 #define SCRATCH_BUFSIZE (10240)
 
-extern T_CONFIG gConfig;
+//extern T_CONFIG gConfig;
 //extern T_EVENT *s_event_list;
 extern T_EVT_OBJECT *s_object_list;
 
@@ -34,15 +34,32 @@ typedef struct rest_server_context {
 /**
  * check text, 'true' '1' fort true, others for false
  */
-static uint32_t trufal(char *txt) {
+/*static uint32_t trufal(char *txt) {
 	if ( !strcmp(txt,"1") || !strcasecmp(txt,"true") || !strcasecmp(txt,"t")) {
 		return 1;
 	} else {
 		return 0;
 	}
+}*/
+
+static void add_system_informations(cJSON *root) {
+	esp_chip_info_t chip_info;
+	esp_chip_info(&chip_info);
+
+	size_t total,used;
+	storage_info(&total,&used);
+
+	cJSON *sysinfo = cJSON_AddObjectToObject(root,"system");
+	cJSON *fs_size = cJSON_AddObjectToObject(sysinfo,"filesystem");
+
+	cJSON_AddStringToObject(sysinfo, "version", IDF_VER);
+	cJSON_AddNumberToObject(sysinfo, "cores", chip_info.cores);
+	cJSON_AddNumberToObject(sysinfo, "free_heap_size",esp_get_free_heap_size());
+	cJSON_AddNumberToObject(sysinfo, "minimum_free_heap_size",esp_get_minimum_free_heap_size());
+	cJSON_AddNumberToObject(fs_size, "total", total);
+	cJSON_AddNumberToObject(fs_size, "used", used);
+
 }
-
-
 
 typedef enum {
 	// GET
@@ -72,7 +89,7 @@ typedef struct {
 } T_HTTP_PROCCESSING_TYPE;
 
 static T_HTTP_PROCCESSING_TYPE http_processing[] = {
-		{"","/load", HP_LOAD, "load events, replaces stored data, uses POST-data"},
+		{"","/load", HP_LOAD, "load events, replaces stored data, uses JSON-POST-data"},
 		{"/", "/help", HP_HELP, "API help"},
 		{"/st", "/status", HP_STATUS, "status"},
 		{"/l","/list",HP_LIST, "list events"},
@@ -81,7 +98,7 @@ static T_HTTP_PROCCESSING_TYPE http_processing[] = {
 		{"/s","stop",HP_STOP,"stop"},
 		{"/p","/pause",HP_PAUSE,"pause"},
 		{"/b","blank", HP_BLANK, "blank strip"},
-		{"/c","/config",HP_CONFIG,"config, set values: query parameter numleds=<nn>, cycle=<nn> (in ms), showstatus=[0|1], autostart=<fname>"},
+		{"/c","/config",HP_CONFIG,"shows config, set values: uses JSON-POST-data"},
 		{"","/save",HP_SAVE,"save event list specified by fname=<fname> default: 'playlist' "},
 		{"","/restart",HP_RESTART,"restart ESP32"},
 		{"","/reset",HP_RESET,"reset ESP32 to default"},
@@ -256,25 +273,13 @@ static void get_handler_data_status(httpd_req_t *req, char *msg, run_status_type
     httpd_resp_set_type(req, "application/json");
     cJSON *root = cJSON_CreateObject();
 
-//    if ( changed ) {
-//         cJSON_AddTrueToObject(root, "changed");
-//     } else {
-//         cJSON_AddFalseToObject(root, "changed");
-//     }
-
     if (msg && strlen(msg))
     	cJSON_AddStringToObject(root, "msg", msg);
     cJSON_AddStringToObject(root, "status", RUN_STATUS_TYPE2TEXT(status));
     cJSON_AddNumberToObject(root, "scene_time", get_scene_time());
     cJSON_AddNumberToObject(root, "timer_period", get_event_timer_period());
-    cJSON_AddNumberToObject(root, "free_heap_size",esp_get_free_heap_size());
-    cJSON_AddNumberToObject(root, "minimum_free_heap_size",esp_get_minimum_free_heap_size());
 
-    cJSON *fs_size = cJSON_AddObjectToObject(root,"filesystem");
-    size_t total,used;
-    storage_info(&total,&used);
-    cJSON_AddNumberToObject(fs_size, "total", total);
-    cJSON_AddNumberToObject(fs_size, "used", used);
+    add_system_informations(root);
 
     const char *resp = cJSON_PrintUnformatted(root);
     ESP_LOGI(__func__,"RESP=%s", resp?resp:"nix");
@@ -374,13 +379,11 @@ static void get_handler_data_blank(httpd_req_t *req) {
 
 	scenes_blank();
 
-	char resp_str[64];
-	snprintf(resp_str, sizeof(resp_str),"BLANK done\n");
-	httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
-
+	get_handler_data_status(req, "BLANK done", get_scene_status());
 }
 
 static void get_handler_data_config(httpd_req_t *req) {
+	/*
 	bool restart_needed = false;
 	bool store_config_needed = false;
 
@@ -429,47 +432,53 @@ static void get_handler_data_config(httpd_req_t *req) {
 	} else {
 		ESP_LOGI(__func__,"buf_len == 0");
 	}
+	*/
+
+	extern uint32_t cfg_flags;
+	extern uint32_t cfg_trans_flags;
+	extern uint32_t cfg_numleds;
+	extern uint32_t cfg_cycle;
+	extern char *cfg_autoplayfile;
 
     httpd_resp_set_type(req, "application/json");
     cJSON *root = cJSON_CreateObject();
 
     // system informations
-    esp_chip_info_t chip_info;
-    esp_chip_info(&chip_info);
-    cJSON_AddStringToObject(root, "version", IDF_VER);
-    cJSON_AddNumberToObject(root, "cores", chip_info.cores);
 
-    cJSON_AddNumberToObject(root, "numleds", gConfig.numleds);
-    cJSON_AddStringToObject(root, "autoplayfile", gConfig.autoplayfile);
+    cJSON_AddNumberToObject(root, "numleds", cfg_numleds);
 
-    if ( gConfig.flags & CFG_AUTOPLAY ) {
+    cJSON_AddNumberToObject(root, "cycle", cfg_cycle);
+
+    if (cfg_autoplayfile && strlen(cfg_autoplayfile))
+    	cJSON_AddStringToObject(root, "autoplay_file", cfg_autoplayfile);
+
+    if ( cfg_flags & CFG_AUTOPLAY ) {
         cJSON_AddTrueToObject(root, "autoplay");
     } else {
         cJSON_AddFalseToObject(root, "autoplay");
     }
 
-    if ( gConfig.flags & CFG_SHOW_STATUS ) {
-        cJSON_AddTrueToObject(root, "showstatus");
+    if ( cfg_flags & CFG_SHOW_STATUS ) {
+        cJSON_AddTrueToObject(root, "show_status");
     } else {
-        cJSON_AddFalseToObject(root, "showstatus");
+        cJSON_AddFalseToObject(root, "show_status");
     }
 
-    if ( gConfig.flags & CFG_WITH_WIFI ) {
+    if ( cfg_flags & CFG_STRIP_DEMO ) {
+        cJSON_AddTrueToObject(root, "strip_demo");
+    } else {
+        cJSON_AddFalseToObject(root, "strip_demo");
+    }
+
+    if ( cfg_trans_flags & CFG_WITH_WIFI ) {
         cJSON_AddTrueToObject(root, "with_wifi");
     } else {
         cJSON_AddFalseToObject(root, "with_wifi");
     }
 
-    cJSON_AddNumberToObject(root, "cycle", gConfig.cycle);
+    // some system informations
+    add_system_informations(root);
 
-    cJSON *fs_size = cJSON_AddObjectToObject(root,"filesystem");
-    size_t total,used;
-    storage_info(&total,&used);
-    cJSON_AddNumberToObject(fs_size, "total", total);
-    cJSON_AddNumberToObject(fs_size, "used", used);
-
-
-    // led strip configuration
     const char *resp = cJSON_PrintUnformatted(root);
     ESP_LOGI(__func__,"resp=%s", resp?resp:"nix");
 	httpd_resp_send_chunk(req, resp, strlen(resp));
@@ -478,7 +487,7 @@ static void get_handler_data_config(httpd_req_t *req) {
     free((void *)resp);
     cJSON_Delete(root);
 
-
+/*
 	if ( restart_needed ) {
 		// End response
 		httpd_resp_send_chunk(req, NULL, 0);
@@ -489,6 +498,7 @@ static void get_handler_data_config(httpd_req_t *req) {
 	    fflush(stdout);
 	    esp_restart();
 	}
+	*/
 }
 
 static void get_handler_data_save(httpd_req_t *req) {
@@ -613,6 +623,34 @@ static esp_err_t post_handler_data_load(httpd_req_t *req, char *buf) {
 
 }
 
+static esp_err_t post_handler_config_load(httpd_req_t *req, char *buf) {
+	char msg[255];
+	memset(msg, 0, sizeof(msg));
+
+    LOG_MEM(1);
+
+	// stop display, clear data
+	run_status_type new_status = RUN_STATUS_STOPPED;
+	esp_err_t res = clear_data(msg, sizeof(msg),new_status);
+
+    LOG_MEM(2);
+
+	char errmsg[64];
+	res = decode_json4config_root(buf, errmsg, sizeof(errmsg));
+
+	if (res == ESP_OK) {
+		snprintf(&msg[strlen(msg)],sizeof(msg) - strlen(msg), ", decoding data done: %s",errmsg);
+	} else {
+		snprintf(&msg[strlen(msg)],sizeof(msg) - strlen(msg), ", decoding data failed: %s",errmsg);
+	}
+    LOG_MEM(3);
+
+	get_handler_data_status(req, msg, new_status);
+
+	return res;
+
+}
+
 /**
  * uri should be data/add or data/set with POST-data
  * /set?id=<id> - replaces event with this id
@@ -675,6 +713,9 @@ static esp_err_t post_handler_data(httpd_req_t *req)
     switch(pt->todo) {
     case HP_LOAD:
     	res = post_handler_data_load(req, buf);
+    	break;
+    case HP_CONFIG:
+    	res=post_handler_config_load(req, buf);
     	break;
     default:
 		snprintf(resp_str, sizeof(resp_str),"path='%s' GET only\n", path);

@@ -27,12 +27,9 @@
 #define MAX(a,b) (a>b?a:b)
 #endif
 
-#include "esp32_ws2812_protos.h"
+#include "common_util.h"
+#include "led_strip.h"
 
-//#ifdef MAIN
-//size_t s_numleds;
-//#else
-//extern size_t s_numleds;
-//#endif
+#include "esp32_ws2812_protos.h"
 
 #endif /* MAIN_ESP32_WS2812_H_ */
