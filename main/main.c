@@ -98,6 +98,7 @@ void app_main() {
 	strip_clear();
 	strip_show(true);
 
+	load_autostart_file();
 
 	firstled(32, 32, 32);
 	TickType_t xDelay = 500 / portTICK_PERIOD_MS;

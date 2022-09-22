@@ -107,6 +107,9 @@ void initialise_netbios();
 
 // from create_events.c
 esp_err_t decode_json4event_root(char *content, char *errmsg, size_t sz_errmsg, bool store_it);
+esp_err_t load_events_from_file(char *filename);
+esp_err_t load_autostart_file();
+
 
 // from create_config.c
 esp_err_t decode_json4config_root(char *content, char *errmsg, size_t sz_errmsg);

@@ -3,13 +3,14 @@
  *
  *  Created on: 25.06.2022
  *      Author: ankrysm
+ *
+ *  get functions from JSON nodes
+ *
  */
 
 #include "esp32_ws2812.h"
 
-
-
-// *************** get functions from JSON nodes ************************************************
+extern char *cfg_autoplayfile;
 
 /**
  * reads a single T_EVT_TIME element
@@ -691,3 +692,15 @@ esp_err_t load_events_from_file(char *filename) {
 
     return rc;
 }
+
+
+esp_err_t load_autostart_file() {
+	if ( !cfg_autoplayfile || !strlen(cfg_autoplayfile)) {
+		ESP_LOGI(__func__,"no autostart file specified");
+		return ESP_OK;
+	}
+
+	return load_events_from_file(cfg_autoplayfile);
+
+}
+

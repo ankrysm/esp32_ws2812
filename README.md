@@ -12,7 +12,9 @@ A capacitor of 1000 µF is used for stabilisation of the power supply.
 
 ## software
 
-A REST service is used for controlling the displayed scenes. 
+The software basedd on the official ESP-IDF SDK. Pleas follow the instruction on [get started](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/index.html)
+
+A REST service is used for controlling the displayed scenes. The interface uses JSON data for config and define scenes.
 
 To bring the wifi interface up the esptouch framework version 1 is used, you need the esptouch app on a smartphone.
 

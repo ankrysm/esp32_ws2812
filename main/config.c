@@ -9,9 +9,6 @@
 #include "esp32_ws2812_basic.h"
 #include "config.h"
 
-
-//extern T_CONFIG gConfig;
-
 extern uint32_t cfg_flags;
 extern uint32_t cfg_trans_flags;
 extern uint32_t cfg_numleds;
