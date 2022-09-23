@@ -16,10 +16,7 @@
 #define FILE_PATH_MAX (ESP_VFS_PATH_MAX + 128)
 #define SCRATCH_BUFSIZE (10240)
 
-//extern T_CONFIG gConfig;
-//extern T_EVENT *s_event_list;
 extern T_EVT_OBJECT *s_object_list;
-
 
 typedef struct rest_server_context {
     char base_path[ESP_VFS_PATH_MAX + 1];
@@ -31,35 +28,6 @@ typedef struct rest_server_context {
 #define LOG_MEM(c) {ESP_LOGI(__func__, "MEMORY(%d): free_heap_size=%lu, minimum_free_heap_size=%lu", c, esp_get_free_heap_size(), esp_get_minimum_free_heap_size());}
 
 
-/**
- * check text, 'true' '1' fort true, others for false
- */
-/*static uint32_t trufal(char *txt) {
-	if ( !strcmp(txt,"1") || !strcasecmp(txt,"true") || !strcasecmp(txt,"t")) {
-		return 1;
-	} else {
-		return 0;
-	}
-}*/
-
-static void add_system_informations(cJSON *root) {
-	esp_chip_info_t chip_info;
-	esp_chip_info(&chip_info);
-
-	size_t total,used;
-	storage_info(&total,&used);
-
-	cJSON *sysinfo = cJSON_AddObjectToObject(root,"system");
-	cJSON *fs_size = cJSON_AddObjectToObject(sysinfo,"filesystem");
-
-	cJSON_AddStringToObject(sysinfo, "version", IDF_VER);
-	cJSON_AddNumberToObject(sysinfo, "cores", chip_info.cores);
-	cJSON_AddNumberToObject(sysinfo, "free_heap_size",esp_get_free_heap_size());
-	cJSON_AddNumberToObject(sysinfo, "minimum_free_heap_size",esp_get_minimum_free_heap_size());
-	cJSON_AddNumberToObject(fs_size, "total", total);
-	cJSON_AddNumberToObject(fs_size, "used", used);
-
-}
 
 typedef enum {
 	// GET
@@ -130,6 +98,26 @@ static esp_err_t http_help(httpd_req_t *req) {
 	return ESP_OK;
 
 }
+
+static void add_system_informations(cJSON *root) {
+	esp_chip_info_t chip_info;
+	esp_chip_info(&chip_info);
+
+	size_t total,used;
+	storage_info(&total,&used);
+
+	cJSON *sysinfo = cJSON_AddObjectToObject(root,"system");
+	cJSON *fs_size = cJSON_AddObjectToObject(sysinfo,"filesystem");
+
+	cJSON_AddStringToObject(sysinfo, "version", IDF_VER);
+	cJSON_AddNumberToObject(sysinfo, "cores", chip_info.cores);
+	cJSON_AddNumberToObject(sysinfo, "free_heap_size",esp_get_free_heap_size());
+	cJSON_AddNumberToObject(sysinfo, "minimum_free_heap_size",esp_get_minimum_free_heap_size());
+	cJSON_AddNumberToObject(fs_size, "total", total);
+	cJSON_AddNumberToObject(fs_size, "used", used);
+
+}
+
 
 static void get_path_from_uri(const char *uri,char *dest, size_t destsize)
 {
@@ -443,38 +431,8 @@ static void get_handler_data_config(httpd_req_t *req) {
     httpd_resp_set_type(req, "application/json");
     cJSON *root = cJSON_CreateObject();
 
-    // system informations
-
-    cJSON_AddNumberToObject(root, "numleds", cfg_numleds);
-
-    cJSON_AddNumberToObject(root, "cycle", cfg_cycle);
-
-    if (cfg_autoplayfile && strlen(cfg_autoplayfile))
-    	cJSON_AddStringToObject(root, "autoplay_file", cfg_autoplayfile);
-
-    if ( cfg_flags & CFG_AUTOPLAY ) {
-        cJSON_AddTrueToObject(root, "autoplay");
-    } else {
-        cJSON_AddFalseToObject(root, "autoplay");
-    }
-
-    if ( cfg_flags & CFG_SHOW_STATUS ) {
-        cJSON_AddTrueToObject(root, "show_status");
-    } else {
-        cJSON_AddFalseToObject(root, "show_status");
-    }
-
-    if ( cfg_flags & CFG_STRIP_DEMO ) {
-        cJSON_AddTrueToObject(root, "strip_demo");
-    } else {
-        cJSON_AddFalseToObject(root, "strip_demo");
-    }
-
-    if ( cfg_trans_flags & CFG_WITH_WIFI ) {
-        cJSON_AddTrueToObject(root, "with_wifi");
-    } else {
-        cJSON_AddFalseToObject(root, "with_wifi");
-    }
+    // configuration
+    add_config_informations(root);
 
     // some system informations
     add_system_informations(root);

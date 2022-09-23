@@ -13,7 +13,9 @@
  * reads a boolean value for an attribute in the current JSON node
  */
 t_result evt_get_bool(cJSON *element, char *attr, bool *val, char *errmsg, size_t sz_errmsg) {
+
 	memset(errmsg, 0, sz_errmsg);
+
 	if ( !element || !attr) {
 		snprintf(errmsg, sz_errmsg, "missing parameter 'element' or 'attr'");
 		return RES_FAILED;
@@ -43,7 +45,9 @@ t_result evt_get_bool(cJSON *element, char *attr, bool *val, char *errmsg, size_
  * reads a numeric value for an attribute in the current JSON node
  */
 t_result evt_get_number(cJSON *element, char *attr, double *val, char *errmsg, size_t sz_errmsg) {
+
 	memset(errmsg, 0, sz_errmsg);
+
 	if ( !element || !attr) {
 		snprintf(errmsg, sz_errmsg, "missing parameter 'element' or 'attr'");
 		return RES_FAILED;
@@ -71,7 +75,8 @@ t_result evt_get_number(cJSON *element, char *attr, double *val, char *errmsg, s
 /**
  * reads a string for an attribut in the current JSON node
  */
- t_result evt_get_string(cJSON *element, char *attr, char *sval, size_t sz_sval, char *errmsg, size_t sz_errmsg) {
+t_result evt_get_string(cJSON *element, char *attr, char *sval, size_t sz_sval, char *errmsg, size_t sz_errmsg) {
+
 	memset(errmsg, 0, sz_errmsg);
 	memset(sval, 0,sz_sval);
 
@@ -82,24 +87,24 @@ t_result evt_get_number(cJSON *element, char *attr, double *val, char *errmsg, s
 	cJSON *found = NULL;
 
 	found = cJSON_GetObjectItemCaseSensitive(element, attr);
-    if ( !found) {
+	if ( !found) {
 		snprintf(errmsg, sz_errmsg, "missing attribute '%s'", attr);
 		return RES_NOT_FOUND;
-    }
+	}
 
-    if (!cJSON_IsString(found)) {
+	if (!cJSON_IsString(found)) {
 		snprintf(errmsg, sz_errmsg, "attribute '%s' is not a string", attr);
 		return RES_INVALID_DATA_TYPE;
-    }
+	}
 
-    strlcpy(sval, cJSON_GetStringValue(found),sz_sval);
+	strlcpy(sval, cJSON_GetStringValue(found),sz_sval);
 
-    if ( !strlen(sval)) {
-        snprintf(errmsg, sz_errmsg, "got '%s' has no value", attr, sval);
-    	return RES_NO_VALUE;
-    }
+	if ( !strlen(sval)) {
+		snprintf(errmsg, sz_errmsg, "got '%s' has no value", attr, sval);
+		return RES_NO_VALUE;
+	}
 
-    snprintf(errmsg, sz_errmsg, "got '%s'='%s'", attr, sval);
+	snprintf(errmsg, sz_errmsg, "got '%s'='%s'", attr, sval);
 	return RES_OK;
 
 }
@@ -108,6 +113,7 @@ t_result evt_get_number(cJSON *element, char *attr, double *val, char *errmsg, s
  * reads a list from a JSON node
  */
 t_result evt_get_list(cJSON *element, char *attr, cJSON **found, int *array_size, char *errmsg, size_t sz_errmsg) {
+
 	memset(errmsg, 0, sz_errmsg);
 
 	*array_size = 0;
@@ -145,6 +151,8 @@ t_result decode_json_getcolor_by_name(cJSON *element, char *attr, T_COLOR_HSV *h
 	char sval[32];
 	char l_errmsg[64];
 
+	memset(errmsg, 0, sz_errmsg);
+
 	if ( !attr || !strlen(attr))
 		return ESP_ERR_NOT_FOUND;
 
@@ -173,6 +181,8 @@ t_result decode_json_getcolor_by_name(cJSON *element, char *attr, T_COLOR_HSV *h
 t_result decode_json_getcolor_as_hsv(cJSON *element, char *attr, T_COLOR_HSV *hsv, char *errmsg, size_t sz_errmsg) {
 	char sval[32];
 	char l_errmsg[64];
+
+	memset(errmsg, 0, sz_errmsg);
 
 	if ( !attr || !strlen(attr))
 		return ESP_ERR_NOT_FOUND;
@@ -220,6 +230,8 @@ t_result decode_json_getcolor_as_rgb(cJSON *element, char *attr, T_COLOR_HSV *hs
 	char sval[32];
 	char l_errmsg[64];
 
+	memset(errmsg, 0, sz_errmsg);
+
 	if ( !attr || !strlen(attr))
 		return ESP_ERR_NOT_FOUND;
 
@@ -261,6 +273,8 @@ t_result decode_json_getcolor_as_rgb(cJSON *element, char *attr, T_COLOR_HSV *hs
  */
 t_result decode_json_getcolor(cJSON *element, char *attr4colorname, char *attr4hsv, char *attr4rgb, T_COLOR_HSV *hsv, char *errmsg, size_t sz_errmsg) {
 	t_result rc;
+	memset(errmsg, 0, sz_errmsg);
+
 	rc = decode_json_getcolor_by_name(element, attr4colorname, hsv, errmsg, sz_errmsg);
 	if (rc != ESP_ERR_NOT_FOUND)
 		return rc;
@@ -272,4 +286,12 @@ t_result decode_json_getcolor(cJSON *element, char *attr4colorname, char *attr4h
 	rc = decode_json_getcolor_as_rgb(element, attr4rgb, hsv, errmsg, sz_errmsg);
 
 	return rc;
+}
+
+void cJSON_addBoolean(cJSON *element, char *attribute_name, bool flag) {
+	if ( flag ) {
+		cJSON_AddTrueToObject(element, attribute_name);
+	} else {
+		cJSON_AddFalseToObject(element, attribute_name);
+	}
 }

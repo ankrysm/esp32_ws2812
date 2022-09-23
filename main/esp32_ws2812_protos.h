@@ -24,6 +24,7 @@ t_result decode_json_getcolor_by_name(cJSON *element, char *attr, T_COLOR_HSV *h
 t_result decode_json_getcolor_as_hsv(cJSON *element, char *attr, T_COLOR_HSV *hsv, char *errmsg, size_t sz_errmsg);
 t_result decode_json_getcolor_as_rgb(cJSON *element, char *attr, T_COLOR_HSV *hsv, char *errmsg, size_t sz_errmsg);
 t_result decode_json_getcolor(cJSON *element, char *attr4colorname, char *attr4hsv, char *attr4rgb, T_COLOR_HSV *hsv, char *errmsg, size_t sz_errmsg);
+void cJSON_addBoolean(cJSON *element, char *attribute_name, bool flag);
 
 
 // from config.c
@@ -32,6 +33,7 @@ esp_err_t init_storage();
 char *config2txt(char *txt, size_t sz);
 esp_err_t storage_info(size_t *total, size_t *used);
 void add_base_path(char *filename, size_t sz_filename);
+void add_config_informations(cJSON *element);
 
 // from color.c
 void c_hsv2rgb(T_COLOR_HSV *hsv, T_COLOR_RGB *rgb);
@@ -57,6 +59,7 @@ void led_strip_firstled(int red, int green, int blue);
 void init_timer_events();
 int set_event_timer_period(int new_timer_period);
 void scenes_start();
+void scenes_autostart();
 void scenes_stop();
 void scenes_blank();
 void scenes_pause();

@@ -18,6 +18,8 @@
 
 // transient flags
 #define CFG_WITH_WIFI        0x0100
+#define CFG_AUTOPLAY_LOADED  0x0200
+#define CFG_AUTOPLAY_STARTED 0x0400
 
 #define LEN_SCENEFILE 32
 

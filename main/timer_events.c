@@ -12,7 +12,7 @@
 int s_timer_period = 100; // in ms
 int s_timer_period_new = 100; // in ms
 
-static esp_timer_handle_t s_periodic_timer;
+static esp_timer_handle_t s_handle_periodic_timer;
 static EventGroupHandle_t s_timer_event_group;
 
 static const int EVENT_BIT_START = BIT0;
@@ -111,7 +111,7 @@ static void periodic_timer_callback(void* arg) {
 			s_run_status = RUN_STATUS_STOPPED;
 			s_scene_time = 0; // stop resets the time
 			// stop this timer
-			esp_timer_stop(s_periodic_timer);
+			esp_timer_stop(s_handle_periodic_timer);
 			if ( uxBits & EVENT_BIT_BLANK) {
 				make_it_blank();
 			}
@@ -183,7 +183,7 @@ static void periodic_timer_callback(void* arg) {
 		s_run_status = RUN_STATUS_STOPPED;
 		s_scene_time = 0; // stop resets the time
 		// stop this timer
-		esp_timer_stop(s_periodic_timer);
+		esp_timer_stop(s_handle_periodic_timer);
 		ESP_LOGI(__func__, "finished -> STOP");
 	}
     //int64_t time_since_boot = esp_timer_get_time();
@@ -197,13 +197,13 @@ void scenes_start() {
 
 	xEventGroupClearBits(s_timer_event_group, EVENT_BITS_ALL);
 
-    esp_err_t rc = esp_timer_start_periodic(s_periodic_timer, s_timer_period_new*1000);
+    esp_err_t rc = esp_timer_start_periodic(s_handle_periodic_timer, s_timer_period_new*1000);
     if ( rc == ESP_ERR_INVALID_STATE) {
     	// Timer is running, check for speed change
     	if ( s_timer_period_new != s_timer_period ) {
     		// timer period changed, restart timer
-    		esp_timer_stop(s_periodic_timer);
-    		rc = esp_timer_start_periodic(s_periodic_timer, s_timer_period_new*1000);
+    		esp_timer_stop(s_handle_periodic_timer);
+    		rc = esp_timer_start_periodic(s_handle_periodic_timer, s_timer_period_new*1000);
     		if ( rc == ESP_OK) {
     	    	ESP_LOGI(__func__,"Timer restarted");
     	        xEventGroupSetBits(s_timer_event_group, EVENT_BIT_START);
@@ -228,25 +228,33 @@ void scenes_start() {
 
 void scenes_stop() {
 	// timer stops by themselves
-	ESP_LOGI(__func__, "stop");
+	ESP_LOGI(__func__, "start");
 	xEventGroupClearBits(s_timer_event_group, EVENT_BITS_ALL);
     xEventGroupSetBits(s_timer_event_group, EVENT_BIT_STOP);
 }
 
 void scenes_blank() {
 	// timer stops by themselves
-	ESP_LOGI(__func__, "stop");
+	ESP_LOGI(__func__, "start");
 	xEventGroupClearBits(s_timer_event_group, EVENT_BITS_ALL);
     xEventGroupSetBits(s_timer_event_group, EVENT_BIT_STOP|EVENT_BIT_BLANK);
     make_it_blank();
 }
 
 void scenes_pause() {
-	ESP_LOGI(__func__, "pause");
+	ESP_LOGI(__func__, "start");
 	xEventGroupClearBits(s_timer_event_group, EVENT_BITS_ALL);
     xEventGroupSetBits(s_timer_event_group, EVENT_BIT_PAUSE);
 }
 
+void scenes_autostart() {
+	ESP_LOGI(__func__, "start");
+	if ( (cfg_trans_flags & CFG_AUTOPLAY_LOADED) && (cfg_flags & CFG_AUTOPLAY)) {
+		cfg_trans_flags |= CFG_AUTOPLAY_STARTED;
+		ESP_LOGI(__func__, "autostart processed");
+		scenes_start();
+	}
+}
 
 run_status_type get_scene_status() {
 	return s_run_status;
@@ -301,7 +309,7 @@ void init_timer_events() {
             .name = "periodic"
     };
 
-	ESP_ERROR_CHECK(esp_timer_create(&periodic_timer_args, &s_periodic_timer));
+	ESP_ERROR_CHECK(esp_timer_create(&periodic_timer_args, &s_handle_periodic_timer));
 
 }
 

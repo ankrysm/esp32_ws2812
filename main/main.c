@@ -16,11 +16,11 @@ int main_flags=0;
 //uint64_t timmi_dt =22;
 
 //extern T_CONFIG gConfig;
-extern uint32_t cfg_flags;
+//extern uint32_t cfg_flags;
 extern uint32_t cfg_trans_flags;
 extern uint32_t cfg_numleds;
 extern uint32_t cfg_cycle;
-extern char *cfg_autoplayfile;
+//extern char *cfg_autoplayfile;
 
 void firstled(int red, int green, int blue) ;
 
@@ -89,6 +89,7 @@ void app_main() {
 
 
 	cfg_trans_flags =0;
+
 	// init storage and get/initalize config
 	ESP_ERROR_CHECK(nvs_flash_init());
 	ESP_ERROR_CHECK(init_storage());
@@ -97,10 +98,21 @@ void app_main() {
 	led_strip_init(cfg_numleds);
 	strip_clear();
 	strip_show(true);
+	firstled(16, 16, 16);
 
 	load_autostart_file();
 
-	firstled(32, 32, 32);
+	char buf[256];
+	config2txt(buf, sizeof(buf));
+	ESP_LOGI(__func__, "config=%s",buf);
+
+	// init timer
+	init_timer_events();
+	set_event_timer_period(cfg_cycle);
+
+	// if configured and possible start the autostart scene
+	scenes_autostart();
+
 	TickType_t xDelay = 500 / portTICK_PERIOD_MS;
 
 	ESP_ERROR_CHECK(esp_netif_init());
@@ -120,20 +132,20 @@ void app_main() {
 		ESP_LOGI(__func__, "connection status=%d(%s)", s, wifi_connect_status2text(s));
 		switch (s) {
 		case WIFI_IDLE:
-			firstled(16,16,16);
+			firstled(16,16,16); // white
 			break;
 		case WIFI_TRY_CONNECT:
-			firstled(16,16,0);
+			firstled(16,16,0); // yellow
 			break;
 		case WIFI_TRY_SMART_CONFIG:
-			firstled(0,0,16);
+			firstled(0,0,16); // blue
 			break;
 		case WIFI_CONNECTED:
-			firstled(0,16,0);
+			firstled(0,16,0); // green
 			done=s;
 			break;
 		case WIFI_CONNECTION_FAILED:
-			firstled(16,0,0);
+			firstled(16,0,0); // red
 			done=s;
 			break;
 		default:
@@ -154,14 +166,6 @@ void app_main() {
 		ESP_LOGI(__func__, "without WIFI");
 	}
 	// */
-	char buf[128];
-	config2txt(buf, sizeof(buf));
-	ESP_LOGI(__func__, "config=%s",buf);
-
-	// init timer
-	init_timer_events();
-	set_event_timer_period(cfg_cycle);
-
 
 	/*
 	TaskHandle_t  Core1TaskHnd ;

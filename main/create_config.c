@@ -141,6 +141,7 @@ esp_err_t decode_json4config_root(char *content, char *errmsg, size_t sz_errmsg)
 				if ( cfg_autoplayfile)
 					free(cfg_autoplayfile);
 				cfg_autoplayfile = strlen(sval) ? strdup(sval) : NULL;
+				store_it = true;
 			}
 		} else if ( lrc != RES_NOT_FOUND) {
 			ESP_LOGE(__func__, "parse attribute '%s' failed: %s", attr, errmsg);

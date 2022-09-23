@@ -6,8 +6,7 @@
  */
 
 
-#include "esp32_ws2812_basic.h"
-#include "config.h"
+#include "esp32_ws2812.h"
 
 extern uint32_t cfg_flags;
 extern uint32_t cfg_trans_flags;
@@ -185,6 +184,8 @@ esp_err_t init_storage() {
     		cfg_autoplayfile = NULL;
     	}
     	ret = nvs_get_str(my_handle, CFG_KEY_AUTOPLAY_FILE, NULL, &len); ///call for length
+        ESP_LOGI(__func__, "retrieve '%s' len = %d: '%s'", CFG_KEY_AUTOPLAY_FILE, len);
+
     	if (ret == ESP_OK) {
         	nvs_get_str(my_handle, CFG_KEY_AUTOPLAY_FILE, cfg_autoplayfile, &len); // call for value
             ESP_LOGI(__func__, "retrieve '%s' successful: '%s'", CFG_KEY_AUTOPLAY_FILE, cfg_autoplayfile?cfg_autoplayfile:"");
@@ -225,6 +226,8 @@ char *config2txt(char *txt, size_t sz) {
 			"  strip_demo=%s\n" \
 			"cfg_trans_flags=0x%04x\n" \
 			"  with_wifi=%s\n" \
+			"  autoplay file loaded=%s\n" \
+			"  autoplay started=%s\n" \
 			"cycle=%d\n" ,
 			cfg_numleds,
 			cfg_autoplayfile ? cfg_autoplayfile:"",
@@ -234,7 +237,45 @@ char *config2txt(char *txt, size_t sz) {
 			(cfg_flags & CFG_STRIP_DEMO ? "true" : "false"),
 			cfg_trans_flags,
 			(cfg_trans_flags & CFG_WITH_WIFI ? "true" : "false"),
+			(cfg_trans_flags & CFG_AUTOPLAY_LOADED ? "true" : "false" ),
+			(cfg_trans_flags & CFG_AUTOPLAY_STARTED ? "true" : "false" ),
 			cfg_cycle
 	);
 	return txt;
 }
+
+
+void add_config_informations(cJSON *element) {
+
+	cJSON *root = cJSON_AddObjectToObject(element,"config");
+
+	cJSON_AddNumberToObject(root, "numleds", cfg_numleds);
+
+	cJSON_AddNumberToObject(root, "cycle", cfg_cycle);
+
+	cJSON_addBoolean(root, "with_wifi", cfg_trans_flags & CFG_WITH_WIFI );
+
+	if (cfg_autoplayfile && strlen(cfg_autoplayfile))
+		cJSON_AddStringToObject(root, "autoplay_file", cfg_autoplayfile);
+
+	if (cfg_trans_flags & CFG_AUTOPLAY_LOADED) {
+		cJSON_AddTrueToObject(root, "autoplay_file_loaded");
+	}
+
+	if ( cfg_flags & CFG_AUTOPLAY ) {
+		cJSON_AddTrueToObject(root, "autoplay");
+	}
+	if (cfg_trans_flags & CFG_AUTOPLAY_STARTED) {
+		cJSON_AddTrueToObject(root, "autoplay_started");
+	}
+
+	if ( cfg_flags & CFG_SHOW_STATUS ) {
+		cJSON_AddTrueToObject(root, "show_status");
+	}
+
+	if ( cfg_flags & CFG_STRIP_DEMO ) {
+		cJSON_AddTrueToObject(root, "strip_demo");
+	}
+
+}
+

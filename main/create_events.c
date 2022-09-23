@@ -43,7 +43,7 @@ static esp_err_t decode_json4event_scene_event_events_data(cJSON *element, uint3
 			break;
 		}
 		if ( !tevt ) {
-			snprintfapp(errmsg, sz_errmsg,"%s/%s/%d: could not create event data", hint, evt->id, id);
+			snprintf(errmsg, sz_errmsg,"%s/%s/%d: could not create event data", hint, evt->id, id);
 			break;
 
 		}
@@ -52,13 +52,13 @@ static esp_err_t decode_json4event_scene_event_events_data(cJSON *element, uint3
 		attr="type";
 		lrc = evt_get_string(element, attr, sval, sizeof(sval), lerrmsg, sizeof(lerrmsg));
 		if (lrc != RES_OK) {
-			snprintfapp(errmsg, sz_errmsg,"%s/%s/%d: could not decode '%s': '%s'", hint, evt->id, id, attr, lerrmsg);
+			snprintf(errmsg, sz_errmsg,"%s/%s/%d: could not decode '%s': '%s'", hint, evt->id, id, attr, lerrmsg);
 			break;
 		}
 
 		tevt->type = TEXT2ET(sval);
 		if ( tevt->type == ET_UNKNOWN) {
-			snprintfapp(errmsg, sz_errmsg,"%s/%s/%d: attr='%s' '%s' unknown", hint, evt->id, id, attr, sval);
+			snprintf(errmsg, sz_errmsg,"%s/%s/%d: attr='%s' '%s' unknown", hint, evt->id, id, attr, sval);
 			break;
 		}
 
@@ -69,7 +69,7 @@ static esp_err_t decode_json4event_scene_event_events_data(cJSON *element, uint3
 			tevt->time = val;
 			ESP_LOGI(__func__, "tid=%d: %s=%llu", id, attr, tevt->time);
 		} else if ( lrc != RES_NOT_FOUND) {
-			snprintfapp(errmsg, sz_errmsg,"%s/%s/%d: could not decode '%s': '%s'", hint, evt->id, id, attr, lerrmsg);
+			snprintf(errmsg, sz_errmsg,"%s/%s/%d: could not decode '%s': '%s'", hint, evt->id, id, attr, lerrmsg);
 			break;
 		}
 
@@ -79,7 +79,7 @@ static esp_err_t decode_json4event_scene_event_events_data(cJSON *element, uint3
 			strlcpy(tevt->marker, sval,LEN_EVT_MARKER );
 			ESP_LOGI(__func__, "%s/%s/%d: %s='%s'", hint, evt->id, id, attr, tevt->marker);
 		} else if ( lrc != RES_NOT_FOUND) {
-			snprintfapp(errmsg, sz_errmsg,"%s/%s/%d: could not decode '%s': '%s'", hint, evt->id, id, attr, lerrmsg);
+			snprintf(errmsg, sz_errmsg,"%s/%s/%d: could not decode '%s': '%s'", hint, evt->id, id, attr, lerrmsg);
 			break;
 		}
 
@@ -95,14 +95,12 @@ static esp_err_t decode_json4event_scene_event_events_data(cJSON *element, uint3
 			if (lrc == RES_OK) {
 				strlcpy(tevt->svalue, sval,sizeof(tevt->svalue));
 				ESP_LOGI(__func__, "%s/%s/%d: %s='%s'", hint, evt->id, id, attr, tevt->svalue);
-				snprintfapp(errmsg, sz_errmsg,"%s/%s/%d: could not decode '%s': '%s'", hint, evt->id, id, attr, lerrmsg);
-				break;
 			}  else if ( lrc != RES_NOT_FOUND) {
-				snprintfapp(errmsg, sz_errmsg,"%s/%s/%d: could not decode '%s': '%s'", hint, evt->id, id, attr, lerrmsg);
+				snprintf(errmsg, sz_errmsg,"%s/%s/%d: could not decode '%s': '%s'", hint, evt->id, id, attr, lerrmsg);
 				break;
 			}
 		} else if ( lrc != RES_NOT_FOUND) {
-			snprintfapp(errmsg, sz_errmsg,"%s/%s/%d: could not decode '%s': '%s'", hint, evt->id, id, attr, lerrmsg);
+			snprintf(errmsg, sz_errmsg,"%s/%s/%d: could not decode '%s': '%s'", hint, evt->id, id, attr, lerrmsg);
 			break;
 		}
 
@@ -110,7 +108,7 @@ static esp_err_t decode_json4event_scene_event_events_data(cJSON *element, uint3
 	} while(0);
 
 	if ( rc == ESP_OK) {
-		snprintfapp(errmsg, sz_errmsg,"wid=%d: 'time event' created", id);
+		snprintf(errmsg, sz_errmsg,"wid=%d: 'time event' created", id);
 		ESP_LOGI(__func__,"%s", errmsg);
 	} else {
 		ESP_LOGE(__func__, "error: %s", errmsg);
@@ -125,7 +123,7 @@ static esp_err_t decode_json4event_scene_events_events(cJSON *element, T_EVENT *
 	t_result lrc;
 
 	if ( !element) {
-		snprintfapp(errmsg, sz_errmsg, "missing parameter 'element'");
+		snprintf(errmsg, sz_errmsg, "missing parameter 'element'");
 		return ESP_FAIL;
 	}
 	cJSON *found = NULL;
@@ -149,7 +147,7 @@ static esp_err_t decode_json4event_scene_events_events(cJSON *element, T_EVENT *
 		return ESP_OK;
 
 	} if ( lrc != ESP_OK) {
-		snprintfapp(errmsg, sz_errmsg,"get list failed: '%s'", lerrmsg);
+		snprintf(errmsg, sz_errmsg,"get list failed: '%s'", lerrmsg);
 		return ESP_FAIL;
 	}
 
@@ -160,13 +158,15 @@ static esp_err_t decode_json4event_scene_events_events(cJSON *element, T_EVENT *
 		cJSON *element = cJSON_GetArrayItem(found, i);
 		(*id)++;
 		if (decode_json4event_scene_event_events_data(element, *id, evt, processing_type, lerrmsg, sizeof(lerrmsg)) != ESP_OK) {
-			snprintfapp(errmsg, sz_errmsg,"[%s]", lerrmsg);
+			snprintf(errmsg, sz_errmsg,"[%s]", lerrmsg);
+			ESP_LOGE(__func__, "%s", errmsg);
 			rc = ESP_FAIL;
+			break;
 		}
 	}
 
 	if ( rc == ESP_OK) {
-		snprintfapp(errmsg, sz_errmsg, "id='%s': ok", evt->id);
+		snprintf(errmsg, sz_errmsg, "id='%s': ok", evt->id);
 	}
 
 	return rc;
@@ -186,18 +186,18 @@ static esp_err_t decode_json4event_object_data(cJSON *element, T_EVT_OBJECT *obj
 	char lerrmsg[64];
 	do {
 		if ( !(data = create_object_data(obj, id))) {
-			snprintfapp(errmsg, sz_errmsg,"id=%s, id=%d: could not create data object", obj->oid, id);
+			snprintf(errmsg, sz_errmsg,"id=%s, id=%d: could not create data object", obj->oid, id);
 			break;
 		}
 
 		attr="type";
 		if (evt_get_string(element, attr, sval, sizeof(sval), lerrmsg, sizeof(lerrmsg)) != RES_OK) {
-			snprintfapp(errmsg, sz_errmsg,"id=%s, id=%d: could not decocde data: '%s'", obj->oid, id, lerrmsg);
+			snprintf(errmsg, sz_errmsg,"id=%s, id=%d: could not decocde data: '%s'", obj->oid, id, lerrmsg);
 			break;
 		}
 		data->type = TEXT2WT(sval);
 		if ( data->type == WT_UNKNOWN) {
-			snprintfapp(errmsg, sz_errmsg,"oid=%s, id=%d: object type '%s' unknown", obj->oid, id, sval);
+			snprintf(errmsg, sz_errmsg,"oid=%s, id=%d: object type '%s' unknown", obj->oid, id, sval);
 			break;
 		}
 
@@ -207,7 +207,7 @@ static esp_err_t decode_json4event_object_data(cJSON *element, T_EVT_OBJECT *obj
 			data->pos = val;
 			ESP_LOGI(__func__, "oid=%s, id=%d: %s=%d", obj->oid, id, attr, data->pos);
 		} else if ( lrc != RES_NOT_FOUND) {
-			snprintfapp(errmsg, sz_errmsg,"id=%s, id=%d: could not decode data '%s': %s", obj->oid, id, attr, lerrmsg);
+			snprintf(errmsg, sz_errmsg,"id=%s, id=%d: could not decode data '%s': %s", obj->oid, id, attr, lerrmsg);
 			break;
 		}
 
@@ -217,7 +217,7 @@ static esp_err_t decode_json4event_object_data(cJSON *element, T_EVT_OBJECT *obj
 			data->len = val;
 			ESP_LOGI(__func__, "oid=%s, id=%d: %s=%d", obj->oid, id, attr, data->len);
 		} else if ( lrc != RES_NOT_FOUND) {
-			snprintfapp(errmsg, sz_errmsg,"id=%s, id=%d: could not decode data '%s': %s", obj->oid, id, attr, lerrmsg);
+			snprintf(errmsg, sz_errmsg,"id=%s, id=%d: could not decode data '%s': %s", obj->oid, id, attr, lerrmsg);
 			break;
 		}
 
@@ -231,12 +231,12 @@ static esp_err_t decode_json4event_object_data(cJSON *element, T_EVT_OBJECT *obj
 				ESP_LOGI(__func__,"oid=%s, id=%d: %s", obj->oid, id, lerrmsg);
 
 			} else if ( lrc == RES_NOT_FOUND ) {
-				snprintfapp(errmsg, sz_errmsg, "oid=%s, id=%d: no 'color from' specified", obj->oid);
+				snprintf(errmsg, sz_errmsg, "oid=%s, id=%d: no 'color from' specified", obj->oid);
 				ESP_LOGI(__func__, "%s", errmsg);
 				break;
 
 			} else {
-				snprintfapp(errmsg, sz_errmsg,"id=%s, id=%d: could not decode data '%s': %s", obj->oid, id, attr, lerrmsg);
+				snprintf(errmsg, sz_errmsg,"id=%s, id=%d: could not decode data '%s': %s", obj->oid, id, attr, lerrmsg);
 				ESP_LOGE(__func__, "oid=%s, id=%d: Error: %s",obj->oid, id, errmsg);
 				break; // failed
 			}
@@ -250,11 +250,11 @@ static esp_err_t decode_json4event_object_data(cJSON *element, T_EVT_OBJECT *obj
 				ESP_LOGI(__func__,"oid=%s, id=%d: %s", obj->oid, id, errmsg);
 
 			} else if ( lrc == RES_NOT_FOUND ) {
-				snprintfapp(errmsg, sz_errmsg, "oid=%s, id=%d: no 'color to' from specified", obj->oid, id);
+				snprintf(errmsg, sz_errmsg, "oid=%s, id=%d: no 'color to' from specified", obj->oid, id);
 				ESP_LOGI(__func__, "%s",errmsg);
 				break;
 			} else {
-				snprintfapp(errmsg, sz_errmsg,"id=%s, id=%d: could not decode data '%s': %s", obj->oid, id, attr, lerrmsg);
+				snprintf(errmsg, sz_errmsg,"id=%s, id=%d: could not decode data '%s': %s", obj->oid, id, attr, lerrmsg);
 				ESP_LOGE(__func__, "oid=%s, id=%d: Error: %s", obj->oid, id, lerrmsg);
 				break; // failed
 			}
@@ -269,12 +269,12 @@ static esp_err_t decode_json4event_object_data(cJSON *element, T_EVT_OBJECT *obj
 				ESP_LOGI(__func__,"oid=%s, id=%d, %s", obj->oid, id, errmsg);
 
 			} else if ( lrc == RES_NOT_FOUND ) {
-				snprintfapp(errmsg, sz_errmsg, "oid=%s, id=%d: no color specified", obj->oid, id);
+				snprintf(errmsg, sz_errmsg, "oid=%s, id=%d: no color specified", obj->oid, id);
 				ESP_LOGI(__func__, "%s",errmsg);
 				break;
 
 			} else {
-				snprintfapp(errmsg, sz_errmsg,"id=%s, id=%d: could not decode data '%s': %s", obj->oid, id, attr, lerrmsg);
+				snprintf(errmsg, sz_errmsg,"id=%s, id=%d: could not decode data '%s': %s", obj->oid, id, attr, lerrmsg);
 				ESP_LOGE(__func__, "oid=%s, id=%d: Error: %s", obj->oid, id, errmsg);
 				break; // failed
 			}
@@ -286,7 +286,7 @@ static esp_err_t decode_json4event_object_data(cJSON *element, T_EVT_OBJECT *obj
 	} while(0);
 
 	if ( rc == ESP_OK) {
-		snprintfapp(errmsg, sz_errmsg,"oid=%s: 'object' created", obj->oid);
+		snprintf(errmsg, sz_errmsg,"oid=%s: 'object' created", obj->oid);
 		ESP_LOGI(__func__,"%s", errmsg);
 	} else {
 		ESP_LOGE(__func__, "error: %s", errmsg);
@@ -345,8 +345,10 @@ static esp_err_t decode_json4event_object(cJSON *element,  char *errmsg, size_t 
 			//JSON_Print(list_element);
 			char l_errmsg[64];
 			if (decode_json4event_object_data(list_element, obj, i+1, l_errmsg, sizeof(l_errmsg)) != ESP_OK) {
-				snprintf(&(errmsg[strlen(errmsg)]), sz_errmsg - strlen(errmsg),"[%s]", l_errmsg);
+				snprintf(errmsg, sz_errmsg,"[%s]", l_errmsg);
+				ESP_LOGE(__func__, "%s", errmsg);
 				rc = ESP_FAIL;
+				break;
 			}
 		}
 
@@ -428,9 +430,10 @@ static esp_err_t decode_json4event_scene_events(cJSON *element, T_SCENE *scene, 
 	if ( rc == ESP_OK) {
 		snprintf(errmsg, sz_errmsg, "event created");
 		ESP_LOGI(__func__,"id='%s': %s", evt->id, errmsg);
+
 		reset_event(evt);
-		//reset_timing_events(evt->evt_time_list);
 		reset_event_repeats(evt);
+
 		event_list_add(scene, evt);
 	} else {
 		ESP_LOGE(__func__, "id='%s': error: %s", sval, errmsg);
@@ -485,8 +488,10 @@ static esp_err_t decode_json4event_scene(cJSON *element, char *errmsg, size_t sz
 			char l_errmsg[64];
 
 			if (decode_json4event_scene_events(list_element, obj, l_errmsg, sizeof(l_errmsg)) != ESP_OK) {
-				snprintf(&(errmsg[strlen(errmsg)]), sz_errmsg - strlen(errmsg),"[%s]", l_errmsg);
+				snprintf(errmsg, sz_errmsg,"[%s]", l_errmsg);
+				ESP_LOGE(__func__, "%s", errmsg);
 				rc = ESP_FAIL;
+				break;
 			}
 		}
 	} while(false);
@@ -532,8 +537,10 @@ static esp_err_t decode_json4event_object_list(cJSON *element, char *errmsg, siz
 		cJSON *element = cJSON_GetArrayItem(found, i);
 		char l_errmsg[64];
 		if (decode_json4event_object(element, l_errmsg, sizeof(l_errmsg)) != ESP_OK) {
-			snprintf(&(errmsg[strlen(errmsg)]), sz_errmsg - strlen(errmsg),"[%s]", l_errmsg);
+			snprintf(errmsg, sz_errmsg,"[%s]", l_errmsg);
+			ESP_LOGE(__func__, "%s", errmsg);
 			rc = ESP_FAIL;
+			break;
 		}
 	}
 
@@ -571,8 +578,10 @@ static esp_err_t decode_json4event_scenes_list(cJSON *element, char *errmsg, siz
 		cJSON *element = cJSON_GetArrayItem(found, i);
 		char l_errmsg[64];
 		if (decode_json4event_scene(element, l_errmsg, sizeof(l_errmsg)) != ESP_OK) {
-			snprintf(&(errmsg[strlen(errmsg)]), sz_errmsg - strlen(errmsg),"[%s]", l_errmsg);
+			snprintf(errmsg, sz_errmsg,"[%s]", l_errmsg);
+			ESP_LOGE(__func__, "%s", errmsg);
 			rc = ESP_FAIL;
+			break;
 		}
 	}
 
@@ -620,6 +629,7 @@ esp_err_t decode_json4event_root(char *content, char *errmsg, size_t sz_errmsg, 
 		    FILE* f = fopen(filename, "w");
 		    if (f == NULL) {
 		    	snprintf(errmsg, sz_errmsg, "Failed to open file '%s' for writing", filename);
+		    	ESP_LOGE(__func__, "%s", errmsg);
 		        break;
 		    }
 		    fprintf(f, content);
@@ -654,6 +664,8 @@ esp_err_t load_events_from_file(char *filename) {
 	snprintf(fname,sizeof(fname),"%s", filename);
 	add_base_path(fname, sizeof(fname));
 
+	extern uint32_t cfg_trans_flags;
+
 	char *content = NULL;
 	esp_err_t rc = ESP_FAIL;
 
@@ -683,6 +695,8 @@ esp_err_t load_events_from_file(char *filename) {
 
 	if ( rc == ESP_OK ) {
 		ESP_LOGI(__func__, "decode '%s' successfull", filename);
+		cfg_trans_flags |=CFG_AUTOPLAY_LOADED;
+
 	} else {
 		ESP_LOGE(__func__, "could not decode '%s': %s", filename, errmsg);
 	}
