@@ -187,6 +187,7 @@ esp_err_t init_storage() {
         ESP_LOGI(__func__, "retrieve '%s' len = %d'", CFG_KEY_AUTOPLAY_FILE, len);
 
     	if (ret == ESP_OK) {
+    		cfg_autoplayfile = calloc(len+1, sizeof(char));
         	nvs_get_str(my_handle, CFG_KEY_AUTOPLAY_FILE, cfg_autoplayfile, &len); // call for value
             ESP_LOGI(__func__, "retrieve '%s' successful: '%s'", CFG_KEY_AUTOPLAY_FILE, cfg_autoplayfile?cfg_autoplayfile:"");
     	} else if (ret == ESP_ERR_NVS_NOT_FOUND) {

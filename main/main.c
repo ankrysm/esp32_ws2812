@@ -100,7 +100,6 @@ void app_main() {
 	strip_show(true);
 	firstled(16, 16, 16);
 
-	load_autostart_file();
 
 	char buf[256];
 	config2txt(buf, sizeof(buf));
@@ -109,6 +108,8 @@ void app_main() {
 	// init timer
 	init_timer_events();
 	set_event_timer_period(cfg_cycle);
+
+	load_autostart_file();
 
 	// if configured and possible start the autostart scene
 	scenes_autostart();
