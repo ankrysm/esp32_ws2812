@@ -36,59 +36,54 @@ To bring the wifi interface up the esptouch framework version 1 is used, you nee
 
 ## JSON attributes
 
-### attribute "filename"
+		+- "filename", type: string, contains a file name to store JSON data in the ESP32 flash.
+		+- "objects", type: list, contains a list of objects with following attributes:
+      	|	+- "id", type: string, id of the data list for reference in display events
+      	|	+- "list", type: list, contains a list of display objects with following attributes:
+         |  		+- "type", type:string, type of object, see table
+         |   		+- "pos", type: numeric, relative position in list
+         |   		+- "len", type_ numeric, len of the section
+         |   		+- color specification, type: string, depend from type, see listing
+		+- "scenes", type: list, containes objects for events with following attributes
+			+- "id", type: string
+			+- "events", type: list of events, contains objects with following attributes
+				+- "id", type: string
+				+- "repeats", type: numerc, number of repeates, 0 = forever
+				+- "init", type: list, contains events executed during scene start up with the following attributes
+				|	+- "type", type: string, event type, see table 
+				|	+- "value", tpye: string, numeric
+				+- "work", type: list, contains events executed during working time with the following attributes
+				|	+- "type", type: string, event type, see table 
+				|	+- "time", type: numeric, execution time, 0=immediately (default) 
+				|	+- "value", tpye: string, numeric
+				+- "final", type: list, contains objects with the following attributes
+					+- "type", type: string, event type, see table 
+					+- "value", tpye: string, numeric
 
-description: file name to store JSON data in the ESP32 flash<br>
-type: string
-
-### "objects"
-
-description: list with display objects<br>
-type: list
-
-**object list entries:**
-
-description: contains objects with display data<br>
-type: object
-
-* **"id"** <br>
-description: id of the data list for reference in display events<br>
-type: string
-
-* **"list"**<br>
-description: list of **display objects**<br>
-type: object
-
-
-#### display object
-
-contains data for what to display with the following attributes:
-
-* **"type"**<br>
-description: type of object<br>
-type: string
-
-* **"pos"**<br>
-description: relative position in list<br>
-type: numeric
-
-* **"len"**<br>
-description: len of the section<br>
-type: numeric
-
-* color specification<br>
-description: colors are specified by various attributs<br>
-type "string"
-     * **"color"** - color by name
-     * **"rgb"** - color as "r,g,b" tripel
-     * **"hsv"** - color as "h,s,v" tripel
-     * **"color_from"**, **"rgb_from"**, **"hsv_from"**, **"color_to"**, **"rgb_to"**, **"hsv_to"** - special attributes for color transitions
+### color attributes
+* **"color"** - color by name
+* **"rgb"** - color as "r,g,b" values
+* **"hsv"** - color as "h,s,v" values
+* **"color_from"**, **"rgb_from"**, **"hsv_from"**, **"color_to"**, **"rgb_to"**, **"hsv_to"** - special attributes for color transitions
 
 
+### object types
 | **"type"** attribute | description |
 | ---- | ---- |
 | "color" | a single color |
 | "color_transition" | color transition *..._from* to *..._to* |
+| "rainbow"  | show rainbow colors |
 
+### event types
+
+for init-, work- or final events
+
+| **"type"** attribute | in *init*| in *work* | in *final* | description |
+| ---- | ---- |
+| "pause" | - | start, running | - | stop painting for the amount of time |
+| "go" | - | running | - | continue painting with the actual parameters |
+|
+
+description
 
 

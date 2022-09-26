@@ -221,8 +221,9 @@ static esp_err_t decode_json4event_object_data(cJSON *element, T_EVT_OBJECT *obj
 			break;
 		}
 
+		// *** need colors ?
 		if ( data->type == WT_COLOR_TRANSITION) {
-			// a color from needed
+			// a "color from" needed
 			lrc = decode_json_getcolor(element, "color_from", "hsv_from", "rgb_from", &hsv, lerrmsg, sizeof(lerrmsg));
 			if ( lrc == RES_OK ) {
 				data->para.tr.hsv_from.h = hsv.h;
@@ -241,7 +242,7 @@ static esp_err_t decode_json4event_object_data(cJSON *element, T_EVT_OBJECT *obj
 				break; // failed
 			}
 
-			// a color to needed
+			// a "color to" needed
 			lrc = decode_json_getcolor(element, "color_to", "hsv_to", "rgb_to", &hsv, lerrmsg, sizeof(lerrmsg));
 			if ( lrc == RES_OK ) {
 				data->para.tr.hsv_to.h = hsv.h;
@@ -258,6 +259,9 @@ static esp_err_t decode_json4event_object_data(cJSON *element, T_EVT_OBJECT *obj
 				ESP_LOGE(__func__, "oid=%s, id=%d: Error: %s", obj->oid, id, lerrmsg);
 				break; // failed
 			}
+
+		} else if (data->type == WT_RAINBOW) {
+			// no color needed
 
 		} else {
 			// a color needed

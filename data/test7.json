@@ -8,7 +8,7 @@
 			 	{"type":"color_transition", "color_from":"red", "color_to":"blue", "pos":14, "len":7}
 			 ]
 		  },
-		  { "id":"rb", "list":[ {"type":"rainbow", "color":"red","len":50}]}
+		  { "id":"rb", "list":[ {"type":"rainbow", "len":50}]}
 	  ],
 	 "scenes" : [
 	 	{
