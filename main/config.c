@@ -14,7 +14,7 @@ extern uint32_t cfg_numleds;
 extern uint32_t cfg_cycle;
 extern char *cfg_autoplayfile;
 
-static esp_vfs_spiffs_conf_t conf = {
+esp_vfs_spiffs_conf_t fs_conf = {
   .base_path = "/spiffs",
   .partition_label = NULL,
   .max_files = 5,
@@ -23,7 +23,7 @@ static esp_vfs_spiffs_conf_t conf = {
 
 void add_base_path(char *filename, size_t sz_filename) {
 	char *f = strdup(filename);
-	snprintf(filename,sz_filename,"%s/%s", conf.base_path, f);
+	snprintf(filename,sz_filename,"%s/%s", fs_conf.base_path, f);
 	free(f);
 }
 
@@ -68,7 +68,7 @@ esp_err_t store_config() {
 esp_err_t storage_info(size_t *total, size_t *used) {
 	*total=0;
 	*used=0;
-    esp_err_t ret = esp_spiffs_info(conf.partition_label, total, used);
+    esp_err_t ret = esp_spiffs_info(fs_conf.partition_label, total, used);
     return ret;
 }
 
@@ -82,7 +82,7 @@ esp_err_t init_storage() {
 
     // Use settings defined above to initialize and mount SPIFFS filesystem.
     // Note: esp_vfs_spiffs_register is an all-in-one convenience function.
-    esp_err_t ret = esp_vfs_spiffs_register(&conf);
+    esp_err_t ret = esp_vfs_spiffs_register(&fs_conf);
 
     if (ret != ESP_OK) {
         if (ret == ESP_FAIL) {
@@ -97,7 +97,7 @@ esp_err_t init_storage() {
 
 #ifdef CONFIG_EXAMPLE_SPIFFS_CHECK_ON_START
     ESP_LOGI(__func__, "Performing SPIFFS_check().");
-    ret = esp_spiffs_check(conf.partition_label);
+    ret = esp_spiffs_check(fs_conf.partition_label);
     if (ret != ESP_OK) {
         ESP_LOGE(__func__, "SPIFFS_check() failed (%s)", esp_err_to_name(ret));
         return;
@@ -107,10 +107,10 @@ esp_err_t init_storage() {
 #endif
 
     size_t total = 0, used = 0;
-    ret = esp_spiffs_info(conf.partition_label, &total, &used);
+    ret = esp_spiffs_info(fs_conf.partition_label, &total, &used);
     if (ret != ESP_OK) {
         ESP_LOGE(__func__, "Failed to get SPIFFS partition information (%s). Formatting...", esp_err_to_name(ret));
-        esp_spiffs_format(conf.partition_label);
+        esp_spiffs_format(fs_conf.partition_label);
         return ret;
     } else {
         ESP_LOGI(__func__, "Partition size: total: %d, used: %d", total, used);
@@ -119,7 +119,7 @@ esp_err_t init_storage() {
     // Check consistency of reported partiton size info.
     if (used > total) {
         ESP_LOGW(__func__, "Number of used bytes cannot be larger than total. Performing SPIFFS_check().");
-        ret = esp_spiffs_check(conf.partition_label);
+        ret = esp_spiffs_check(fs_conf.partition_label);
         // Could be also used to mend broken files, to clean unreferenced pages, etc.
         // More info at https://github.com/pellepl/spiffs/wiki/FAQ#powerlosses-contd-when-should-i-run-spiffs_check
         if (ret != ESP_OK) {

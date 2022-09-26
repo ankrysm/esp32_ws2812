@@ -17,6 +17,7 @@
 #define SCRATCH_BUFSIZE (10240)
 
 extern T_EVT_OBJECT *s_object_list;
+extern esp_vfs_spiffs_conf_t fs_conf;
 
 typedef struct rest_server_context {
     char base_path[ESP_VFS_PATH_MAX + 1];
@@ -33,6 +34,7 @@ typedef enum {
 	// GET
 	HP_STATUS,
 	HP_LIST,
+	HP_LIST_FILES,
 	HP_CLEAR,
 	HP_RUN,
 	HP_STOP,
@@ -43,7 +45,6 @@ typedef enum {
 	HP_RESTART,
 	HP_RESET,
 	HP_HELP,
-	// POST
 	HP_LOAD,
 	// End of list
 	HP_END_OF_LIST
@@ -61,15 +62,16 @@ static T_HTTP_PROCCESSING_TYPE http_processing[] = {
 		{"/", "/help", HP_HELP, "API help"},
 		{"/st", "/status", HP_STATUS, "status"},
 		{"/l","/list",HP_LIST, "list events"},
+		{"lf", "list_files", HP_LIST_FILES, "list stored files"},
 		{"","/clear",HP_CLEAR,"clear event list"},
 		{"/r","/run",HP_RUN,"run"},
-		{"/s","stop",HP_STOP,"stop"},
+		{"/s","/stop",HP_STOP,"stop"},
 		{"/p","/pause",HP_PAUSE,"pause"},
-		{"/b","blank", HP_BLANK, "blank strip"},
+		{"/b","/blank", HP_BLANK, "blank strip"},
 		{"/c","/config",HP_CONFIG,"shows config, set values: uses JSON-POST-data"},
 		{"","/save",HP_SAVE,"save event list specified by fname=<fname> default: 'playlist' "},
-		{"","/restart",HP_RESTART,"restart ESP32"},
-		{"","/reset",HP_RESET,"reset ESP32 to default"},
+		{"","/restart",HP_RESTART,"restart the controller"},
+		{"","/reset",HP_RESET,"reset controller to default"},
 		{"","", HP_END_OF_LIST,""}
 };
 
@@ -254,6 +256,43 @@ static void get_handler_data_list(httpd_req_t *req) {
 	release_eventlist_lock();
 }
 
+static esp_err_t get_handler_data_list_files(httpd_req_t *req) {
+    char entrypath[FILE_PATH_MAX];
+    char msg[64];
+    const char *entrytype;
+
+    struct dirent *entry;
+    struct stat entry_stat;
+
+    DIR *dir = opendir(fs_conf.base_path);
+
+    if (!dir) {
+    	snprintf(msg, sizeof(msg),"Failed to stat dir : '%s'", fs_conf.base_path);
+        ESP_LOGE(__func__, "%s", msg);
+        // Respond with 404 Not Found
+        httpd_resp_send_err(req, HTTPD_404_NOT_FOUND, msg);
+        return ESP_FAIL;
+    }
+
+    // Iterate over all files / folders and fetch their names and sizes
+    while ((entry = readdir(dir)) != NULL) {
+        entrytype = (entry->d_type == DT_DIR ? "directory" : "file");
+
+        snprintf(entrypath, sizeof(entrypath), "%s/%s",fs_conf.base_path, entry->d_name);
+        if (stat(entrypath, &entry_stat) == -1) {
+        	snprintf(msg, sizeof(msg),"Failed to stat '%s' : '%s'", entrytype, entry->d_name);
+            ESP_LOGE(__func__, "%s", msg);
+            closedir(dir);
+            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, msg);
+            return ESP_FAIL;
+        }
+        snprintf(msg, sizeof(msg), "\n%s '%s' (%ld bytes)", entrytype, entry->d_name, entry_stat.st_size);
+        ESP_LOGI(__func__, "%s", msg);
+        httpd_resp_send_chunk(req, msg, HTTPD_RESP_USE_STRLEN);
+    }
+    closedir(dir);
+    return ESP_OK;
+}
 /**
  * delivers status informations in JSON
  */
@@ -422,11 +461,11 @@ static void get_handler_data_config(httpd_req_t *req) {
 	}
 	*/
 
-	extern uint32_t cfg_flags;
-	extern uint32_t cfg_trans_flags;
-	extern uint32_t cfg_numleds;
-	extern uint32_t cfg_cycle;
-	extern char *cfg_autoplayfile;
+//	extern uint32_t cfg_flags;
+//	extern uint32_t cfg_trans_flags;
+//	extern uint32_t cfg_numleds;
+//	extern uint32_t cfg_cycle;
+//	extern char *cfg_autoplayfile;
 
     httpd_resp_set_type(req, "application/json");
     cJSON *root = cJSON_CreateObject();
@@ -507,6 +546,9 @@ static esp_err_t get_handler_data(httpd_req_t *req)
 		break;
 	case HP_LIST:
 		get_handler_data_list(req);
+		break;
+	case HP_LIST_FILES:
+		get_handler_data_list_files(req);
 		break;
 	case HP_CLEAR:
 		get_handler_data_clear(req);
