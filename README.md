@@ -20,8 +20,11 @@ To bring the wifi interface up the esptouch framework version 1 is used, you nee
 
 ## API
 
-* **/load** - load events, replaces stored data, uses JSON-POST-data"},
 * **/** or **/help** - API help
+* **/load** - load events, replaces memory data, uses JSON-POST-data,<br>
+   with query parameter 'name=<file name>' it will be stored to flash 
+* **/f** or **/file** - handle stored JSON event lists,<br>
+query parameter: fname=<fname>, cmd=save|load|delete, save requires JSON-POST-data
 * **/st** or **/status** - status informations
 * **/l** or **/list** - list events
 * **/lf** or **/list_files** - list stored files
@@ -34,31 +37,42 @@ To bring the wifi interface up the esptouch framework version 1 is used, you nee
 * **/restart** - restart controller
 * **/reset** - reset ESP32 to default, erases all data
 
-## JSON attributes
+## JSON attributes for config
 
-		+- "filename", type: string, contains a file name to store JSON data in the ESP32 flash.
-		+- "objects", type: list, contains a list of objects with following attributes:
-      	|	+- "id", type: string, id of the data list for reference in display events
-      	|	+- "list", type: list, contains a list of display objects with following attributes:
-         |  		+- "type", type:string, type of object, see table
-         |   		+- "pos", type: numeric, relative position in list
-         |   		+- "len", type_ numeric, len of the section
-         |   		+- color specification, type: string, depend from type, see listing
-		+- "scenes", type: list, containes objects for events with following attributes
-			+- "id", type: string
-			+- "events", type: list of events, contains objects with following attributes
-				+- "id", type: string
-				+- "repeats", type: numerc, number of repeates, 0 = forever
-				+- "init", type: list, contains events executed during scene start up with the following attributes
-				|	+- "type", type: string, event type, see table 
-				|	+- "value", tpye: string, numeric
-				+- "work", type: list, contains events executed during working time with the following attributes
-				|	+- "type", type: string, event type, see table 
-				|	+- "time", type: numeric, execution time, 0=immediately (default) 
-				|	+- "value", tpye: string, numeric
-				+- "final", type: list, contains objects with the following attributes
-					+- "type", type: string, event type, see table 
-					+- "value", tpye: string, numeric
+    +- "numleds", type: numeric, number of leds of the strip
+    +- "cycle", type: numeric, cycle time in ms
+    +- "show_status", type: boolean, if true, shows the status of the system:
+    |                 white: init, yellow: try to connect, green: connected
+    |                 blue: easy connect in progress, red: no WIFI connection 
+    +- "autoplay", type: boolean, if true, play scenes automatically after boot up
+    +- "autoplay_file", type: string, file name for autoplay
+    +- "strip_demo", type: boolean, if true, shows led in serial log 
+
+## JSON attributes for display
+
+    +- "objects", type: list, contains a list of objects with following attributes:
+    |    +- "id", type: string, id of the data list for reference in display events
+    |    +- "list", type: list, contains a list of display objects with following attributes:
+    |         +- "type", type:string, type of object, see table
+    |         +- "pos", type: numeric, relative position in list
+    |         +- "len", type_ numeric, len of the section
+    |         +- color specification, type: string, depend from type, see listing
+    +- "scenes", type: list, containes objects for events with following attributes
+         +- "id", type: string
+         +- "events", type: list of events, contains objects with following attributes
+               +- "id", type: string
+               +- "repeats", type: numerc, number of repeates, 0 = forever
+               +- "init", type: list, contains events executed during scene start up with the following attributes
+               |    +- "type", type: string, event type, see table
+               |    +- "value", tpye: string, numeric
+               +- "work", type: list, contains events executed during working time with the following attributes
+               |    +- "type", type: string, event type, see table
+               |    +- "time", type: numeric, execution time, 0=immediately (default)
+               |    +- "value", tpye: string, numeric
+               |    +- "marker", type: string, destination for "jump_marker"
+               +- "final", type: list, contains objects with the following attributes
+                    +- "type", type: string, event type, see table
+                    +- "value", tpye: string, numeric
 
 ### color attributes
 * **"color"** - color by name
@@ -79,11 +93,19 @@ To bring the wifi interface up the esptouch framework version 1 is used, you nee
 for init-, work- or final events
 
 | **"type"** attribute | in *init*| in *work* | in *final* | description |
-| ---- | ---- |
+| ---- | ---- | ---- | ---- | ---- | 
 | "pause" | - | start, running | - | stop painting for the amount of time |
 | "go" | - | running | - | continue painting with the actual parameters |
-|
+| "speed" | yes | start | - | set speed in led / s |
+| "speedup" | yes | start | - | set acceleration |
+| "bounce" | - | end | - | change direction, sets speed=-speed |
+| "reverse" | - | end | - | reverses paint direction |
+| "goto" | yes | end | - | jump to position |
+| "jump_marker" | - | end | - | jump to event with marker |
+| "clear" | yes running| yes | clear leds while timer is running |
+| "brightness" | yes | start | yes | set brightness range: 0.0 .. 1.0 |
+| "brightness_delta" | yes | start | - | set brightness delta per time slot |
+| "object" | yes | end | - | sets the object being displayed |
 
-description
 
 

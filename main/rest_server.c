@@ -41,7 +41,7 @@ typedef enum {
 	HP_PAUSE,
 	HP_BLANK,
 	HP_CONFIG,
-	// HP_SAVE,
+	HP_FILEOP,
 	HP_RESTART,
 	HP_RESET,
 	HP_HELP,
@@ -58,21 +58,21 @@ typedef struct {
 } T_HTTP_PROCCESSING_TYPE;
 
 static T_HTTP_PROCCESSING_TYPE http_processing[] = {
-		{"","/load", HP_LOAD, "load events, replaces stored data, uses JSON-POST-data"},
-		{"/", "/help", HP_HELP, "API help"},
-		{"/st", "/status", HP_STATUS, "status"},
-		{"/l","/list",HP_LIST, "list events"},
-		{"/lf", "/list_files", HP_LIST_FILES, "list stored files"},
-		{"","/clear",HP_CLEAR,"clear event list"},
-		{"/r","/run",HP_RUN,"run"},
-		{"/s","/stop",HP_STOP,"stop"},
-		{"/p","/pause",HP_PAUSE,"pause"},
-		{"/b","/blank", HP_BLANK, "blank strip"},
-		{"/c","/config",HP_CONFIG,"shows config, set values: uses JSON-POST-data"},
-		//{"","/save",HP_SAVE,"save event list specified by fname=<fname> default: 'playlist' "},
-		{"","/restart",HP_RESTART,"restart the controller"},
-		{"","/reset",HP_RESET,"reset controller to default"},
-		{"","", HP_END_OF_LIST,""}
+		{"/lo", "/load",       HP_LOAD,        "load events, replaces memory data, uses JSON-POST-data, file name in URL"},
+		{"/",   "/help",       HP_HELP,        "API help"},
+		{"/st", "/status",     HP_STATUS,      "status"},
+		{"/l",  "/list",       HP_LIST,        "list events"},
+		{"/lf", "/list_files", HP_LIST_FILES,  "list stored files"},
+		{"cl",  "/clear",      HP_CLEAR,       "clear event list"},
+		{"/r",  "/run",        HP_RUN,         "run"},
+		{"/s",  "/stop",       HP_STOP,        "stop"},
+		{"/p",  "/pause",      HP_PAUSE,       "pause"},
+		{"/b",  "/blank",      HP_BLANK,       "blank strip"},
+		{"/c",  "/config",     HP_CONFIG,      "shows config, set values: uses JSON-POST-data"},
+		{"/f",  "/file",       HP_FILEOP,      "handle stored JSON event lists, query parameter: fname=<fname>, cmd=save|load|delete, save requires JSON-POST-data"},
+		{"",    "/restart",    HP_RESTART,     "restart the controller"},
+		{"",    "/reset",      HP_RESET,       "reset controller to default"},
+		{"",    "",            HP_END_OF_LIST, ""}
 };
 
 static esp_err_t http_help(httpd_req_t *req) {
@@ -121,7 +121,7 @@ static void add_system_informations(cJSON *root) {
 }
 
 
-static void get_path_from_uri(const char *uri,char *dest, size_t destsize)
+static void get_path_from_uri(const char *uri, char *dest, size_t destsize)
 {
     size_t pathlen = strlen(uri);
 
@@ -431,6 +431,8 @@ static void get_handler_data_config(httpd_req_t *req) {
 }
 
 /*
+ * query parameter: fname=<fname>, cmd=save|load|delete
+ */
 static void get_handler_data_save(httpd_req_t *req) {
 	char resp_str[255];
 	char *buf;
@@ -440,12 +442,19 @@ static void get_handler_data_save(httpd_req_t *req) {
 		if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK) {
 			ESP_LOGI(__func__, "Found URL query => %s", buf);
 			char fname[256];
+			char operation[16];
+
 			char *paramname="fname";
 			if (httpd_query_key_value(buf, paramname, fname, sizeof(fname)) == ESP_OK) {
-				snprintf(resp_str, sizeof(resp_str),"NYI save to '%s'\n", fname);
-
+				//snprintf(resp_str, sizeof(resp_str),"filename '%s'\n", fname);
 			} else {
 				snprintf(resp_str, sizeof(resp_str),"ERROR: missing query parameter 'fname=<fname>'\n");
+			}
+			paramname="cmd";
+			if (httpd_query_key_value(buf, paramname, operation, sizeof(operation)) == ESP_OK) {
+				//snprintf(resp_str, sizeof(resp_str),"NYI save to '%s'\n", fname);
+			} else {
+				strlcpy(operation,"load");
 			}
 		}
 		free(buf);
@@ -455,7 +464,263 @@ static void get_handler_data_save(httpd_req_t *req) {
 
 	httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
 }
-*/
+
+
+
+/**
+ * decodes JSON content and stores data in memory.
+ * data will be overwritten
+ * If successful stored, save the content to a file if query parameter 'fname=<file name>' specified.
+ */
+static esp_err_t post_handler_data_load(httpd_req_t *req, char *content) {
+	char msg[255];
+	memset(msg, 0, sizeof(msg));
+
+    //LOG_MEM(1);
+	char fname[256];
+	memset(fname, 0, sizeof(fname));
+    char *qrybuf;
+	size_t buf_len = httpd_req_get_url_query_len(req) + 1;
+	if (buf_len > 1) {
+		qrybuf = malloc(buf_len);
+		if (httpd_req_get_url_query_str(req, qrybuf, buf_len) == ESP_OK) {
+			ESP_LOGI(__func__, "Found URL query => %s", qrybuf);
+
+			char *paramname="fname";
+			if (httpd_query_key_value(qrybuf, paramname, fname, sizeof(fname)) == ESP_OK) {
+				//snprintf(resp_str, sizeof(resp_str),"filename '%s'\n", fname);
+			//} else {
+			//	snprintf(resp_str, sizeof(resp_str),"ERROR: missing query parameter 'fname=<fname>'\n");
+			}
+		}
+		free(qrybuf);
+	} else {
+		ESP_LOGI(__func__,"buf_len == 0");
+	}
+
+	// stop display, clear data
+	run_status_type new_status = RUN_STATUS_STOPPED;
+	esp_err_t res = clear_data(msg, sizeof(msg),new_status);
+
+    //LOG_MEM(2);
+
+	char errmsg[64];
+	res = decode_json4event_root(content, errmsg, sizeof(errmsg), true);
+
+	if (res == ESP_OK) {
+		snprintfapp(msg,sizeof(msg), ", decoding data done: %s",errmsg);
+		if (strlen(fname)) {
+			res = store_events_to_file(fname, content, errmsg, sizeof(errmsg));
+			if ( res == ESP_OK ) {
+				snprintfapp(msg,sizeof(msg), ", saved to %s",fname);
+			} else {
+				snprintfapp(msg,sizeof(msg), ", save to %s failed: %s",fname, errmsg);
+			}
+ 		}
+	} else {
+		snprintf(&msg[strlen(msg)],sizeof(msg) - strlen(msg), ", decoding data failed: %s",errmsg);
+	}
+    //LOG_MEM(3);
+
+	get_handler_data_status(req, msg, new_status);
+
+	return res;
+
+}
+
+/**
+ * query parameter: fname=<fname>, cmd=save|load|delete, save requires JSON-POST-data
+ *
+ */
+static esp_err_t main_handler_data_fileop(httpd_req_t *req, char *content) {
+	char msg[255];
+	memset(msg, 0, sizeof(msg));
+
+	char fname[256];
+	char operation[16];
+	memset(fname, 0, sizeof(fname));
+	memset(operation, 0, sizeof(operation));
+
+    char *qrybuf;
+	size_t buf_len = httpd_req_get_url_query_len(req) + 1;
+	if (buf_len > 1) {
+		qrybuf = malloc(buf_len);
+		if (httpd_req_get_url_query_str(req, qrybuf, buf_len) == ESP_OK) {
+			ESP_LOGI(__func__, "Found URL query => %s", qrybuf);
+
+			char *paramname="fname";
+			if (httpd_query_key_value(qrybuf, paramname, fname, sizeof(fname)) == ESP_OK) {
+				//snprintf(resp_str, sizeof(resp_str),"filename '%s'\n", fname);
+				snprintf(msg, sizeof(msg),"fname='%s'", fname);
+				add_base_path(fname, sizeof(fname));
+				ESP_LOGI(__func__, "filename='%s'", fname);
+			} else {
+				snprintf(msg, sizeof(msg),"ERROR: missing query parameter 'fname=<fname>'");
+			}
+
+			paramname="cmd";
+			if (httpd_query_key_value(qrybuf, paramname, operation, sizeof(operation)) == ESP_OK) {
+				//snprintf(resp_str, sizeof(resp_str),"filename '%s'\n", fname);
+				ESP_LOGI(__func__, ", operation='%s'", operation);
+			} else {
+				strlcpy(operation, "load",sizeof(operation));
+				ESP_LOGI(__func__, ", default operation='%s'", operation);
+			}
+			snprintfapp(msg,sizeof(msg),", operation='%s'", operation);
+		}
+		free(qrybuf);
+	}
+
+	if ( !strlen(fname)) {
+		snprintf(msg,sizeof(msg), "missing query parameter 'fname=<fname>'");
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, msg);
+		ESP_LOGI(__func__,"buf_len == 0, %s", msg);
+        return ESP_FAIL;
+	}
+
+	char errmsg[64];
+	esp_err_t res;
+
+	if (!strcasecmp(operation,"save")) {
+		// store POST-data to file <fname>
+		res = store_events_to_file(fname, content, errmsg, sizeof(errmsg));
+		if ( res == ESP_OK ) {
+			snprintfapp(msg,sizeof(msg), "content saved to %s",fname);
+		} else {
+			snprintfapp(msg,sizeof(msg), "save content to %s failed: %s",fname, errmsg);
+		}
+	} else if (!strcasecmp(operation,"load")) {
+		res = load_events_from_file(fname);
+		if ( res == ESP_OK ) {
+			snprintfapp(msg,sizeof(msg), "content loaded from %s",fname);
+		} else {
+			snprintfapp(msg,sizeof(msg), "load content from %s failed: %s",fname, errmsg);
+		}
+	} else if (!strcasecmp(operation,"delete")) {
+		if (unlink(fname)) {
+			snprintfapp(msg, sizeof(msg),", deletion failed");
+		} else {
+			snprintfapp(msg, sizeof(msg),", deleted");
+		}
+	} else {
+		snprintfapp(msg, sizeof(msg),", ERROR: unexpected operation");
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, msg);
+		ESP_LOGI(__func__,"buf_len == 0, %s", msg);
+        return ESP_FAIL;
+	}
+
+	get_handler_data_status(req, msg, get_scene_status());
+
+	return res;
+
+}
+
+
+
+static esp_err_t post_handler_config_load(httpd_req_t *req, char *buf) {
+	char msg[255];
+	memset(msg, 0, sizeof(msg));
+
+	// stop display, clear data
+	run_status_type new_status = RUN_STATUS_STOPPED;
+	set_scene_status(new_status);
+
+	char errmsg[64];
+	esp_err_t res = decode_json4config_root(buf, errmsg, sizeof(errmsg));
+
+	if (res == ESP_OK) {
+		snprintf(&msg[strlen(msg)],sizeof(msg) - strlen(msg), ", decoding data done: %s",errmsg);
+	} else {
+		snprintf(&msg[strlen(msg)],sizeof(msg) - strlen(msg), ", decoding data failed: %s",errmsg);
+	}
+
+	get_handler_data_status(req, msg, new_status);
+
+	return res;
+
+}
+
+/**
+ * uri should be data/add or data/set with POST-data
+ * /set?id=<id> - replaces event with this id
+ * /add - adds event
+ */
+static esp_err_t post_handler_data(httpd_req_t *req)
+{
+	ESP_LOGI(__func__,"running on core %d",xPortGetCoreID());
+	char path[256];
+	get_path_from_uri(req->uri, path, sizeof(path));
+	ESP_LOGI(__func__,"uri='%s', contenlen=%d, path='%s'", req->uri, req->content_len, path);
+
+	char resp_str[255];
+
+	T_HTTP_PROCCESSING_TYPE *pt = get_http_processing(path);
+
+	if (!pt ) {
+		return http_help(req);
+	}
+
+
+	if ( req->content_len > SCRATCH_BUFSIZE) {
+        ESP_LOGE(__func__, "Content too large : %d bytes\n", req->content_len);
+        // Respond with 400 Bad Request
+        snprintf(resp_str,sizeof(resp_str),"Data size must be less then %d bytes!\n",SCRATCH_BUFSIZE);
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, resp_str);
+        /// Return failure to close underlying connection else the
+        // incoming file content will keep the socket busy
+        return ESP_FAIL;
+	}
+
+    int remaining = req->content_len;
+    // Retrieve the pointer to scratch buffer for temporary storage
+    char *buf = ((rest_server_context_t *)req->user_ctx)->scratch;
+    memset(buf, 0, SCRATCH_BUFSIZE);
+    int received;
+
+    while (remaining > 0) {
+
+        ESP_LOGI(__func__, "Remaining size : %d", remaining);
+        // Receive the file part by part into a buffer
+        if ((received = httpd_req_recv(req, buf, MIN(remaining, SCRATCH_BUFSIZE))) <= 0) {
+        	// recv failed
+            if (received == HTTPD_SOCK_ERR_TIMEOUT) {
+                // Retry if timeout occurred
+                continue;
+            }
+
+            ESP_LOGE(__func__, "Data reception failed!");
+            /* Respond with 500 Internal Server Error */
+            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to receive data\n");
+            return ESP_FAIL;
+        }
+
+        // Keep track of remaining size of
+        // the file left to be uploaded
+        remaining -= received;
+    }
+
+    esp_err_t res;
+    switch(pt->todo) {
+    case HP_LOAD:
+    	res = post_handler_data_load(req, buf);
+    	break;
+    case HP_FILEOP:
+    	res = main_handler_data_fileop(req, buf);
+    	break;
+    case HP_CONFIG:
+    	res=post_handler_config_load(req, buf);
+    	break;
+    default:
+		snprintf(resp_str, sizeof(resp_str),"path='%s' GET only\n", path);
+		httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
+		return http_help(req);
+    }
+
+	// End response
+	httpd_resp_send_chunk(req, NULL, 0);
+
+	return res;
+}
 
 static esp_err_t get_handler_data(httpd_req_t *req)
 {
@@ -502,9 +767,9 @@ static esp_err_t get_handler_data(httpd_req_t *req)
 	case HP_CONFIG:
 		get_handler_data_config(req);
 		break;
-//	case HP_SAVE:
-//		get_handler_data_save(req);
-//		break;
+	case HP_FILEOP:
+		main_handler_data_fileop(req, "");
+		break;
 	case HP_RESTART:
 		get_handler_data_restart(req);
 		break;
@@ -526,136 +791,6 @@ static esp_err_t get_handler_data(httpd_req_t *req)
 	httpd_resp_send_chunk(req, NULL, 0);
 
 	return ESP_OK;
-}
-
-
-static esp_err_t post_handler_data_load(httpd_req_t *req, char *buf) {
-	char msg[255];
-	memset(msg, 0, sizeof(msg));
-
-    LOG_MEM(1);
-
-	// stop display, clear data
-	run_status_type new_status = RUN_STATUS_STOPPED;
-	esp_err_t res = clear_data(msg, sizeof(msg),new_status);
-
-    LOG_MEM(2);
-
-	char errmsg[64];
-	res = decode_json4event_root(buf, errmsg, sizeof(errmsg), true);
-
-	if (res == ESP_OK) {
-		snprintf(&msg[strlen(msg)],sizeof(msg) - strlen(msg), ", decoding data done: %s",errmsg);
-	} else {
-		snprintf(&msg[strlen(msg)],sizeof(msg) - strlen(msg), ", decoding data failed: %s",errmsg);
-	}
-    LOG_MEM(3);
-
-	get_handler_data_status(req, msg, new_status);
-
-	return res;
-
-}
-
-static esp_err_t post_handler_config_load(httpd_req_t *req, char *buf) {
-	char msg[255];
-	memset(msg, 0, sizeof(msg));
-
-	// stop display, clear data
-	run_status_type new_status = RUN_STATUS_STOPPED;
-	set_scene_status(new_status);
-
-	char errmsg[64];
-	esp_err_t res = decode_json4config_root(buf, errmsg, sizeof(errmsg));
-
-	if (res == ESP_OK) {
-		snprintf(&msg[strlen(msg)],sizeof(msg) - strlen(msg), ", decoding data done: %s",errmsg);
-	} else {
-		snprintf(&msg[strlen(msg)],sizeof(msg) - strlen(msg), ", decoding data failed: %s",errmsg);
-	}
-
-	get_handler_data_status(req, msg, new_status);
-
-	return res;
-
-}
-
-/**
- * uri should be data/add or data/set with POST-data
- * /set?id=<id> - replaces event with this id
- * /add - adds event
- */
-static esp_err_t post_handler_data(httpd_req_t *req)
-{
-	ESP_LOGI(__func__,"running on core %d",xPortGetCoreID());
-	char path[256];
-	get_path_from_uri(req->uri, path, sizeof(path));
-	ESP_LOGI(__func__,"uri='%s', contenlen=%d, path='%s'", req->uri, req->content_len, path);
-
-	char resp_str[255];
-
-	T_HTTP_PROCCESSING_TYPE *pt = get_http_processing(path);
-
-	if (!pt ) {
-		return http_help(req);
-	}
-
-	if ( req->content_len > SCRATCH_BUFSIZE) {
-        ESP_LOGE(__func__, "Content too large : %d bytes\n", req->content_len);
-        // Respond with 400 Bad Request
-        snprintf(resp_str,sizeof(resp_str),"Data size must be less then %d bytes!\n",SCRATCH_BUFSIZE);
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, resp_str);
-        /// Return failure to close underlying connection else the
-        // incoming file content will keep the socket busy
-        return ESP_FAIL;
-	}
-
-    int remaining = req->content_len;
-    // Retrieve the pointer to scratch buffer for temporary storage
-    char *buf = ((rest_server_context_t *)req->user_ctx)->scratch;
-    memset(buf, 0, SCRATCH_BUFSIZE);
-    int received;
-
-    while (remaining > 0) {
-
-        ESP_LOGI(__func__, "Remaining size : %d", remaining);
-        // Receive the file part by part into a buffer
-        if ((received = httpd_req_recv(req, buf, MIN(remaining, SCRATCH_BUFSIZE))) <= 0) {
-        	// recv failed
-            if (received == HTTPD_SOCK_ERR_TIMEOUT) {
-                // Retry if timeout occurred
-                continue;
-            }
-
-            ESP_LOGE(__func__, "Data reception failed!");
-            /* Respond with 500 Internal Server Error */
-            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to receive data\n");
-            return ESP_FAIL;
-        }
-
-        // Keep track of remaining size of
-        // the file left to be uploaded
-        remaining -= received;
-    }
-
-    esp_err_t res;
-    switch(pt->todo) {
-    case HP_LOAD:
-    	res = post_handler_data_load(req, buf);
-    	break;
-    case HP_CONFIG:
-    	res=post_handler_config_load(req, buf);
-    	break;
-    default:
-		snprintf(resp_str, sizeof(resp_str),"path='%s' GET only\n", path);
-		httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
-		return http_help(req);
-    }
-
-	// End response
-	httpd_resp_send_chunk(req, NULL, 0);
-
-	return res;
 }
 
 

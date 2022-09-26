@@ -603,7 +603,7 @@ static esp_err_t decode_json4event_scenes_list(cJSON *element, char *errmsg, siz
  * "objects" - what do paint
  * "scenes" - time dependend scenes
  */
-esp_err_t decode_json4event_root(char *content, char *errmsg, size_t sz_errmsg, bool store_it) {
+esp_err_t decode_json4event_root(char *content, char *errmsg, size_t sz_errmsg) {
 	cJSON *tree = NULL;
 	esp_err_t rc = ESP_FAIL;
 
@@ -620,6 +620,7 @@ esp_err_t decode_json4event_root(char *content, char *errmsg, size_t sz_errmsg, 
 			break;
 		}
 
+		/*
 		if ( store_it) {
 			// optional filename for save
 			char *attr="filename";
@@ -639,7 +640,7 @@ esp_err_t decode_json4event_root(char *content, char *errmsg, size_t sz_errmsg, 
 		    fprintf(f, content);
 		    fclose(f);
 		    ESP_LOGI(__func__, "%d bytes saved in '%s'",strlen(content),filename);
-		}
+		} */
 
 		if ( decode_json4event_object_list(tree, errmsg, sz_errmsg) != ESP_OK )
 			break; // no list or decode error
@@ -660,6 +661,28 @@ esp_err_t decode_json4event_root(char *content, char *errmsg, size_t sz_errmsg, 
 
 	ESP_LOGI(__func__, "done: %s", errmsg);
 	return rc;
+}
+
+esp_err_t store_events_to_file(char *filename, char *content, char *errmsg, size_t sz_errmsg) {
+	// optional filename for save
+
+	ESP_LOGI(__func__,"save data as '%s'", filename);
+
+	add_base_path(filename, sizeof(filename));
+    FILE* f = fopen(filename, "w");
+    if (f == NULL) {
+    	snprintf(errmsg, sz_errmsg, "Failed to open file '%s' for writing", filename);
+    	ESP_LOGE(__func__, "%s", errmsg);
+        return ESP_FAIL;
+    }
+
+    fprintf(f, content);
+
+    fclose(f);
+
+    ESP_LOGI(__func__, "%d bytes saved in '%s'",strlen(content),filename);
+
+    return ESP_OK;
 }
 
 esp_err_t load_events_from_file(char *filename) {

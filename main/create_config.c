@@ -109,6 +109,24 @@ esp_err_t decode_json4config_root(char *content, char *errmsg, size_t sz_errmsg)
 			break;
 		}
 
+		attr="autoplay_file";
+		lrc = evt_get_string(tree, attr, sval, sizeof(sval), errmsg, sz_errmsg);
+		if ( lrc == RES_OK) {
+			if (!strcmp(cfg_autoplayfile?cfg_autoplayfile:"", sval)) {
+				ESP_LOGI(__func__, "%s='%s' not changed",
+						attr, cfg_autoplayfile?cfg_autoplayfile:"");
+			} else {
+				ESP_LOGI(__func__, "%s='%s' changed",
+						attr, cfg_autoplayfile?cfg_autoplayfile:"");
+				if ( cfg_autoplayfile)
+					free(cfg_autoplayfile);
+				cfg_autoplayfile = strlen(sval) ? strdup(sval) : NULL;
+				store_it = true;
+			}
+		} else if ( lrc != RES_NOT_FOUND) {
+			ESP_LOGE(__func__, "parse attribute '%s' failed: %s", attr, errmsg);
+			break;
+		}
 
 		attr="strip_demo";
 		lrc = evt_get_bool(tree, attr, &bval, errmsg, sz_errmsg);
@@ -129,24 +147,6 @@ esp_err_t decode_json4config_root(char *content, char *errmsg, size_t sz_errmsg)
 			break;
 		}
 
-		attr="autoplay_file";
-		lrc = evt_get_string(tree, attr, sval, sizeof(sval), errmsg, sz_errmsg);
-		if ( lrc == RES_OK) {
-			if (!strcmp(cfg_autoplayfile?cfg_autoplayfile:"", sval)) {
-				ESP_LOGI(__func__, "%s='%s' not changed",
-						attr, cfg_autoplayfile?cfg_autoplayfile:"");
-			} else {
-				ESP_LOGI(__func__, "%s='%s' changed",
-						attr, cfg_autoplayfile?cfg_autoplayfile:"");
-				if ( cfg_autoplayfile)
-					free(cfg_autoplayfile);
-				cfg_autoplayfile = strlen(sval) ? strdup(sval) : NULL;
-				store_it = true;
-			}
-		} else if ( lrc != RES_NOT_FOUND) {
-			ESP_LOGE(__func__, "parse attribute '%s' failed: %s", attr, errmsg);
-			break;
-		}
 
 
 		rc = ESP_OK;
