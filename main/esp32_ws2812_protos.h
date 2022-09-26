@@ -29,6 +29,7 @@ void cJSON_addBoolean(cJSON *element, char *attribute_name, bool flag);
 
 // from config.c
 esp_err_t store_config();
+esp_err_t load_config();
 esp_err_t init_storage();
 char *config2txt(char *txt, size_t sz);
 esp_err_t storage_info(size_t *total, size_t *used);

@@ -85,14 +85,14 @@ void timmi_task(void *para) {
 
 void app_main() {
 
-	get_random(1,1000);
+	ESP_ERROR_CHECK(esp_event_loop_create_default());
 
-
-	cfg_trans_flags =0;
+	//get_random(1,1000);
 
 	// init storage and get/initalize config
 	ESP_ERROR_CHECK(nvs_flash_init());
 	ESP_ERROR_CHECK(init_storage());
+	ESP_ERROR_CHECK(load_config());
 
 	// init led-strip
 	led_strip_init(cfg_numleds);
@@ -100,7 +100,7 @@ void app_main() {
 	strip_show(true);
 	firstled(16, 16, 16);
 
-
+	// log config
 	char buf[256];
 	config2txt(buf, sizeof(buf));
 	ESP_LOGI(__func__, "config=%s",buf);
@@ -109,15 +109,16 @@ void app_main() {
 	init_timer_events();
 	set_event_timer_period(cfg_cycle);
 
+	// load autostart file if specified
 	load_autostart_file();
 
 	// if configured and possible start the autostart scene
 	scenes_autostart();
 
+	// initialize networking
 	TickType_t xDelay = 500 / portTICK_PERIOD_MS;
 
 	ESP_ERROR_CHECK(esp_netif_init());
-	ESP_ERROR_CHECK(esp_event_loop_create_default());
 
 	initialise_mdns();
 	initialise_netbios();
@@ -126,8 +127,8 @@ void app_main() {
 
 	xDelay = 500 / portTICK_PERIOD_MS;
 
-	wifi_status_type done = 0;
-	while(done==0) {
+	wifi_status_type done_with_status = 0;
+	while(done_with_status==0) {
 		vTaskDelay(xDelay);
 		wifi_status_type s = wifi_connect_status();
 		ESP_LOGI(__func__, "connection status=%d(%s)", s, wifi_connect_status2text(s));
@@ -143,18 +144,18 @@ void app_main() {
 			break;
 		case WIFI_CONNECTED:
 			firstled(0,16,0); // green
-			done=s;
+			done_with_status=s;
 			break;
 		case WIFI_CONNECTION_FAILED:
 			firstled(16,0,0); // red
-			done=s;
+			done_with_status = s;
 			break;
 		default:
-			done = 99;
+			done_with_status = 99;
 		}
 	}
 
-	if ( done == WIFI_CONNECTED ) {
+	if ( done_with_status == WIFI_CONNECTED ) {
 		init_restservice();
 		cfg_trans_flags |=CFG_WITH_WIFI;
 		// green
@@ -173,6 +174,7 @@ void app_main() {
 	xTaskCreatePinnedToCore(timmi_task,"CPU_1",10000,NULL,1,&Core1TaskHnd,1);
 	*/
 
+	// main loop
 	ESP_LOGI(__func__,"running on core %d",xPortGetCoreID());
 	xDelay = 50000 / portTICK_PERIOD_MS;
 	while(1) {

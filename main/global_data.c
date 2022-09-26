@@ -10,8 +10,6 @@
 T_SCENE *s_scene_list = NULL;
 T_EVT_OBJECT *s_object_list = NULL;
 
-//T_CONFIG gConfig;
-
 uint32_t cfg_flags = 0;
 uint32_t cfg_trans_flags = 0;
 uint32_t cfg_numleds = 60;

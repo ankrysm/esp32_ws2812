@@ -41,7 +41,7 @@ typedef enum {
 	HP_PAUSE,
 	HP_BLANK,
 	HP_CONFIG,
-	HP_SAVE,
+	// HP_SAVE,
 	HP_RESTART,
 	HP_RESET,
 	HP_HELP,
@@ -62,14 +62,14 @@ static T_HTTP_PROCCESSING_TYPE http_processing[] = {
 		{"/", "/help", HP_HELP, "API help"},
 		{"/st", "/status", HP_STATUS, "status"},
 		{"/l","/list",HP_LIST, "list events"},
-		{"lf", "list_files", HP_LIST_FILES, "list stored files"},
+		{"/lf", "/list_files", HP_LIST_FILES, "list stored files"},
 		{"","/clear",HP_CLEAR,"clear event list"},
 		{"/r","/run",HP_RUN,"run"},
 		{"/s","/stop",HP_STOP,"stop"},
 		{"/p","/pause",HP_PAUSE,"pause"},
 		{"/b","/blank", HP_BLANK, "blank strip"},
 		{"/c","/config",HP_CONFIG,"shows config, set values: uses JSON-POST-data"},
-		{"","/save",HP_SAVE,"save event list specified by fname=<fname> default: 'playlist' "},
+		//{"","/save",HP_SAVE,"save event list specified by fname=<fname> default: 'playlist' "},
 		{"","/restart",HP_RESTART,"restart the controller"},
 		{"","/reset",HP_RESET,"reset controller to default"},
 		{"","", HP_END_OF_LIST,""}
@@ -286,11 +286,12 @@ static esp_err_t get_handler_data_list_files(httpd_req_t *req) {
             httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, msg);
             return ESP_FAIL;
         }
-        snprintf(msg, sizeof(msg), "\n%s '%s' (%ld bytes)", entrytype, entry->d_name, entry_stat.st_size);
-        ESP_LOGI(__func__, "%s", msg);
+        snprintf(msg, sizeof(msg), "%s '%s' (%ld bytes)\n", entrytype, entry->d_name, entry_stat.st_size);
         httpd_resp_send_chunk(req, msg, HTTPD_RESP_USE_STRLEN);
+        ESP_LOGI(__func__, "%s", msg);
     }
     closedir(dir);
+    ESP_LOGI(__func__,"ended.");
     return ESP_OK;
 }
 /**
@@ -410,63 +411,6 @@ static void get_handler_data_blank(httpd_req_t *req) {
 }
 
 static void get_handler_data_config(httpd_req_t *req) {
-	/*
-	bool restart_needed = false;
-	bool store_config_needed = false;
-
-	char *buf;
-	size_t buf_len = httpd_req_get_url_query_len(req) + 1;
-	if (buf_len > 1) {
-		buf = malloc(buf_len);
-		if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK) {
-			ESP_LOGI(__func__, "Found URL query => %s", buf);
-			char val[256];
-
-			if (httpd_query_key_value(buf, "numleds", val, sizeof(val)) == ESP_OK) {
-				int numleds = atoi(val);
-				gConfig.numleds = numleds;
-				ESP_LOGI(__func__, "numleds=%d", gConfig.numleds);
-
-				store_config_needed = true;
-				restart_needed  = true;
-
-			} else if (httpd_query_key_value(buf, "cycle", val, sizeof(val)) == ESP_OK) {
-				gConfig.cycle = atoi(val);
-				set_event_timer_period(gConfig.cycle);
-				ESP_LOGI(__func__, "cycle=%d ms", gConfig.numleds);
-				store_config_needed = true;
-
-			} else if (httpd_query_key_value(buf, "showstatus", val, sizeof(val)) == ESP_OK) {
-				gConfig.flags &= !CFG_SHOW_STATUS;
-				if ( trufal(val)) {
-					gConfig.flags |= CFG_SHOW_STATUS;
-				}
-				ESP_LOGI(__func__, "showstatus=%s", gConfig.flags & CFG_SHOW_STATUS ? "true" : "false");
-				store_config_needed = true;
-
-			} else if (httpd_query_key_value(buf, "autostart", val, sizeof(val)) == ESP_OK) {
-				snprintf(gConfig.autoplayfile, sizeof(gConfig.autoplayfile), "%s", val);
-				store_config_needed = 1;
-				ESP_LOGI(__func__, "autostart=%s", gConfig.autoplayfile);
-
-			}
-		}
-		free(buf);
-		if (store_config_needed) {
-			ESP_LOGI(__func__, "store config");
-			store_config();
-		}
-	} else {
-		ESP_LOGI(__func__,"buf_len == 0");
-	}
-	*/
-
-//	extern uint32_t cfg_flags;
-//	extern uint32_t cfg_trans_flags;
-//	extern uint32_t cfg_numleds;
-//	extern uint32_t cfg_cycle;
-//	extern char *cfg_autoplayfile;
-
     httpd_resp_set_type(req, "application/json");
     cJSON *root = cJSON_CreateObject();
 
@@ -484,20 +428,9 @@ static void get_handler_data_config(httpd_req_t *req) {
     free((void *)resp);
     cJSON_Delete(root);
 
-/*
-	if ( restart_needed ) {
-		// End response
-		httpd_resp_send_chunk(req, NULL, 0);
-
-		ESP_LOGI(__func__,"Restarting in a second...\n");
-		vTaskDelay(1000 / portTICK_PERIOD_MS);
-	    ESP_LOGI(__func__, "Restarting now.\n");
-	    fflush(stdout);
-	    esp_restart();
-	}
-	*/
 }
 
+/*
 static void get_handler_data_save(httpd_req_t *req) {
 	char resp_str[255];
 	char *buf;
@@ -522,6 +455,7 @@ static void get_handler_data_save(httpd_req_t *req) {
 
 	httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
 }
+*/
 
 static esp_err_t get_handler_data(httpd_req_t *req)
 {
@@ -568,9 +502,9 @@ static esp_err_t get_handler_data(httpd_req_t *req)
 	case HP_CONFIG:
 		get_handler_data_config(req);
 		break;
-	case HP_SAVE:
-		get_handler_data_save(req);
-		break;
+//	case HP_SAVE:
+//		get_handler_data_save(req);
+//		break;
 	case HP_RESTART:
 		get_handler_data_restart(req);
 		break;
