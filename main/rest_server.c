@@ -66,9 +66,9 @@ static T_HTTP_PROCCESSING_TYPE http_processing[] = {
 		{"/st",       HP_STATUS,      "status"},
 		{"/l",        HP_LIST,        "list events"},
 		{"/lf",       HP_LIST_FILES,  "list stored files"},
-		{"/cfg",      HP_CONFIG,      "shows config, set values: uses JSON-POST-data"},
-		{"/lo",       HP_LOAD,        "load events, replaces data in memory, saved to flash if fname specified, JSON-POST-data required. Query parameter: fname=<fname>"},
-		{"/f",        HP_FILEOP,      "handle stored JSON event lists. Query parameter: fname=<fname>, cmd=save|load|delete, save requires JSON-POST-data"},
+		{"/cfg",      HP_CONFIG,      "shows/sets config, set values: uses JSON-POST-data"},
+		{"/lo",       HP_LOAD,        "load events, replaces data in memory, JSON-POST-data required"},
+		{"/f",        HP_FILEOP,      "handle stored JSON event lists. Query parameter: fname=<fname>, cmd=save|load|saveload|delete, save,saveload requires JSON-POST-data"},
 		{"/cl",       HP_CLEAR,       "clear event list"},
 		{"/restart",  HP_RESTART,     "restart the controller"},
 		{"/reset",    HP_RESET,       "reset controller to default"},
@@ -460,13 +460,13 @@ static void get_handler_data_save(httpd_req_t *req) {
 /**
  * decodes JSON content and stores data in memory.
  * scenes will be stopped and data will be overwritten
- * If successful stored, save the content to a file if query parameter 'fname=<file name>' specified.
  */
 static esp_err_t post_handler_load(httpd_req_t *req, char *content) {
 	char msg[255];
 	memset(msg, 0, sizeof(msg));
 
     //LOG_MEM(1);
+	/*
 	char fname[256];
 	memset(fname, 0, sizeof(fname));
     char *qrybuf;
@@ -485,7 +485,7 @@ static esp_err_t post_handler_load(httpd_req_t *req, char *content) {
 	} else {
 		ESP_LOGI(__func__,"buf_len == 0");
 	}
-
+	*/
 	// stop display, clear data
 	run_status_type new_status = RUN_STATUS_STOPPED;
 	esp_err_t res = clear_data(msg, sizeof(msg),new_status);
@@ -497,6 +497,7 @@ static esp_err_t post_handler_load(httpd_req_t *req, char *content) {
 
 	if (res == ESP_OK) {
 		snprintfapp(msg,sizeof(msg), ", decoding data done: %s",errmsg);
+		/*
 		if (strlen(fname)) {
 			res = store_events_to_file(fname, content, errmsg, sizeof(errmsg));
 			if ( res == ESP_OK ) {
@@ -504,7 +505,7 @@ static esp_err_t post_handler_load(httpd_req_t *req, char *content) {
 			} else {
 				snprintfapp(msg,sizeof(msg), ", save to %s failed: %s",fname, errmsg);
 			}
- 		}
+ 		}*/
 	} else {
 		snprintf(&msg[strlen(msg)],sizeof(msg) - strlen(msg), ", decoding data failed: %s",errmsg);
 	}
@@ -517,7 +518,7 @@ static esp_err_t post_handler_load(httpd_req_t *req, char *content) {
 }
 
 /**
- * query parameter: fname=<fname>, cmd=save|load|delete, save requires JSON-POST-data
+ * query parameter: fname=<fname>, cmd=save|load|saveload|delete, save requires JSON-POST-data
  *
  */
 static esp_err_t main_handler_data_fileop(httpd_req_t *req, char *content) {
@@ -568,33 +569,7 @@ static esp_err_t main_handler_data_fileop(httpd_req_t *req, char *content) {
 	char errmsg[64];
 	esp_err_t res = ESP_FAIL;
 
-	if (!strcasecmp(operation,"save")) {
-		// store POST-data to file <fname>
-		if ( !content ||!strlen(content)) {
-			snprintfapp(msg, sizeof(msg), "ERROR: no content, use POST data to save to %s",fname);
-
-		} else {
-			res = store_events_to_file(fname, content, errmsg, sizeof(errmsg));
-			if ( res == ESP_OK ) {
-				snprintfapp(msg,sizeof(msg), "content saved to %s",fname);
-			} else {
-				snprintfapp(msg,sizeof(msg), "save content to %s failed: %s",fname, errmsg);
-			}
-		}
-	} else if (!strcasecmp(operation,"load")) {
-
-		// stop display program and clear data
-		run_status_type new_status = RUN_STATUS_STOPPED;
-		clear_data(msg, sizeof(msg), new_status);
-
-		// load new data
-		res = load_events_from_file(fname, errmsg, sizeof(errmsg));
-		if ( res == ESP_OK ) {
-			snprintfapp(msg,sizeof(msg), "content loaded from %s",fname);
-		} else {
-			snprintfapp(msg,sizeof(msg), "load content from %s failed: %s",fname, errmsg);
-		}
-	} else if (!strcasecmp(operation,"delete")) {
+	if (!strcasecmp(operation,"delete")) {
 		int lrc;
 		add_base_path(operation, sizeof(fname));
 		if ((lrc=unlink(fname))) {
@@ -604,8 +579,91 @@ static esp_err_t main_handler_data_fileop(httpd_req_t *req, char *content) {
 			res = ESP_OK;
 		}
 	} else {
-		snprintfapp(msg, sizeof(msg),", ERROR: unexpected or mising operation");
+		bool do_load =!strcasecmp(operation,"load") || !strcasecmp(operation,"saveload");
+		bool do_save =!strcasecmp(operation,"save") || !strcasecmp(operation,"saveload");
+
+		if (do_load) {
+			ESP_LOGI(__func__, "do load");
+			// stop display program and clear data
+			run_status_type new_status = RUN_STATUS_STOPPED;
+			clear_data(msg, sizeof(msg), new_status);
+
+			// load new data
+			res = load_events_from_file(fname, errmsg, sizeof(errmsg));
+			if ( res == ESP_OK ) {
+				snprintfapp(msg,sizeof(msg), "content loaded from %s",fname);
+			} else {
+				snprintfapp(msg,sizeof(msg), "load content from %s failed: %s",fname, errmsg);
+			}
+		} else {
+			res = ESP_OK;
+		}
+
+		if (do_save) {
+			ESP_LOGI(__func__,"do save");
+			if ( res == ESP_OK) {
+				// store POST-data to file <fname>
+				if ( !content ||!strlen(content)) {
+					snprintfapp(msg, sizeof(msg), "ERROR: no content, use POST data to save to %s",fname);
+
+				} else {
+					res = store_events_to_file(fname, content, errmsg, sizeof(errmsg));
+					if ( res == ESP_OK ) {
+						snprintfapp(msg,sizeof(msg), "content saved to %s",fname);
+					} else {
+						snprintfapp(msg,sizeof(msg), "save content to %s failed: %s",fname, errmsg);
+					}
+				}
+			} else {
+				snprintfapp(msg,sizeof(msg),"do save not executed because of load error");
+			}
+		}
+
+		if ( !do_load && !do_save) {
+			res = ESP_FAIL;
+			snprintfapp(msg, sizeof(msg),", ERROR: unexpected or mising operation");
+		}
+
 	}
+
+//	if (!strcasecmp(operation,"save")) {
+//		// store POST-data to file <fname>
+//		if ( !content ||!strlen(content)) {
+//			snprintfapp(msg, sizeof(msg), "ERROR: no content, use POST data to save to %s",fname);
+//
+//		} else {
+//			res = store_events_to_file(fname, content, errmsg, sizeof(errmsg));
+//			if ( res == ESP_OK ) {
+//				snprintfapp(msg,sizeof(msg), "content saved to %s",fname);
+//			} else {
+//				snprintfapp(msg,sizeof(msg), "save content to %s failed: %s",fname, errmsg);
+//			}
+//		}
+//	} else if (!strcasecmp(operation,"load")) {
+//
+//		// stop display program and clear data
+//		run_status_type new_status = RUN_STATUS_STOPPED;
+//		clear_data(msg, sizeof(msg), new_status);
+//
+//		// load new data
+//		res = load_events_from_file(fname, errmsg, sizeof(errmsg));
+//		if ( res == ESP_OK ) {
+//			snprintfapp(msg,sizeof(msg), "content loaded from %s",fname);
+//		} else {
+//			snprintfapp(msg,sizeof(msg), "load content from %s failed: %s",fname, errmsg);
+//		}
+//	} else if (!strcasecmp(operation,"delete")) {
+//		int lrc;
+//		add_base_path(operation, sizeof(fname));
+//		if ((lrc=unlink(fname))) {
+//			snprintfapp(msg, sizeof(msg),", deletion failed, lrc=%d(%s)", lrc, esp_err_to_name(lrc));
+//		} else {
+//			snprintfapp(msg, sizeof(msg),", deleted");
+//			res = ESP_OK;
+//		}
+//	} else {
+//		snprintfapp(msg, sizeof(msg),", ERROR: unexpected or mising operation");
+//	}
 
 	if ( res == ESP_OK) {
 		ESP_LOGI(__func__, "success: %s", msg);
