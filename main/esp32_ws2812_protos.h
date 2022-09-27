@@ -9,6 +9,9 @@
 #ifndef MAIN_ESP32_WS2812_PROTOS_H_
 #define MAIN_ESP32_WS2812_PROTOS_H_
 
+// from global_data.c
+void global_data_init();
+
 // from process_events.c
 void reset_event( T_EVENT *evt);
 void reset_event_repeats(T_EVENT *evt);
@@ -110,8 +113,9 @@ void initialise_netbios();
 
 
 // from create_events.c
-esp_err_t decode_json4event_root(char *content, char *errmsg, size_t sz_errmsg, bool store_it);
-esp_err_t load_events_from_file(char *filename);
+esp_err_t decode_json4event_root(char *content, char *errmsg, size_t sz_errmsg);
+esp_err_t load_events_from_file(char *filename, char *errmsg, size_t sz_errmsg);
+esp_err_t store_events_to_file(char *filename, char *content, char *errmsg, size_t sz_errmsg);
 esp_err_t load_autostart_file();
 
 

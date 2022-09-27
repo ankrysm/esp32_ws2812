@@ -83,7 +83,17 @@ void timmi_task(void *para) {
 }
 */
 
+void some_useful_informations() {
+	ESP_LOGI(__func__, "LEN_PATH_MAX=%d", LEN_PATH_MAX);
+	ESP_LOGI(__func__,"sizeof int=%u, int32_t=%u, int64_t=%u, float=%u, double=%u", sizeof(int), sizeof(int32_t), sizeof(int64_t), sizeof(float), sizeof(double));
+
+}
+
 void app_main() {
+
+	global_data_init();
+
+	some_useful_informations();
 
 	ESP_ERROR_CHECK(esp_event_loop_create_default());
 

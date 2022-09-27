@@ -200,6 +200,7 @@ static esp_err_t decode_json4event_object_data(cJSON *element, T_EVT_OBJECT *obj
 			snprintf(errmsg, sz_errmsg,"oid=%s, id=%d: object type '%s' unknown", obj->oid, id, sval);
 			break;
 		}
+		ESP_LOGI(__func__, "oid=%s, id=%d: %s=%d(%s)", obj->oid, id, attr, data->type, WT2TEXT(data->type));
 
 		attr="pos";
 		lrc = evt_get_number(element, attr, &val, lerrmsg, sizeof(lerrmsg));
@@ -248,7 +249,7 @@ static esp_err_t decode_json4event_object_data(cJSON *element, T_EVT_OBJECT *obj
 				data->para.tr.hsv_to.h = hsv.h;
 				data->para.tr.hsv_to.s = hsv.s;
 				data->para.tr.hsv_to.v = hsv.v;
-				ESP_LOGI(__func__,"oid=%s, id=%d: %s", obj->oid, id, errmsg);
+				ESP_LOGI(__func__,"oid=%s, id=%d: %s", obj->oid, id, lerrmsg);
 
 			} else if ( lrc == RES_NOT_FOUND ) {
 				snprintf(errmsg, sz_errmsg, "oid=%s, id=%d: no 'color to' from specified", obj->oid, id);
@@ -620,28 +621,6 @@ esp_err_t decode_json4event_root(char *content, char *errmsg, size_t sz_errmsg) 
 			break;
 		}
 
-		/*
-		if ( store_it) {
-			// optional filename for save
-			char *attr="filename";
-			t_result lrc = evt_get_string(tree, attr, filename, sizeof(filename), errmsg, sz_errmsg);
-			if (lrc == RES_OK) {
-				ESP_LOGI(__func__,"save scene as '%s'", filename);
-			} else if ( lrc != RES_NOT_FOUND) {
-				break;
-			}
-			add_base_path(filename, sizeof(filename));
-		    FILE* f = fopen(filename, "w");
-		    if (f == NULL) {
-		    	snprintf(errmsg, sz_errmsg, "Failed to open file '%s' for writing", filename);
-		    	ESP_LOGE(__func__, "%s", errmsg);
-		        break;
-		    }
-		    fprintf(f, content);
-		    fclose(f);
-		    ESP_LOGI(__func__, "%d bytes saved in '%s'",strlen(content),filename);
-		} */
-
 		if ( decode_json4event_object_list(tree, errmsg, sz_errmsg) != ESP_OK )
 			break; // no list or decode error
 		ESP_LOGI(__func__,"object list created");
@@ -664,14 +643,15 @@ esp_err_t decode_json4event_root(char *content, char *errmsg, size_t sz_errmsg) 
 }
 
 esp_err_t store_events_to_file(char *filename, char *content, char *errmsg, size_t sz_errmsg) {
-	// optional filename for save
 
 	ESP_LOGI(__func__,"save data as '%s'", filename);
+	char fname[LEN_PATH_MAX];
+	snprintf(fname,sizeof(fname),"%s", filename);
+	add_base_path(fname, sizeof(fname));
 
-	add_base_path(filename, sizeof(filename));
-    FILE* f = fopen(filename, "w");
+    FILE* f = fopen(fname, "w");
     if (f == NULL) {
-    	snprintf(errmsg, sz_errmsg, "Failed to open file '%s' for writing", filename);
+    	snprintf(errmsg, sz_errmsg, "Failed to open file '%s' for writing", fname);
     	ESP_LOGE(__func__, "%s", errmsg);
         return ESP_FAIL;
     }
@@ -680,19 +660,21 @@ esp_err_t store_events_to_file(char *filename, char *content, char *errmsg, size
 
     fclose(f);
 
-    ESP_LOGI(__func__, "%d bytes saved in '%s'",strlen(content),filename);
+    ESP_LOGI(__func__, "%d bytes saved in '%s'",strlen(content),fname);
 
     return ESP_OK;
 }
 
-esp_err_t load_events_from_file(char *filename) {
-	char fname[128];
-	char errmsg[256];
+esp_err_t load_events_from_file(char *filename, char *errmsg, size_t sz_errmsg) {
+
+	char fname[LEN_PATH_MAX];
 	snprintf(fname,sizeof(fname),"%s", filename);
 	add_base_path(fname, sizeof(fname));
 
 	extern uint32_t cfg_trans_flags;
+	extern char last_loaded_file[];
 
+	memset(errmsg, 0, sz_errmsg);
 	char *content = NULL;
 	esp_err_t rc = ESP_FAIL;
 
@@ -716,13 +698,15 @@ esp_err_t load_events_from_file(char *filename) {
 		fread(content, sizeof(char),st.st_size, f);
 		fclose(f);
 
-		rc = decode_json4event_root(content, errmsg, sizeof(errmsg), false);
+		rc = decode_json4event_root(content, errmsg, sz_errmsg);
 
 	} while(0);
 
 	if ( rc == ESP_OK ) {
 		ESP_LOGI(__func__, "decode '%s' successfull", filename);
 		cfg_trans_flags |=CFG_AUTOPLAY_LOADED;
+
+		strlcpy(last_loaded_file, filename, LEN_PATH_MAX);
 
 	} else {
 		ESP_LOGE(__func__, "could not decode '%s': %s", filename, errmsg);
@@ -740,8 +724,9 @@ esp_err_t load_autostart_file() {
 		ESP_LOGI(__func__,"no autostart file specified");
 		return ESP_OK;
 	}
+	char errmsg[128];
 
-	return load_events_from_file(cfg_autoplayfile);
+	return load_events_from_file(cfg_autoplayfile, errmsg, sizeof(errmsg));
 
 }
 

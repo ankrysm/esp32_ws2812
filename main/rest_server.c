@@ -14,20 +14,22 @@
 
 
 #define FILE_PATH_MAX (ESP_VFS_PATH_MAX + 128)
-#define SCRATCH_BUFSIZE (10240)
+//#define SCRATCH_BUFSIZE (10240)
+#define MAX_CONTENTLEN 10240
 
 extern T_EVT_OBJECT *s_object_list;
 extern esp_vfs_spiffs_conf_t fs_conf;
 
 typedef struct rest_server_context {
     char base_path[ESP_VFS_PATH_MAX + 1];
-    char scratch[SCRATCH_BUFSIZE];
+    //char scratch[SCRATCH_BUFSIZE];
 } rest_server_context_t;
 
 #define CHECK_FILE_EXTENSION(filename, ext) (strcasecmp(&filename[strlen(filename) - strlen(ext)], ext) == 0)
 
 #define LOG_MEM(c) {ESP_LOGI(__func__, "MEMORY(%d): free_heap_size=%lu, minimum_free_heap_size=%lu", c, esp_get_free_heap_size(), esp_get_minimum_free_heap_size());}
 
+static httpd_handle_t server = NULL;
 
 
 typedef enum {
@@ -51,54 +53,45 @@ typedef enum {
 } t_http_processing;;
 
 typedef struct {
-	char *short_path;
 	char  *path;
 	t_http_processing todo;
 	char *help;
 } T_HTTP_PROCCESSING_TYPE;
 
 static T_HTTP_PROCCESSING_TYPE http_processing[] = {
-		{"/lo", "/load",       HP_LOAD,        "load events, replaces memory data, uses JSON-POST-data, file name in URL"},
-		{"/",   "/help",       HP_HELP,        "API help"},
-		{"/st", "/status",     HP_STATUS,      "status"},
-		{"/l",  "/list",       HP_LIST,        "list events"},
-		{"/lf", "/list_files", HP_LIST_FILES,  "list stored files"},
-		{"cl",  "/clear",      HP_CLEAR,       "clear event list"},
-		{"/r",  "/run",        HP_RUN,         "run"},
-		{"/s",  "/stop",       HP_STOP,        "stop"},
-		{"/p",  "/pause",      HP_PAUSE,       "pause"},
-		{"/b",  "/blank",      HP_BLANK,       "blank strip"},
-		{"/c",  "/config",     HP_CONFIG,      "shows config, set values: uses JSON-POST-data"},
-		{"/f",  "/file",       HP_FILEOP,      "handle stored JSON event lists, query parameter: fname=<fname>, cmd=save|load|delete, save requires JSON-POST-data"},
-		{"",    "/restart",    HP_RESTART,     "restart the controller"},
-		{"",    "/reset",      HP_RESET,       "reset controller to default"},
-		{"",    "",            HP_END_OF_LIST, ""}
+		{"/r",        HP_RUN,         "run"},
+		{"/s",        HP_STOP,        "stop"},
+		{"/p",        HP_PAUSE,       "pause"},
+		{"/b",        HP_BLANK,       "blank strip"},
+		{"/st",       HP_STATUS,      "status"},
+		{"/l",        HP_LIST,        "list events"},
+		{"/lf",       HP_LIST_FILES,  "list stored files"},
+		{"/cfg",      HP_CONFIG,      "shows config, set values: uses JSON-POST-data"},
+		{"/lo",       HP_LOAD,        "load events, replaces data in memory, saved to flash if fname specified, JSON-POST-data required. Query parameter: fname=<fname>"},
+		{"/f",        HP_FILEOP,      "handle stored JSON event lists. Query parameter: fname=<fname>, cmd=save|load|delete, save requires JSON-POST-data"},
+		{"/cl",       HP_CLEAR,       "clear event list"},
+		{"/restart",  HP_RESTART,     "restart the controller"},
+		{"/reset",    HP_RESET,       "reset controller to default"},
+		{"/",         HP_HELP,        "API help"},
+		{"",          HP_END_OF_LIST, ""}
 };
 
-static esp_err_t http_help(httpd_req_t *req) {
+static void httpd_resp_send_chunk_l(httpd_req_t *req, char *resp_str) {
+	httpd_resp_send_chunk(req, resp_str, HTTPD_RESP_USE_STRLEN);
+}
+
+static void http_help(httpd_req_t *req) {
 	char resp_str[255];
-	snprintf(resp_str, sizeof(resp_str), "short - long - description\n");
-	httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
+	snprintf(resp_str, sizeof(resp_str), "path - description\n");
+	httpd_resp_send_chunk_l(req, resp_str);
 
 	for  (int i=0; http_processing[i].todo != HP_END_OF_LIST; i++) {
-		if (strlen(http_processing[i].short_path)) {
-			snprintf(resp_str, sizeof(resp_str),"'%s' - '%s' - %s\n",
-					http_processing[i].short_path,
-					http_processing[i].path,
-					http_processing[i].help
-			);
-		} else {
-			snprintf(resp_str, sizeof(resp_str),"'%s' - %s\n",
-					http_processing[i].path,
-					http_processing[i].help
-			);
-		}
-		httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
+		snprintf(resp_str, sizeof(resp_str),"'%s' - %s\n",
+				http_processing[i].path,
+				http_processing[i].help
+		);
+		httpd_resp_send_chunk_l(req, resp_str);
 	}
-	httpd_resp_send_chunk(req, NULL, 0);
-
-	return ESP_OK;
-
 }
 
 static void add_system_informations(cJSON *root) {
@@ -142,44 +135,40 @@ static T_HTTP_PROCCESSING_TYPE *get_http_processing(char *path) {
 		if ( !strcmp(http_processing[i].path, path)) {
 			return &http_processing[i];
 		}
-		if (strlen(http_processing[i].short_path) && !strcmp(http_processing[i].short_path, path)) {
-			return &http_processing[i];
-		}
 	}
 	return NULL;
 }
 
-static void get_handler_data_list(httpd_req_t *req) {
+static void get_handler_list(httpd_req_t *req) {
 	// list events
 	char buf[255];
 	const size_t sz_buf = sizeof(buf);
-	const int l = HTTPD_RESP_USE_STRLEN;
 
 	extern T_SCENE *s_scene_list;
 	if (obtain_eventlist_lock() != ESP_OK) {
 		snprintf(buf, sz_buf, "%s couldn't get lock on eventlist\n", __func__);
-		httpd_resp_send_chunk(req, buf, l);
+		httpd_resp_send_chunk_l(req, buf);
 		return;
 	}
 
 	if ( !s_object_list) {
 		snprintf(buf, sz_buf, "\nno objectst");
-		httpd_resp_send_chunk(req, buf, l);
+		httpd_resp_send_chunk_l(req, buf);
 	} else {
 		for (T_EVT_OBJECT *obj=s_object_list; obj; obj=obj->nxt) {
 			snprintf(buf, sz_buf, "\n   object '%s'", obj->oid);
-			httpd_resp_send_chunk(req, buf, l);
+			httpd_resp_send_chunk_l(req, buf);
 			if (obj->data) {
 				for(T_EVT_OBJECT_DATA *data = obj->data; data; data=data->nxt) {
-					snprintf(buf, sz_buf,"\n    id=%d, type=%d/%s, pos=%d, len=%d",
+					snprintf(buf, sz_buf,"\n    id=%d, type=%d/%s, pos=%den=%d",
 							data->id, data->type, WT2TEXT(data->type), data->pos, data->len
 					);
-					httpd_resp_send_chunk(req, buf, l);
+					httpd_resp_send_chunk_l(req, buf);
 
 				}
 			} else {
 				snprintf(buf, sz_buf, "\n   no data list in object");
-				httpd_resp_send_chunk(req, buf, l);
+				httpd_resp_send_chunk_l(req, buf);
 			}
 
 		}
@@ -188,75 +177,75 @@ static void get_handler_data_list(httpd_req_t *req) {
 
 	if ( !s_scene_list) {
 		snprintf(buf, sz_buf, "\nno scenes");
-		httpd_resp_send_chunk(req, buf, l);
+		httpd_resp_send_chunk_l(req, buf);
 
 	} else {
 		for (T_SCENE *scene = s_scene_list; scene; scene=scene->nxt) {
 			if ( !scene->events) {
 				snprintf(buf, sz_buf, "\nno events");
-				httpd_resp_send_chunk(req, buf, l);
+				httpd_resp_send_chunk_l(req, buf);
 			} else {
 				for ( T_EVENT *evt= scene->events; evt; evt = evt->nxt) {
 					snprintf(buf, sz_buf, "\nEvent id='%s', repeats=%u:", evt->id, evt->t_repeats);
-					httpd_resp_send_chunk(req, buf, l);
+					httpd_resp_send_chunk_l(req, buf);
 
 					// INIT events
 					if (evt->evt_time_init_list) {
 						snprintf(buf, sz_buf,"\n  INIT events:");
-						httpd_resp_send_chunk(req, buf, l);
+						httpd_resp_send_chunk_l(req, buf);
 
 						for (T_EVT_TIME *tevt = evt->evt_time_init_list; tevt; tevt=tevt->nxt) {
 							snprintf(buf, sz_buf,"\n    id=%d, time=%llu ms, type=%d/%s, val=%.3f, sval='%s', marker='%s",
 									tevt->id, tevt->time, tevt->type, ET2TEXT(tevt->type), tevt->value, tevt->svalue, tevt->marker);
-							httpd_resp_send_chunk(req, buf, l);
+							httpd_resp_send_chunk_l(req, buf);
 
 						}
 					} else {
 						snprintf(buf, sz_buf,"\n  no INIT events.");
-						httpd_resp_send_chunk(req, buf, l);
+						httpd_resp_send_chunk_l(req, buf);
 					}
 
 					// WORK events
 					if (evt->evt_time_list) {
 						snprintf(buf, sz_buf,"\n  WORK events:");
-						httpd_resp_send_chunk(req, buf, l);
+						httpd_resp_send_chunk_l(req, buf);
 
 						for (T_EVT_TIME *tevt = evt->evt_time_list; tevt; tevt=tevt->nxt) {
 							snprintf(buf, sz_buf,"\n    id=%d, time=%llu ms, type=%d/%s, val=%.3f, sval='%s', marker='%s'",
 									tevt->id, tevt->time, tevt->type, ET2TEXT(tevt->type), tevt->value, tevt->svalue, tevt->marker);
-							httpd_resp_send_chunk(req, buf, l);
+							httpd_resp_send_chunk_l(req, buf);
 
 						}
 					} else {
 						snprintf(buf, sz_buf,"\n  no WORK events.");
-						httpd_resp_send_chunk(req, buf, l);
+						httpd_resp_send_chunk_l(req, buf);
 					}
 
 					// FINAL events
 					if (evt->evt_time_final_list) {
 						snprintf(buf, sz_buf,"\n  FINAL events:");
-						httpd_resp_send_chunk(req, buf, l);
+						httpd_resp_send_chunk_l(req, buf);
 
 						for (T_EVT_TIME *tevt = evt->evt_time_final_list; tevt; tevt=tevt->nxt) {
 							snprintf(buf, sz_buf,"\n    id=%d, time=%llu ms, type=%d/%s, val=%.3f, sval='%s', marker='%s'",
 									tevt->id, tevt->time, tevt->type, ET2TEXT(tevt->type), tevt->value, tevt->svalue, tevt->marker);
-							httpd_resp_send_chunk(req, buf, l);
+							httpd_resp_send_chunk_l(req, buf);
 
 						}
 					} else {
 						snprintf(buf, sz_buf,"\n  no FINAL events.");
-						httpd_resp_send_chunk(req, buf, l);
+						httpd_resp_send_chunk_l(req, buf);
 					}
 				}
 			}
 		}
 	}
-	httpd_resp_send_chunk(req, "\n", l);
+	httpd_resp_send_chunk_l(req, "\n");
 
 	release_eventlist_lock();
 }
 
-static esp_err_t get_handler_data_list_files(httpd_req_t *req) {
+static esp_err_t get_handler_list_files(httpd_req_t *req) {
     char entrypath[FILE_PATH_MAX];
     char msg[64];
     const char *entrytype;
@@ -287,17 +276,18 @@ static esp_err_t get_handler_data_list_files(httpd_req_t *req) {
             return ESP_FAIL;
         }
         snprintf(msg, sizeof(msg), "%s '%s' (%ld bytes)\n", entrytype, entry->d_name, entry_stat.st_size);
-        httpd_resp_send_chunk(req, msg, HTTPD_RESP_USE_STRLEN);
+        httpd_resp_send_chunk_l(req, msg);
         ESP_LOGI(__func__, "%s", msg);
     }
     closedir(dir);
     ESP_LOGI(__func__,"ended.");
     return ESP_OK;
 }
+
 /**
  * delivers status informations in JSON
  */
-static void get_handler_data_status(httpd_req_t *req, char *msg, run_status_type status) {
+static void response_with_status(httpd_req_t *req, char *msg, run_status_type status) {
     httpd_resp_set_type(req, "application/json");
     cJSON *root = cJSON_CreateObject();
 
@@ -309,27 +299,27 @@ static void get_handler_data_status(httpd_req_t *req, char *msg, run_status_type
 
     add_system_informations(root);
 
-    const char *resp = cJSON_PrintUnformatted(root);
+    char *resp = cJSON_PrintUnformatted(root);
     ESP_LOGI(__func__,"RESP=%s", resp?resp:"nix");
 
-    httpd_resp_send_chunk(req, "STATUS=", HTTPD_RESP_USE_STRLEN);
-	httpd_resp_send_chunk(req, resp, strlen(resp));
-	httpd_resp_send_chunk(req, "\n", 1); // response more readable
+    httpd_resp_send_chunk_l(req, "STATUS=");
+	httpd_resp_send_chunk_l(req, resp);
+	httpd_resp_send_chunk_l(req, "\n"); // response more readable
 
     free((void *)resp);
     cJSON_Delete(root);
 }
 
-static void get_handler_data_status_current(httpd_req_t *req) {
-	get_handler_data_status(req, "", get_scene_status());
+static void get_handler_status_current(httpd_req_t *req) {
+	response_with_status(req, "", get_scene_status());
 }
 
-static void get_handler_data_scene_status(httpd_req_t *req, run_status_type new_status) {
+static void get_handler_scene_new_status(httpd_req_t *req, run_status_type new_status) {
 	run_status_type old_status = get_scene_status();
 	if ( old_status != new_status) {
 		old_status = set_scene_status(new_status);
 	}
-	get_handler_data_status(req, old_status != new_status ? "new status set" : "", new_status);
+	response_with_status(req, old_status != new_status ? "new status set" : "", new_status);
 }
 
 static esp_err_t clear_data(char *msg, size_t sz_msg, run_status_type new_status) {
@@ -344,42 +334,42 @@ static esp_err_t clear_data(char *msg, size_t sz_msg, run_status_type new_status
 
 	bool hasError = false;
 	if (scene_list_free() == ESP_OK) {
-		snprintf(&(msg[strlen(msg)]),sz_msg - strlen(msg),"event list cleared, ");
+		snprintfapp(msg,sz_msg,"event list cleared, ");
 	} else {
 		hasError=true;
-		snprintf(&(msg[strlen(msg)]),sz_msg - strlen(msg),"clear event list failed, ");
+		snprintfapp(msg,sz_msg,"clear event list failed, ");
 	}
 
 	if ( object_list_free() == ESP_OK) {
-		snprintf(&(msg[strlen(msg)]),sz_msg - strlen(msg),"object list cleared");
+		snprintfapp(msg, sz_msg,"object list cleared");
 	} else {
 		hasError = true;
-		snprintf(&(msg[strlen(msg)]),sz_msg - strlen(msg),"clear object list failed");
+		snprintfapp(msg,sz_msg - strlen(msg),"clear object list failed");
 	}
 	return hasError ? ESP_FAIL : ESP_OK;
 
 }
 
 
-static esp_err_t get_handler_data_clear(httpd_req_t *req) {
+static esp_err_t get_handler_clear(httpd_req_t *req) {
 	char msg[255];
 
     LOG_MEM(1);
-	// stop display program
+	// stop display program, clear data
 	run_status_type new_status = RUN_STATUS_STOPPED;
 	esp_err_t res = clear_data(msg, sizeof(msg), new_status);
 
-	get_handler_data_status(req, msg, new_status);
+	response_with_status(req, msg, new_status);
     LOG_MEM(2);
 
 	return res;
 }
 
-static void get_handler_data_restart(httpd_req_t *req) {
+static void get_handler_restart(httpd_req_t *req) {
 	char resp_str[64];
 
 	snprintf(resp_str, sizeof(resp_str),"Restart initiated\n");
-	httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
+	httpd_resp_send_chunk_l(req, resp_str);
 
 	httpd_resp_send_chunk(req, NULL, 0);
 
@@ -390,7 +380,7 @@ static void get_handler_data_restart(httpd_req_t *req) {
     esp_restart();
 }
 
-static void get_handler_data_reset(httpd_req_t *req) {
+static void get_handler_reset(httpd_req_t *req) {
 
 	// clear nvs
 	nvs_flash_erase();
@@ -398,19 +388,19 @@ static void get_handler_data_reset(httpd_req_t *req) {
 
 	char resp_str[64];
 	snprintf(resp_str, sizeof(resp_str),"RESET done\n");
-	httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
+	httpd_resp_send_chunk_l(req, resp_str);
 
-	get_handler_data_restart(req);
+	get_handler_restart(req);
 }
 
-static void get_handler_data_blank(httpd_req_t *req) {
+static void get_handler_blank(httpd_req_t *req) {
 
 	scenes_blank();
 
-	get_handler_data_status(req, "BLANK done", get_scene_status());
+	response_with_status(req, "BLANK done", get_scene_status());
 }
 
-static void get_handler_data_config(httpd_req_t *req) {
+static void get_handler_config(httpd_req_t *req) {
     httpd_resp_set_type(req, "application/json");
     cJSON *root = cJSON_CreateObject();
 
@@ -420,10 +410,10 @@ static void get_handler_data_config(httpd_req_t *req) {
     // some system informations
     add_system_informations(root);
 
-    const char *resp = cJSON_PrintUnformatted(root);
+    char *resp = cJSON_PrintUnformatted(root);
     ESP_LOGI(__func__,"resp=%s", resp?resp:"nix");
-	httpd_resp_send_chunk(req, resp, strlen(resp));
-	httpd_resp_send_chunk(req, "\n", 1);
+	httpd_resp_send_chunk_l(req, resp);
+	httpd_resp_send_chunk_l(req, "\n");
 
     free((void *)resp);
     cJSON_Delete(root);
@@ -432,7 +422,7 @@ static void get_handler_data_config(httpd_req_t *req) {
 
 /*
  * query parameter: fname=<fname>, cmd=save|load|delete
- */
+ * /
 static void get_handler_data_save(httpd_req_t *req) {
 	char resp_str[255];
 	char *buf;
@@ -454,7 +444,7 @@ static void get_handler_data_save(httpd_req_t *req) {
 			if (httpd_query_key_value(buf, paramname, operation, sizeof(operation)) == ESP_OK) {
 				//snprintf(resp_str, sizeof(resp_str),"NYI save to '%s'\n", fname);
 			} else {
-				strlcpy(operation,"load");
+				strlcpy(operation,"load", sizeof(operation));
 			}
 		}
 		free(buf);
@@ -464,15 +454,15 @@ static void get_handler_data_save(httpd_req_t *req) {
 
 	httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
 }
-
+*/
 
 
 /**
  * decodes JSON content and stores data in memory.
- * data will be overwritten
+ * scenes will be stopped and data will be overwritten
  * If successful stored, save the content to a file if query parameter 'fname=<file name>' specified.
  */
-static esp_err_t post_handler_data_load(httpd_req_t *req, char *content) {
+static esp_err_t post_handler_load(httpd_req_t *req, char *content) {
 	char msg[255];
 	memset(msg, 0, sizeof(msg));
 
@@ -488,9 +478,7 @@ static esp_err_t post_handler_data_load(httpd_req_t *req, char *content) {
 
 			char *paramname="fname";
 			if (httpd_query_key_value(qrybuf, paramname, fname, sizeof(fname)) == ESP_OK) {
-				//snprintf(resp_str, sizeof(resp_str),"filename '%s'\n", fname);
-			//} else {
-			//	snprintf(resp_str, sizeof(resp_str),"ERROR: missing query parameter 'fname=<fname>'\n");
+				ESP_LOGI(__func__, "store data to '%s'", fname);
 			}
 		}
 		free(qrybuf);
@@ -505,7 +493,7 @@ static esp_err_t post_handler_data_load(httpd_req_t *req, char *content) {
     //LOG_MEM(2);
 
 	char errmsg[64];
-	res = decode_json4event_root(content, errmsg, sizeof(errmsg), true);
+	res = decode_json4event_root(content, errmsg, sizeof(errmsg));
 
 	if (res == ESP_OK) {
 		snprintfapp(msg,sizeof(msg), ", decoding data done: %s",errmsg);
@@ -521,8 +509,8 @@ static esp_err_t post_handler_data_load(httpd_req_t *req, char *content) {
 		snprintf(&msg[strlen(msg)],sizeof(msg) - strlen(msg), ", decoding data failed: %s",errmsg);
 	}
     //LOG_MEM(3);
-
-	get_handler_data_status(req, msg, new_status);
+	ESP_LOGI(__func__, "ended with '%s'", msg);
+	response_with_status(req, msg, new_status);
 
 	return res;
 
@@ -552,7 +540,6 @@ static esp_err_t main_handler_data_fileop(httpd_req_t *req, char *content) {
 			if (httpd_query_key_value(qrybuf, paramname, fname, sizeof(fname)) == ESP_OK) {
 				//snprintf(resp_str, sizeof(resp_str),"filename '%s'\n", fname);
 				snprintf(msg, sizeof(msg),"fname='%s'", fname);
-				add_base_path(fname, sizeof(fname));
 				ESP_LOGI(__func__, "filename='%s'", fname);
 			} else {
 				snprintf(msg, sizeof(msg),"ERROR: missing query parameter 'fname=<fname>'");
@@ -579,40 +566,57 @@ static esp_err_t main_handler_data_fileop(httpd_req_t *req, char *content) {
 	}
 
 	char errmsg[64];
-	esp_err_t res;
+	esp_err_t res = ESP_FAIL;
 
 	if (!strcasecmp(operation,"save")) {
 		// store POST-data to file <fname>
-		res = store_events_to_file(fname, content, errmsg, sizeof(errmsg));
-		if ( res == ESP_OK ) {
-			snprintfapp(msg,sizeof(msg), "content saved to %s",fname);
+		if ( !content ||!strlen(content)) {
+			snprintfapp(msg, sizeof(msg), "ERROR: no content, use POST data to save to %s",fname);
+
 		} else {
-			snprintfapp(msg,sizeof(msg), "save content to %s failed: %s",fname, errmsg);
+			res = store_events_to_file(fname, content, errmsg, sizeof(errmsg));
+			if ( res == ESP_OK ) {
+				snprintfapp(msg,sizeof(msg), "content saved to %s",fname);
+			} else {
+				snprintfapp(msg,sizeof(msg), "save content to %s failed: %s",fname, errmsg);
+			}
 		}
 	} else if (!strcasecmp(operation,"load")) {
-		res = load_events_from_file(fname);
+
+		// stop display program and clear data
+		run_status_type new_status = RUN_STATUS_STOPPED;
+		clear_data(msg, sizeof(msg), new_status);
+
+		// load new data
+		res = load_events_from_file(fname, errmsg, sizeof(errmsg));
 		if ( res == ESP_OK ) {
 			snprintfapp(msg,sizeof(msg), "content loaded from %s",fname);
 		} else {
 			snprintfapp(msg,sizeof(msg), "load content from %s failed: %s",fname, errmsg);
 		}
 	} else if (!strcasecmp(operation,"delete")) {
-		if (unlink(fname)) {
-			snprintfapp(msg, sizeof(msg),", deletion failed");
+		int lrc;
+		add_base_path(operation, sizeof(fname));
+		if ((lrc=unlink(fname))) {
+			snprintfapp(msg, sizeof(msg),", deletion failed, lrc=%d(%s)", lrc, esp_err_to_name(lrc));
 		} else {
 			snprintfapp(msg, sizeof(msg),", deleted");
+			res = ESP_OK;
 		}
 	} else {
-		snprintfapp(msg, sizeof(msg),", ERROR: unexpected operation");
+		snprintfapp(msg, sizeof(msg),", ERROR: unexpected or mising operation");
+	}
+
+	if ( res == ESP_OK) {
+		ESP_LOGI(__func__, "success: %s", msg);
+		response_with_status(req, msg, get_scene_status());
+	} else {
+		ESP_LOGW(__func__, "%s", msg);
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, msg);
-		ESP_LOGI(__func__,"buf_len == 0, %s", msg);
         return ESP_FAIL;
 	}
 
-	get_handler_data_status(req, msg, get_scene_status());
-
 	return res;
-
 }
 
 
@@ -634,7 +638,7 @@ static esp_err_t post_handler_config_load(httpd_req_t *req, char *buf) {
 		snprintf(&msg[strlen(msg)],sizeof(msg) - strlen(msg), ", decoding data failed: %s",errmsg);
 	}
 
-	get_handler_data_status(req, msg, new_status);
+	response_with_status(req, msg, new_status);
 
 	return res;
 
@@ -645,7 +649,7 @@ static esp_err_t post_handler_config_load(httpd_req_t *req, char *buf) {
  * /set?id=<id> - replaces event with this id
  * /add - adds event
  */
-static esp_err_t post_handler_data(httpd_req_t *req)
+static esp_err_t post_handler_main(httpd_req_t *req)
 {
 	ESP_LOGI(__func__,"running on core %d",xPortGetCoreID());
 	char path[256];
@@ -657,14 +661,16 @@ static esp_err_t post_handler_data(httpd_req_t *req)
 	T_HTTP_PROCCESSING_TYPE *pt = get_http_processing(path);
 
 	if (!pt ) {
-		return http_help(req);
+		http_help(req);
+		httpd_resp_send_chunk(req, NULL, 0);
+		return ESP_OK;
 	}
 
 
-	if ( req->content_len > SCRATCH_BUFSIZE) {
+	if ( req->content_len > MAX_CONTENTLEN) {
         ESP_LOGE(__func__, "Content too large : %d bytes\n", req->content_len);
         // Respond with 400 Bad Request
-        snprintf(resp_str,sizeof(resp_str),"Data size must be less then %d bytes!\n",SCRATCH_BUFSIZE);
+        snprintf(resp_str,sizeof(resp_str),"Data size must be less then %d bytes!\n",MAX_CONTENTLEN);
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, resp_str);
         /// Return failure to close underlying connection else the
         // incoming file content will keep the socket busy
@@ -673,15 +679,16 @@ static esp_err_t post_handler_data(httpd_req_t *req)
 
     int remaining = req->content_len;
     // Retrieve the pointer to scratch buffer for temporary storage
-    char *buf = ((rest_server_context_t *)req->user_ctx)->scratch;
-    memset(buf, 0, SCRATCH_BUFSIZE);
+    char *buf = calloc(req->content_len+1, sizeof(char)); //((rest_server_context_t *)req->user_ctx)->scratch;
+    //memset(buf, 0, SCRATCH_BUFSIZE);
     int received;
 
+    LOG_MEM(1);
     while (remaining > 0) {
 
         ESP_LOGI(__func__, "Remaining size : %d", remaining);
         // Receive the file part by part into a buffer
-        if ((received = httpd_req_recv(req, buf, MIN(remaining, SCRATCH_BUFSIZE))) <= 0) {
+        if ((received = httpd_req_recv(req, buf, MIN(remaining, req->content_len))) <= 0) {
         	// recv failed
             if (received == HTTPD_SOCK_ERR_TIMEOUT) {
                 // Retry if timeout occurred
@@ -691,6 +698,7 @@ static esp_err_t post_handler_data(httpd_req_t *req)
             ESP_LOGE(__func__, "Data reception failed!");
             /* Respond with 500 Internal Server Error */
             httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to receive data\n");
+            free(buf);
             return ESP_FAIL;
         }
 
@@ -699,30 +707,38 @@ static esp_err_t post_handler_data(httpd_req_t *req)
         remaining -= received;
     }
 
+    LOG_MEM(2);
+
     esp_err_t res;
     switch(pt->todo) {
     case HP_LOAD:
-    	res = post_handler_data_load(req, buf);
+    	res = post_handler_load(req, buf);
     	break;
+
     case HP_FILEOP:
     	res = main_handler_data_fileop(req, buf);
     	break;
+
     case HP_CONFIG:
-    	res=post_handler_config_load(req, buf);
+    	res = post_handler_config_load(req, buf);
     	break;
+
     default:
 		snprintf(resp_str, sizeof(resp_str),"path='%s' GET only\n", path);
-		httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
-		return http_help(req);
+		httpd_resp_send_chunk_l(req, resp_str);
+		http_help(req);
+		res = ESP_OK;
     }
 
+    free(buf);
 	// End response
 	httpd_resp_send_chunk(req, NULL, 0);
 
+	LOG_MEM(3);
 	return res;
 }
 
-static esp_err_t get_handler_data(httpd_req_t *req)
+static esp_err_t get_handler_main(httpd_req_t *req)
 {
 	ESP_LOGI(__func__,"running on core %d",xPortGetCoreID());
 	char path[256];
@@ -731,60 +747,62 @@ static esp_err_t get_handler_data(httpd_req_t *req)
 
 	T_HTTP_PROCCESSING_TYPE *pt = get_http_processing(path);
 	if (!pt ) {
-		return http_help(req);
+		http_help(req);
+		httpd_resp_send_chunk(req, NULL, 0);
+		return ESP_OK;
 	}
 
 	char resp_str[255];
 
 	switch(pt->todo) {
 	case HP_STATUS:
-		get_handler_data_status_current(req);
+		get_handler_status_current(req);
 		break;
 	case HP_HELP:
 		http_help(req);
 		break;
 	case HP_LIST:
-		get_handler_data_list(req);
+		get_handler_list(req);
 		break;
 	case HP_LIST_FILES:
-		get_handler_data_list_files(req);
+		get_handler_list_files(req);
 		break;
 	case HP_CLEAR:
-		get_handler_data_clear(req);
+		get_handler_clear(req);
 		break;
 	case HP_RUN:
-		get_handler_data_scene_status(req, RUN_STATUS_RUNNING);
+		get_handler_scene_new_status(req, RUN_STATUS_RUNNING);
 		break;
 	case HP_STOP:
-		get_handler_data_scene_status(req, RUN_STATUS_STOPPED);
+		get_handler_scene_new_status(req, RUN_STATUS_STOPPED);
 		break;
 	case HP_PAUSE:
-		get_handler_data_scene_status(req, RUN_STATUS_PAUSED);
+		get_handler_scene_new_status(req, RUN_STATUS_PAUSED);
 		break;
 	case HP_BLANK:
-		get_handler_data_blank(req);
+		get_handler_blank(req);
 		break;
 	case HP_CONFIG:
-		get_handler_data_config(req);
+		get_handler_config(req);
 		break;
 	case HP_FILEOP:
 		main_handler_data_fileop(req, "");
 		break;
 	case HP_RESTART:
-		get_handler_data_restart(req);
+		get_handler_restart(req);
 		break;
 	case HP_RESET:
-		get_handler_data_reset(req);
+		get_handler_reset(req);
 		break;
 	case HP_LOAD:
 		snprintf(resp_str, sizeof(resp_str),"path='%s' POST only\n", path);
-		httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
-		return http_help(req);
+		httpd_resp_send_chunk_l(req, resp_str);
+		http_help(req);
 		break;
 	default:
 		snprintf(resp_str, sizeof(resp_str),"path='%s' todo %d NYI\n", path, pt->todo);
-		httpd_resp_send_chunk(req, resp_str, strlen(resp_str));
-		return http_help(req);
+		httpd_resp_send_chunk_l(req, resp_str);
+		http_help(req);
 	}
 
 	// End response
@@ -794,7 +812,6 @@ static esp_err_t get_handler_data(httpd_req_t *req)
 }
 
 
-static httpd_handle_t server = NULL;
 
 esp_err_t start_rest_server(const char *base_path)
 {
@@ -811,6 +828,7 @@ esp_err_t start_rest_server(const char *base_path)
     strlcpy(rest_context->base_path, base_path, sizeof(rest_context->base_path));
 
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
+    config.stack_size=20480;
     int p = config.task_priority;
     config.task_priority =0;
     ESP_LOGI(__func__, "config HTTP Server prio %d -> %d", p, config.task_priority);
@@ -829,7 +847,7 @@ esp_err_t start_rest_server(const char *base_path)
     httpd_uri_t data_post_uri = {
         .uri       = "/*",
         .method    = HTTP_POST,
-        .handler   = post_handler_data,
+        .handler   = post_handler_main,
         .user_ctx  = rest_context
     };
     httpd_register_uri_handler(server, &data_post_uri);
@@ -838,7 +856,7 @@ esp_err_t start_rest_server(const char *base_path)
     httpd_uri_t data_get_uri = {
         .uri       = "/*",
         .method    = HTTP_GET,
-        .handler   = get_handler_data,
+        .handler   = get_handler_main,
         .user_ctx  = rest_context
     };
     httpd_register_uri_handler(server, &data_get_uri);

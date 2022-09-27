@@ -100,7 +100,7 @@ t_result evt_get_string(cJSON *element, char *attr, char *sval, size_t sz_sval, 
 	strlcpy(sval, cJSON_GetStringValue(found),sz_sval);
 
 	if ( !strlen(sval)) {
-		snprintf(errmsg, sz_errmsg, "got '%s' has no value", attr, sval);
+		snprintf(errmsg, sz_errmsg, "got '%s' has no value", attr);
 		return RES_NO_VALUE;
 	}
 

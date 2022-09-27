@@ -16,4 +16,9 @@ uint32_t cfg_numleds = 60;
 uint32_t cfg_cycle = 50;
 char *cfg_autoplayfile = NULL;
 
+char last_loaded_file[LEN_PATH_MAX];
+
+void global_data_init() {
+	memset(last_loaded_file, 0, sizeof(last_loaded_file));
+}
 

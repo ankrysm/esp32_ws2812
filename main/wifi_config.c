@@ -7,29 +7,9 @@
    CONDITIONS OF ANY KIND, either express or implied.
 */
 
-/*
-#include <string.h>
-#include <stdlib.h>
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "freertos/event_groups.h"
-#include "esp_wifi.h"
-#include "esp_wpa2.h"
-#include "esp_event.h"
-#include "esp_log.h"
-#include "esp_system.h"
-#include "nvs_flash.h"
-#include "esp_netif.h"
-#include "esp_smartconfig.h"
-#include "mdns.h"
-#include "lwip/apps/netbiosns.h"
-*/
+
 #include "esp32_ws2812_basic.h"
 #include "wifi_config.h"
-
-//void firstled(int red, int green, int blue);
-
-
 
 /* FreeRTOS event group to signal when we are connected & ready to make a request */
 static EventGroupHandle_t s_wifi_event_group;
@@ -139,7 +119,7 @@ static esp_err_t get_wifi_config(char *ssid, size_t sz_ssid, char *pw, size_t sz
 	if ( ret == ESP_OK ) {
 		// known
 		nvs_get_str(my_handle, keyname, pw, &size);
-		ESP_LOGI(__func__, "getting '%s' successful sz=%d: '%s'",keyname, size, pw );
+		ESP_LOGI(__func__, "getting '%s' successful sz=%d: '%s'",keyname, size, "*****"); //pw );
 
 	} else if (ret == ESP_ERR_NVS_NOT_FOUND) {
 		// nothing stored, store an emtpy string
@@ -147,7 +127,7 @@ static esp_err_t get_wifi_config(char *ssid, size_t sz_ssid, char *pw, size_t sz
 		pw = strdup("");
 	}
 
-	ESP_LOGI(__func__, "stored Wifi-Connection '%s', '%s'", ssid, pw );
+	ESP_LOGI(__func__, "stored Wifi-Connection ssid='%s', pw='%s'", ssid, "****" ); //pw );
 
 	// close handle immediately, if it's necessary to open it again, it will be done later
 	nvs_close(my_handle);
@@ -375,7 +355,7 @@ void initialise_wifi()
 	char pw[64];
 	get_wifi_config(ssid, sizeof(ssid), pw, sizeof(pw));
 
-	ESP_LOGI(__func__, "stored Wifi-Connection '%s', '%s'", ssid, pw);
+	ESP_LOGI(__func__, "use stored Wifi-Connection '%s'", ssid);
 
     if ( strlen((char *)ssid)) {
     	// try stored connection
