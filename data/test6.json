@@ -15,11 +15,11 @@
 	 		"events": [
 			 	{
 			 	 "id":"A10",
-		 		"repeats":0,
+		 		"repeats":5,
 			 	 "init": [
 			 	 	{"type":"brightness", "value":0.1},
 		     	 	{"type":"goto", "value":10},
-				 	{"type":"speed", "value":1},
+				 	{"type":"speed", "value":2.5},
 		     	 	{"type":"object","value":"rb"}
 			 	 ],
 		     	 "work": [

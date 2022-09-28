@@ -68,7 +68,7 @@ static T_HTTP_PROCCESSING_TYPE http_processing[] = {
 		{"/lf",       HP_LIST_FILES,  "list stored files"},
 		{"/cfg",      HP_CONFIG,      "shows/sets config, set values: uses JSON-POST-data"},
 		{"/lo",       HP_LOAD,        "load events, replaces data in memory, JSON-POST-data required"},
-		{"/f",        HP_FILEOP,      "handle stored JSON event lists. Query parameter: fname=<fname>, cmd=save|load|saveload|delete, save,saveload requires JSON-POST-data"},
+		{"/f",        HP_FILEOP,      "handle stored JSON event lists. Query parameter: fname=<fname>, cmd=save|load|saveload|delete|get, save,saveload requires JSON-POST-data"},
 		{"/cl",       HP_CLEAR,       "clear event list"},
 		{"/restart",  HP_RESTART,     "restart the controller"},
 		{"/reset",    HP_RESET,       "reset controller to default"},
@@ -518,17 +518,19 @@ static esp_err_t post_handler_load(httpd_req_t *req, char *content) {
 }
 
 /**
- * query parameter: fname=<fname>, cmd=save|load|saveload|delete, save requires JSON-POST-data
+ * query parameter: fname=<fname>, cmd=save|load|saveload|delete|get, save requires JSON-POST-data
  *
  */
 static esp_err_t main_handler_data_fileop(httpd_req_t *req, char *content) {
 	char msg[255];
 	memset(msg, 0, sizeof(msg));
 
-	char fname[256];
+	char fname[LEN_PATH_MAX];
 	char operation[16];
 	memset(fname, 0, sizeof(fname));
 	memset(operation, 0, sizeof(operation));
+
+    httpd_resp_set_type(req, "plain/text");
 
     char *qrybuf;
 	size_t buf_len = httpd_req_get_url_query_len(req) + 1;
@@ -571,16 +573,46 @@ static esp_err_t main_handler_data_fileop(httpd_req_t *req, char *content) {
 
 	if (!strcasecmp(operation,"delete")) {
 		int lrc;
-		add_base_path(operation, sizeof(fname));
+		add_base_path(fname, sizeof(fname));
 		if ((lrc=unlink(fname))) {
-			snprintfapp(msg, sizeof(msg),", deletion failed, lrc=%d(%s)", lrc, esp_err_to_name(lrc));
+			snprintfapp(msg, sizeof(msg),", deletion '%s' failed, lrc=%d(%s)", fname, lrc, esp_err_to_name(lrc));
 		} else {
-			snprintfapp(msg, sizeof(msg),", deleted");
+			snprintfapp(msg, sizeof(msg),", '%s' deleted", fname);
+			res = ESP_OK;
+		}
+	} else if (!strcasecmp(operation,"get")) {
+		add_base_path(fname, sizeof(fname));
+		FILE *f = fopen(fname, "r");
+		if (f == NULL) {
+			snprintfapp(msg, sizeof(msg), "failed to open '%s' for reading", fname);
+		} else {
+			char buf[64];
+			size_t n;
+			while ( (n=fread(buf, sizeof(char),sizeof(buf), f)) > 0) {
+				httpd_resp_send_chunk(req, buf, n);
+			}
+			fclose(f);
 			res = ESP_OK;
 		}
 	} else {
 		bool do_load =!strcasecmp(operation,"load") || !strcasecmp(operation,"saveload");
 		bool do_save =!strcasecmp(operation,"save") || !strcasecmp(operation,"saveload");
+
+		if (do_save) {
+			ESP_LOGI(__func__,"do save");
+			// store POST-data to file <fname>
+			if ( !content ||!strlen(content)) {
+				snprintfapp(msg, sizeof(msg), "ERROR: no content, use POST data to save to %s",fname);
+
+			} else {
+				res = store_events_to_file(fname, content, errmsg, sizeof(errmsg));
+				if ( res == ESP_OK ) {
+					snprintfapp(msg,sizeof(msg), "content saved to %s",fname);
+				} else {
+					snprintfapp(msg,sizeof(msg), "save content to %s failed: %s",fname, errmsg);
+				}
+			}
+		}
 
 		if (do_load) {
 			ESP_LOGI(__func__, "do load");
@@ -599,25 +631,6 @@ static esp_err_t main_handler_data_fileop(httpd_req_t *req, char *content) {
 			res = ESP_OK;
 		}
 
-		if (do_save) {
-			ESP_LOGI(__func__,"do save");
-			if ( res == ESP_OK) {
-				// store POST-data to file <fname>
-				if ( !content ||!strlen(content)) {
-					snprintfapp(msg, sizeof(msg), "ERROR: no content, use POST data to save to %s",fname);
-
-				} else {
-					res = store_events_to_file(fname, content, errmsg, sizeof(errmsg));
-					if ( res == ESP_OK ) {
-						snprintfapp(msg,sizeof(msg), "content saved to %s",fname);
-					} else {
-						snprintfapp(msg,sizeof(msg), "save content to %s failed: %s",fname, errmsg);
-					}
-				}
-			} else {
-				snprintfapp(msg,sizeof(msg),"do save not executed because of load error");
-			}
-		}
 
 		if ( !do_load && !do_save) {
 			res = ESP_FAIL;
@@ -626,48 +639,12 @@ static esp_err_t main_handler_data_fileop(httpd_req_t *req, char *content) {
 
 	}
 
-//	if (!strcasecmp(operation,"save")) {
-//		// store POST-data to file <fname>
-//		if ( !content ||!strlen(content)) {
-//			snprintfapp(msg, sizeof(msg), "ERROR: no content, use POST data to save to %s",fname);
-//
-//		} else {
-//			res = store_events_to_file(fname, content, errmsg, sizeof(errmsg));
-//			if ( res == ESP_OK ) {
-//				snprintfapp(msg,sizeof(msg), "content saved to %s",fname);
-//			} else {
-//				snprintfapp(msg,sizeof(msg), "save content to %s failed: %s",fname, errmsg);
-//			}
-//		}
-//	} else if (!strcasecmp(operation,"load")) {
-//
-//		// stop display program and clear data
-//		run_status_type new_status = RUN_STATUS_STOPPED;
-//		clear_data(msg, sizeof(msg), new_status);
-//
-//		// load new data
-//		res = load_events_from_file(fname, errmsg, sizeof(errmsg));
-//		if ( res == ESP_OK ) {
-//			snprintfapp(msg,sizeof(msg), "content loaded from %s",fname);
-//		} else {
-//			snprintfapp(msg,sizeof(msg), "load content from %s failed: %s",fname, errmsg);
-//		}
-//	} else if (!strcasecmp(operation,"delete")) {
-//		int lrc;
-//		add_base_path(operation, sizeof(fname));
-//		if ((lrc=unlink(fname))) {
-//			snprintfapp(msg, sizeof(msg),", deletion failed, lrc=%d(%s)", lrc, esp_err_to_name(lrc));
-//		} else {
-//			snprintfapp(msg, sizeof(msg),", deleted");
-//			res = ESP_OK;
-//		}
-//	} else {
-//		snprintfapp(msg, sizeof(msg),", ERROR: unexpected or mising operation");
-//	}
-
+	snprintfapp(msg, sizeof(msg),"\n");
 	if ( res == ESP_OK) {
 		ESP_LOGI(__func__, "success: %s", msg);
-		response_with_status(req, msg, get_scene_status());
+		httpd_resp_send_chunk_l(req, "\nsuccess: ");
+		httpd_resp_send_chunk_l(req, msg);
+		//response_with_status(req, msg, get_scene_status());
 	} else {
 		ESP_LOGW(__func__, "%s", msg);
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, msg);

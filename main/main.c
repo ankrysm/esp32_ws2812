@@ -119,11 +119,6 @@ void app_main() {
 	init_timer_events();
 	set_event_timer_period(cfg_cycle);
 
-	// load autostart file if specified
-	load_autostart_file();
-
-	// if configured and possible start the autostart scene
-	scenes_autostart();
 
 	// initialize networking
 	TickType_t xDelay = 500 / portTICK_PERIOD_MS;
@@ -183,6 +178,13 @@ void app_main() {
 	TaskHandle_t  Core1TaskHnd ;
 	xTaskCreatePinnedToCore(timmi_task,"CPU_1",10000,NULL,1,&Core1TaskHnd,1);
 	*/
+
+
+	// load autostart file if specified
+	load_autostart_file();
+
+	// if configured and possible start the autostart scene
+	scenes_autostart();
 
 	// main loop
 	ESP_LOGI(__func__,"running on core %d",xPortGetCoreID());
