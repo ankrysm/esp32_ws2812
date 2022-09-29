@@ -33,47 +33,58 @@ static httpd_handle_t server = NULL;
 
 
 typedef enum {
-	// GET
 	HP_STATUS,
 	HP_LIST,
-	HP_LIST_FILES,
+	HP_FILE_LIST,
+	HP_FILE_STORE,
+	HP_FILE_GET,
+	HP_FILE_LOAD,
+	HP_FILE_DELETE,
 	HP_CLEAR,
 	HP_RUN,
 	HP_STOP,
 	HP_PAUSE,
 	HP_BLANK,
 	HP_CONFIG,
-	HP_FILEOP,
-	HP_RESTART,
 	HP_RESET,
+	HP_CFG_RESET,
 	HP_HELP,
 	HP_LOAD,
 	// End of list
 	HP_END_OF_LIST
-} t_http_processing;;
+} t_http_processing;
+
+typedef enum {
+	HPF_PATH_FROM_URL = 0x0001,
+	HPF_POST          = 0x0002
+} t_http_processing_flag;
 
 typedef struct {
 	char  *path;
+	int  flags;
 	t_http_processing todo;
 	char *help;
 } T_HTTP_PROCCESSING_TYPE;
 
 static T_HTTP_PROCCESSING_TYPE http_processing[] = {
-		{"/r",        HP_RUN,         "run"},
-		{"/s",        HP_STOP,        "stop"},
-		{"/p",        HP_PAUSE,       "pause"},
-		{"/b",        HP_BLANK,       "blank strip"},
-		{"/st",       HP_STATUS,      "status"},
-		{"/l",        HP_LIST,        "list events"},
-		{"/lf",       HP_LIST_FILES,  "list stored files"},
-		{"/cfg",      HP_CONFIG,      "shows/sets config, set values: uses JSON-POST-data"},
-		{"/lo",       HP_LOAD,        "load events, replaces data in memory, JSON-POST-data required"},
-		{"/f",        HP_FILEOP,      "handle stored JSON event lists. Query parameter: fname=<fname>, cmd=save|load|saveload|delete|get, save,saveload requires JSON-POST-data"},
-		{"/cl",       HP_CLEAR,       "clear event list"},
-		{"/restart",  HP_RESTART,     "restart the controller"},
-		{"/reset",    HP_RESET,       "reset controller to default"},
-		{"/",         HP_HELP,        "API help"},
-		{"",          HP_END_OF_LIST, ""}
+		{"/r",         0, HP_RUN,         "run"},
+		{"/s",         0, HP_STOP,        "stop"},
+		{"/p",         0, HP_PAUSE,       "pause"},
+		{"/b",         0, HP_BLANK,       "blank strip"},
+		{"/st",        0, HP_STATUS,      "status"},
+		{"/l",         0, HP_LIST,        "list events"},
+		{"/cfg",       0, HP_CONFIG,      "shows/sets config, set values: uses JSON-POST-data"},
+		{"/lo",        HPF_POST, HP_LOAD, "load events, replaces data in memory"},
+		{"/f/list",    0, HP_FILE_LIST,   "list stored files"},
+		{"/f/store/",  HPF_PATH_FROM_URL|HPF_POST, HP_FILE_STORE,  "store JSON event lists into flash memory as <fname>"},
+		{"/f/get/",    HPF_PATH_FROM_URL, HP_FILE_GET,    "get content of stored file <fname>"},
+		{"/f/load/",   HPF_PATH_FROM_URL, HP_FILE_LOAD,   "load JSON event list stored in <fname> into memory"},
+		{"/f/delete/", HPF_PATH_FROM_URL, HP_FILE_DELETE, "delete file <fname>"},
+		{"/cl",        0, HP_CLEAR,       "clear event list"},
+		{"/reset",     0, HP_RESET,       "restart the controller"},
+		{"/cfg/reset", 0, HP_CFG_RESET,   "reset controller to default"},
+		{"/",          0, HP_HELP,        "API help"},
+		{"",           0, HP_END_OF_LIST, ""}
 };
 
 static void httpd_resp_send_chunk_l(httpd_req_t *req, char *resp_str) {
@@ -86,9 +97,11 @@ static void http_help(httpd_req_t *req) {
 	httpd_resp_send_chunk_l(req, resp_str);
 
 	for  (int i=0; http_processing[i].todo != HP_END_OF_LIST; i++) {
-		snprintf(resp_str, sizeof(resp_str),"'%s' - %s\n",
+		snprintf(resp_str, sizeof(resp_str),"'%s%s' - %s%s\n",
 				http_processing[i].path,
-				http_processing[i].help
+				(http_processing[i].flags & HPF_PATH_FROM_URL ? "<fname>" : ""),
+				http_processing[i].help,
+				(http_processing[i].flags & HPF_POST ? ", requires POST data" : "")
 		);
 		httpd_resp_send_chunk_l(req, resp_str);
 	}
@@ -132,7 +145,7 @@ static void get_path_from_uri(const char *uri, char *dest, size_t destsize)
 static T_HTTP_PROCCESSING_TYPE *get_http_processing(char *path) {
 
 	for  (int i=0; http_processing[i].todo != HP_END_OF_LIST; i++) {
-		if ( !strcmp(http_processing[i].path, path)) {
+		if ( strstr(path, http_processing[i].path) == path) {
 			return &http_processing[i];
 		}
 	}
@@ -245,7 +258,7 @@ static void get_handler_list(httpd_req_t *req) {
 	release_eventlist_lock();
 }
 
-static esp_err_t get_handler_list_files(httpd_req_t *req) {
+static esp_err_t get_handler_file_list(httpd_req_t *req) {
     char entrypath[FILE_PATH_MAX];
     char msg[64];
     const char *entrytype;
@@ -518,20 +531,20 @@ static esp_err_t post_handler_load(httpd_req_t *req, char *content) {
 }
 
 /**
- * query parameter: fname=<fname>, cmd=save|load|saveload|delete|get, save requires JSON-POST-data
- *
+ * stores content in flash file
  */
-static esp_err_t main_handler_data_fileop(httpd_req_t *req, char *content) {
+static esp_err_t post_handler_file_store(httpd_req_t *req, char *content) {
 	char msg[255];
 	memset(msg, 0, sizeof(msg));
 
 	char fname[LEN_PATH_MAX];
-	char operation[16];
+	//char operation[16];
 	memset(fname, 0, sizeof(fname));
-	memset(operation, 0, sizeof(operation));
+	//memset(operation, 0, sizeof(operation));
 
     httpd_resp_set_type(req, "plain/text");
 
+    /*
     char *qrybuf;
 	size_t buf_len = httpd_req_get_url_query_len(req) + 1;
 	if (buf_len > 1) {
@@ -559,7 +572,7 @@ static esp_err_t main_handler_data_fileop(httpd_req_t *req, char *content) {
 			snprintfapp(msg,sizeof(msg),", operation='%s'", operation);
 		}
 		free(qrybuf);
-	}
+	}*/
 
 	if ( !strlen(fname)) {
 		snprintf(msg,sizeof(msg), "missing query parameter 'fname=<fname>'");
@@ -571,6 +584,21 @@ static esp_err_t main_handler_data_fileop(httpd_req_t *req, char *content) {
 	char errmsg[64];
 	esp_err_t res = ESP_FAIL;
 
+	ESP_LOGI(__func__,"do save");
+	// store POST-data to file <fname>
+	if ( !content ||!strlen(content)) {
+		snprintfapp(msg, sizeof(msg), "ERROR: no content, use POST data to save to %s",fname);
+
+	} else {
+		res = store_events_to_file(fname, content, errmsg, sizeof(errmsg));
+		if ( res == ESP_OK ) {
+			snprintfapp(msg,sizeof(msg), ", content saved to %s",fname);
+		} else {
+			snprintfapp(msg,sizeof(msg), ", save content to %s failed: %s",fname, errmsg);
+		}
+	}
+
+	/*
 	if (!strcasecmp(operation,"delete")) {
 		int lrc;
 		add_base_path(fname, sizeof(fname));
@@ -638,6 +666,7 @@ static esp_err_t main_handler_data_fileop(httpd_req_t *req, char *content) {
 		}
 
 	}
+	*/
 
 	snprintfapp(msg, sizeof(msg),"\n");
 	if ( res == ESP_OK) {
@@ -654,7 +683,32 @@ static esp_err_t main_handler_data_fileop(httpd_req_t *req, char *content) {
 	return res;
 }
 
+static esp_err_t get_handler_file_get(httpd_req_t *req, char *fname, size_t sz_fname) {
+	esp_err_t res = ESP_FAIL;
+	char msg[255];
 
+	add_base_path(fname, sz_fname);
+	FILE *f = fopen(fname, "r");
+	if (f == NULL) {
+		snprintf(msg, sizeof(msg), "failed to open '%s' for reading", fname);
+		ESP_LOGW(__func__, "%s", msg);
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, msg);
+        return ESP_FAIL;
+
+	}
+
+    httpd_resp_set_type(req, "plain/text");
+
+	size_t n;
+	while ( (n=fread(msg, sizeof(char),sizeof(msg), f)) > 0) {
+		httpd_resp_send_chunk(req, msg, n);
+	}
+	fclose(f);
+	res = ESP_OK;
+
+
+	return res;
+}
 
 static esp_err_t post_handler_config_load(httpd_req_t *req, char *buf) {
 	char msg[255];
@@ -750,8 +804,8 @@ static esp_err_t post_handler_main(httpd_req_t *req)
     	res = post_handler_load(req, buf);
     	break;
 
-    case HP_FILEOP:
-    	res = main_handler_data_fileop(req, buf);
+    case HP_FILE_STORE:
+    	res = post_handler_file_store(req, buf);
     	break;
 
     case HP_CONFIG:
@@ -778,16 +832,37 @@ static esp_err_t get_handler_main(httpd_req_t *req)
 	ESP_LOGI(__func__,"running on core %d",xPortGetCoreID());
 	char path[256];
 	get_path_from_uri(req->uri, path, sizeof(path));
-	ESP_LOGI(__func__,"uri='%s', contenlen=%d, path='%s'", req->uri, req->content_len, path);
+	ESP_LOGI(__func__,"uri='%s', path='%s'", req->uri, path);
+
+	char resp_str[64];
 
 	T_HTTP_PROCCESSING_TYPE *pt = get_http_processing(path);
 	if (!pt ) {
-		http_help(req);
-		httpd_resp_send_chunk(req, NULL, 0);
-		return ESP_OK;
+        snprintf(resp_str,sizeof(resp_str),"nothing found\n");
+        ESP_LOGE(__func__, "%s", resp_str);
+        // Respond with 404
+        httpd_resp_send_err(req, HTTPD_404_NOT_FOUND, resp_str);
+        /// Return failure to close underlying connection else the
+        // incoming file content will keep the socket busy
+        return ESP_FAIL;
 	}
 
-	char resp_str[255];
+	if (pt->flags & HPF_POST) {
+        snprintf(resp_str,sizeof(resp_str),"POST data required\n");
+        ESP_LOGE(__func__, "%s", resp_str);
+        // Respond with 400 Bad Request
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, resp_str);
+        /// Return failure to close underlying connection else the
+        // incoming file content will keep the socket busy
+        return ESP_FAIL;
+	}
+
+	char fname[LEN_PATH_MAX];
+	memset(fname, 0, sizeof(fname));
+	strlcpy(fname, &path[strlen(pt->path)], sizeof(fname));
+	ESP_LOGI(__func__, "fname='%s'", fname);
+
+	esp_err_t res = ESP_OK;
 
 	switch(pt->todo) {
 	case HP_STATUS:
@@ -799,9 +874,14 @@ static esp_err_t get_handler_main(httpd_req_t *req)
 	case HP_LIST:
 		get_handler_list(req);
 		break;
-	case HP_LIST_FILES:
-		get_handler_list_files(req);
+	case HP_FILE_LIST:
+		get_handler_file_list(req);
 		break;
+
+	case HP_FILE_GET:
+		res = get_handler_file_get(req, fname, sizeof(fname));
+		break;
+
 	case HP_CLEAR:
 		get_handler_clear(req);
 		break;
@@ -820,30 +900,31 @@ static esp_err_t get_handler_main(httpd_req_t *req)
 	case HP_CONFIG:
 		get_handler_config(req);
 		break;
-	case HP_FILEOP:
-		main_handler_data_fileop(req, "");
-		break;
-	case HP_RESTART:
+		//	case HP_FILEOP:
+		//		post_handler_file_store(req, "");
+		//		break;
+	case HP_RESET:
 		get_handler_restart(req);
 		break;
-	case HP_RESET:
+	case HP_CFG_RESET:
 		get_handler_reset(req);
-		break;
-	case HP_LOAD:
-		snprintf(resp_str, sizeof(resp_str),"path='%s' POST only\n", path);
-		httpd_resp_send_chunk_l(req, resp_str);
-		http_help(req);
 		break;
 	default:
 		snprintf(resp_str, sizeof(resp_str),"path='%s' todo %d NYI\n", path, pt->todo);
-		httpd_resp_send_chunk_l(req, resp_str);
-		http_help(req);
+		ESP_LOGE(__func__, "%s", resp_str);
+		// Respond with 404
+		httpd_resp_send_err(req, HTTPD_404_NOT_FOUND, resp_str);
+		/// Return failure to close underlying connection else the
+		// incoming file content will keep the socket busy
+		return ESP_FAIL;
 	}
 
-	// End response
-	httpd_resp_send_chunk(req, NULL, 0);
+	if ( res == ESP_OK) {
+		// End response
+		httpd_resp_send_chunk(req, NULL, 0);
+	}
 
-	return ESP_OK;
+	return res;
 }
 
 
