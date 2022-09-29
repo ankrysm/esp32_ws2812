@@ -46,6 +46,6 @@
 //#include "mdns.h"
 #include "lwip/apps/netbiosns.h"
 
-#define LEN_PATH_MAX 128 //PATH_MAX
+#define LEN_PATH_MAX (ESP_VFS_PATH_MAX+128)
 
 #endif /* MAIN_ESP32_WS2812_BASIC_H_ */
