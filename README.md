@@ -20,22 +20,26 @@ To bring the wifi interface up the esptouch framework version 1 is used, you nee
 
 ## API
 
-* **/** or **/help** - API help
-* **/load** - load events, replaces memory data, uses JSON-POST-data,<br>
-   with query parameter 'name=<file name>' it will be stored to flash 
-* **/f** or **/file** - handle stored JSON event lists,<br>
-query parameter: fname=<fname>, cmd=save|load|delete, save requires JSON-POST-data
-* **/st** or **/status** - status informations
-* **/l** or **/list** - list events
-* **/lf** or **/list_files** - list stored files
-* **/clear** - clear event list
-* **/r** or **/run** - run scenes
-* **/s** or **/stop** - stop scenes
-* **/p** or **/pause** - pause
-* **/b** or **/blank** - stop scenes and blank strip
-* **/c** or **/config** - shows config, set values: uses JSON-POST-data
-* **/restart** - restart controller
-* **/reset** - reset ESP32 to default, erases all data
+path - description
+* '/r' - run
+* '/s' - stop
+* '/p' - pause
+* '/b' - blank strip
+* '/i' - info
+* '/cl' - clear event list
+* '/li' - list events
+* '/lo' - load events, replaces data in memory, requires POST data
+* '/f/list' - list stored files
+* '/f/store/<fname>' - store JSON event lists into flash memory as <fname>, requires POST data
+* '/f/get/<fname>' - get content of stored file <fname>
+* '/f/load/<fname>' - load JSON event list stored in <fname> into memory
+* '/f/delete/<fname>' - delete file <fname>
+* '/cfg/get' - show config
+* '/cfg/set' - set config, requires POST data
+* '/cfg/restart' - restart the controller
+* '/cfg/tabula_rasa' - reset all data to default
+* '/' - API help
+
 
 ## JSON attributes for config
 
@@ -43,10 +47,10 @@ query parameter: fname=<fname>, cmd=save|load|delete, save requires JSON-POST-da
     +- "cycle", type: numeric, cycle time in ms
     +- "show_status", type: boolean, if true, shows the status of the system:
     |                 white: init, yellow: try to connect, green: connected
-    |                 blue: easy connect in progress, red: no WIFI connection 
+    |                 blue: easy connect in progress, red: no WIFI connection
     +- "autoplay", type: boolean, if true, play scenes automatically after boot up
     +- "autoplay_file", type: string, file name for autoplay
-    +- "strip_demo", type: boolean, if true, shows led in serial log 
+    +- "strip_demo", type: boolean, if true, shows led in serial log
 
 ## JSON attributes for display
 
@@ -93,7 +97,7 @@ query parameter: fname=<fname>, cmd=save|load|delete, save requires JSON-POST-da
 for init-, work- or final events
 
 | **"type"** attribute | in *init*| in *work* | in *final* | description |
-| ---- | ---- | ---- | ---- | ---- | 
+| ---- | ---- | ---- | ---- | ---- |
 | "pause" | - | start, running | - | stop painting for the amount of time |
 | "go" | - | running | - | continue painting with the actual parameters |
 | "speed" | yes | start | - | set speed in led / s |

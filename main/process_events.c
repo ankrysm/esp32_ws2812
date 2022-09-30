@@ -22,7 +22,7 @@ T_EVT_OBJECT event_clear = {
 	.data = &object_data_clear
 };
 
-
+static int exentended_logging = false;
 
 // position dependend events
 // sets
@@ -289,8 +289,9 @@ static void process_event_when_init(T_EVENT *evt) {
 		if (e->status == TE_FINISHED)
 			continue; // init done
 
-		ESP_LOGI(__func__,"INIT evt.id='%s', tevt.id=%d: type %d(%s), val=%.3f, sval='%s'",
-				evt->id, e->id, e->type, ET2TEXT(e->type), e->value, e->svalue);
+		if ( exentended_logging)
+			ESP_LOGI(__func__,"INIT evt.id='%s', tevt.id=%d: type %d(%s), val=%.3f, sval='%s'",	evt->id, e->id, e->type, ET2TEXT(e->type), e->value, e->svalue);
+
 		switch(e->type) {
 		case ET_SPEED:
 			evt->w_speed = e->value;
@@ -311,7 +312,8 @@ static void process_event_when_init(T_EVENT *evt) {
 		case ET_SET_OBJECT:
 			if (strlen(e->svalue)) {
 				strlcpy(evt->w_object_oid, e->svalue, sizeof(evt->w_object_oid));
-				ESP_LOGI(__func__,"evt.id='%s', tevt.id=%d: new object_oid='%s'", evt->id, e->id, evt->w_object_oid);
+				if ( exentended_logging)
+					ESP_LOGI(__func__,"evt.id='%s', tevt.id=%d: new object_oid='%s'", evt->id, e->id, evt->w_object_oid);
 			}
 			break;
 
@@ -330,9 +332,11 @@ static void process_event_when_final(T_EVENT *evt) {
 		if (e->status == TE_FINISHED)
 			continue; // init done
 
-		ESP_LOGI(__func__,"FINAL evt.id='%s', tevt.id=%d: type %d(%s), val=%.3f, sval='%s'",
+		if ( exentended_logging) {
+			ESP_LOGI(__func__,"FINAL evt.id='%s', tevt.id=%d: type %d(%s), val=%.3f, sval='%s'",
 				evt->id, e->id, e->type, ET2TEXT(e->type), e->value, e->svalue);
-		ESP_LOGI(__func__,"FINAL evt.id='%s', pos=%.2f", evt->id, evt->w_pos);
+			ESP_LOGI(__func__,"FINAL evt.id='%s', pos=%.2f", evt->id, evt->w_pos);
+		}
 		switch(e->type) {
 		case ET_CLEAR:
 			evt->w_flags |= EVFL_CLEARPIXEL;
@@ -374,7 +378,8 @@ void  process_event_when(T_EVENT *evt, uint64_t scene_time, uint64_t timer_perio
 
 		if ( tevt->status == TE_WAIT_FOR_START) {
 			// Timer start
-			ESP_LOGI(__func__,"evt.id='%s', tevt.id=%d: timer of %llu ms, type %d(%s), val=%.3f, sval='%s' timer START",
+			if ( exentended_logging)
+				ESP_LOGI(__func__,"evt.id='%s', tevt.id=%d: timer of %llu ms, type %d(%s), val=%.3f, sval='%s' timer START",
 					evt->id, tevt->id, tevt->time, tevt->type, ET2TEXT(tevt->type), tevt->value, tevt->svalue);
 
 			// do work at START ********************************************
@@ -420,7 +425,8 @@ void  process_event_when(T_EVENT *evt, uint64_t scene_time, uint64_t timer_perio
 
 			} else {
 				// timer expired
-				ESP_LOGI(__func__,"evt.id='%s', tevt.id=%d: timer of %llu ms, type %d(%s), val=%.3f, timer EXPIRED",
+				if ( exentended_logging)
+					ESP_LOGI(__func__,"evt.id='%s', tevt.id=%d: timer of %llu ms, type %d(%s), val=%.3f, timer EXPIRED",
 						evt->id, tevt->id, tevt->time, tevt->type, ET2TEXT(tevt->type), tevt->value);
 				tevt->status = TE_FINISHED;
 			}
@@ -435,7 +441,8 @@ void  process_event_when(T_EVENT *evt, uint64_t scene_time, uint64_t timer_perio
 			case ET_SET_OBJECT:
 				if (strlen(tevt->svalue)) {
 					strlcpy(evt->w_object_oid, tevt->svalue, sizeof(evt->w_object_oid));
-					ESP_LOGI(__func__,"evt.id='%s', tevt.id=%d: new object_oid='%s'", evt->id, tevt->id, evt->w_object_oid);
+					if ( exentended_logging)
+						ESP_LOGI(__func__,"evt.id='%s', tevt.id=%d: new object_oid='%s'", evt->id, tevt->id, evt->w_object_oid);
 				}
 				break;
 
@@ -470,7 +477,8 @@ void  process_event_when(T_EVENT *evt, uint64_t scene_time, uint64_t timer_perio
 						// found a destination and it is not itselves
 						// check for repeat
 						check_for_repeat = true;
-						ESP_LOGI(__func__, "found destination tid=%d, marker='%s'", tevt_next->id, tevt_next->marker);
+						if ( exentended_logging)
+							ESP_LOGI(__func__, "found destination tid=%d, marker='%s'", tevt_next->id, tevt_next->marker);
 					}
 				} else {
 					ESP_LOGE(__func__, "no event for '%s' found", tevt->marker);
@@ -503,14 +511,16 @@ void  process_event_when(T_EVENT *evt, uint64_t scene_time, uint64_t timer_perio
 				if ( evt->w_t_repeats > 0) {
 					// have to be repeated **************************************************************
 					// reset event, next turn
-					ESP_LOGI(__func__, "evt.id='%s': repeat events (%d/%d)", evt->id, evt->w_t_repeats, evt->t_repeats);
+					if ( exentended_logging)
+						ESP_LOGI(__func__, "evt.id='%s': repeat events (%d/%d)", evt->id, evt->w_t_repeats, evt->t_repeats);
 
 					reset_event(evt);
 					reset_timing_events(tevt_next);
 					// process init events
 					process_event_when_init(evt);
 
-					ESP_LOGI(__func__, "next event to tid=%d", tevt_next->id );
+					if ( exentended_logging)
+						ESP_LOGI(__func__, "next event to tid=%d", tevt_next->id );
 				} else {
 					// done, mark event as finished
 					evt->w_flags |= EVFL_FINISHED;
@@ -627,7 +637,8 @@ void reset_event( T_EVENT *evt) {
 
 	reset_timing_events(evt->evt_time_init_list);
 
-	ESP_LOGI(__func__, "event '%s'", evt->id);
+	if ( exentended_logging)
+		ESP_LOGI(__func__, "event '%s'", evt->id);
 }
 
 /**
@@ -639,7 +650,8 @@ void reset_event_repeats(T_EVENT *evt) {
 	evt->w_t_repeats = evt->t_repeats;
 	reset_timing_events(evt->evt_time_final_list);
 
-	ESP_LOGI(__func__, "event '%s' repeates=%d", evt->id, evt->w_t_repeats);
+	if ( exentended_logging)
+		ESP_LOGI(__func__, "event '%s' repeates=%d", evt->id, evt->w_t_repeats);
 
 }
 
@@ -662,7 +674,8 @@ void process_scene(T_SCENE *scene, uint64_t scene_time, uint64_t timer_period) {
 	bool finished = true;
 	for ( ; scene->event; scene->event = scene->event->nxt) {
 		if (scene->event->w_flags & EVFL_FINISHED) {
-			ESP_LOGI(__func__,"scene '%s', event '%s' already finished", scene->id, scene->event->id );
+			if ( exentended_logging)
+				ESP_LOGI(__func__,"scene '%s', event '%s' already finished", scene->id, scene->event->id );
 			continue; // step over
 		}
 		// not finished, process it
@@ -670,7 +683,8 @@ void process_scene(T_SCENE *scene, uint64_t scene_time, uint64_t timer_period) {
 		if ( !(scene->event->w_flags & EVFL_FINISHED)) {
 			finished = false;
 		} else {
-			ESP_LOGI(__func__,"scene '%s', event '%s' just finished", scene->id, scene->event->id );
+			if ( exentended_logging)
+				ESP_LOGI(__func__,"scene '%s', event '%s' just finished", scene->id, scene->event->id );
 		}
 
 		break;
@@ -678,13 +692,15 @@ void process_scene(T_SCENE *scene, uint64_t scene_time, uint64_t timer_period) {
 
 	if (finished) {
 		scene->flags |= EVFL_FINISHED;
-		ESP_LOGI(__func__, "scene '%s' finished", scene->id);
+		if ( exentended_logging)
+			ESP_LOGI(__func__, "scene '%s' finished", scene->id);
 	}
 }
 
 
 void reset_scene(T_SCENE *scene) {
-	ESP_LOGI(__func__, "scene '%s'", scene->id);
+	if ( exentended_logging)
+		ESP_LOGI(__func__, "scene '%s'", scene->id);
 	scene->flags = 0;
 	scene->event = NULL;
 	for( T_EVENT *evt = scene->events; evt; evt=evt->nxt) {
