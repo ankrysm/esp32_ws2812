@@ -41,7 +41,8 @@ typedef enum {
 	HP_STOP,
 	HP_PAUSE,
 	HP_BLANK,
-	HP_CONFIG,
+	HP_CONFIG_GET,
+	HP_CONFIG_SET,
 	HP_RESET,
 	HP_CFG_RESET,
 	HP_HELP,
@@ -63,24 +64,25 @@ typedef struct {
 } T_HTTP_PROCCESSING_TYPE;
 
 static T_HTTP_PROCCESSING_TYPE http_processing[] = {
-		{"/r",         0, HP_RUN,         "run"},
-		{"/s",         0, HP_STOP,        "stop"},
-		{"/p",         0, HP_PAUSE,       "pause"},
-		{"/b",         0, HP_BLANK,       "blank strip"},
-		{"/st",        0, HP_STATUS,      "status"},
-		{"/l",         0, HP_LIST,        "list events"},
-		{"/cfg",       0, HP_CONFIG,      "shows/sets config, set values: uses JSON-POST-data"},
-		{"/lo",        HPF_POST, HP_LOAD, "load events, replaces data in memory"},
-		{"/f/list",    0, HP_FILE_LIST,   "list stored files"},
+		{"/r",         0,                          HP_RUN,         "run"},
+		{"/s",         0,                          HP_STOP,        "stop"},
+		{"/p",         0,                          HP_PAUSE,       "pause"},
+		{"/b",         0,                          HP_BLANK,       "blank strip"},
+		{"/i",         0,                          HP_STATUS,      "info"},
+		{"/cl",        0,                          HP_CLEAR,       "clear event list"},
+		{"/li",        0,                          HP_LIST,        "list events"},
+		{"/lo",        HPF_POST,                   HP_LOAD,        "load events, replaces data in memory"},
+		{"/f/list",    0,                          HP_FILE_LIST,   "list stored files"},
 		{"/f/store/",  HPF_PATH_FROM_URL|HPF_POST, HP_FILE_STORE,  "store JSON event lists into flash memory as <fname>"},
 		{"/f/get/",    HPF_PATH_FROM_URL,          HP_FILE_GET,    "get content of stored file <fname>"},
 		{"/f/load/",   HPF_PATH_FROM_URL,          HP_FILE_LOAD,   "load JSON event list stored in <fname> into memory"},
 		{"/f/delete/", HPF_PATH_FROM_URL,          HP_FILE_DELETE, "delete file <fname>"},
-		{"/cl",        0, HP_CLEAR,       "clear event list"},
-		{"/reset",     0, HP_RESET,       "restart the controller"},
-		{"/cfg/reset", 0, HP_CFG_RESET,   "reset controller to default"},
-		{"/",          0, HP_HELP,        "API help"},
-		{"",           0, HP_END_OF_LIST, ""}
+		{"/cfg/get",   0,                          HP_CONFIG_GET,  "show config"},
+		{"/cfg/set",   HPF_POST,                   HP_CONFIG_SET,  "set config"},
+		{"/cfg/restart", 0,                        HP_RESET,       "restart the controller"},
+		{"/cfg/tabula_rasa", 0,                    HP_CFG_RESET,   "reset all data to default"},
+		{"/",          0,                          HP_HELP,        "API help"},
+		{"",           0,                          HP_END_OF_LIST, ""}
 };
 
 static void httpd_resp_send_chunk_l(httpd_req_t *req, char *resp_str) {
@@ -141,8 +143,16 @@ static void get_path_from_uri(const char *uri, char *dest, size_t destsize)
 static T_HTTP_PROCCESSING_TYPE *get_http_processing(char *path) {
 
 	for  (int i=0; http_processing[i].todo != HP_END_OF_LIST; i++) {
-		if ( strstr(path, http_processing[i].path) == path) {
-			return &http_processing[i];
+		if ( http_processing[i].flags & HPF_PATH_FROM_URL) {
+			// if a filename is expected compare with strstr
+			if ( strstr(path, http_processing[i].path) == path) {
+				return &http_processing[i];
+			}
+		} else {
+			// if no filename expected compare with strcmp
+			if ( !strcmp(path, http_processing[i].path)) {
+				return &http_processing[i];
+			}
 		}
 	}
 	return NULL;
@@ -169,7 +179,7 @@ static void get_handler_list(httpd_req_t *req) {
 			httpd_resp_send_chunk_l(req, buf);
 			if (obj->data) {
 				for(T_EVT_OBJECT_DATA *data = obj->data; data; data=data->nxt) {
-					snprintf(buf, sz_buf,"\n    id=%d, type=%d/%s, pos=%den=%d",
+					snprintf(buf, sz_buf,"\n    id=%d, type=%d/%s, pos=%d, len=%d",
 							data->id, data->type, WT2TEXT(data->type), data->pos, data->len
 					);
 					httpd_resp_send_chunk_l(req, buf);
@@ -268,6 +278,7 @@ static esp_err_t get_handler_file_list(httpd_req_t *req) {
     	snprintf(msg, sizeof(msg),"Failed to stat dir : '%s'", fs_conf.base_path);
         ESP_LOGE(__func__, "%s", msg);
         // Respond with 404 Not Found
+		snprintfapp(msg, sizeof(msg), "\n");
         httpd_resp_send_err(req, HTTPD_404_NOT_FOUND, msg);
         return ESP_FAIL;
     }
@@ -283,6 +294,7 @@ static esp_err_t get_handler_file_list(httpd_req_t *req) {
         	snprintf(msg, sizeof(msg),"Failed to stat '%s' : '%s'", entrytype, entry->d_name);
             ESP_LOGE(__func__, "%s", msg);
             closedir(dir);
+    		snprintfapp(msg, sizeof(msg), "\n");
             httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, msg);
             return ESP_FAIL;
         }
@@ -352,10 +364,10 @@ static esp_err_t clear_data(char *msg, size_t sz_msg, run_status_type new_status
 	}
 
 	if ( object_list_free() == ESP_OK) {
-		snprintfapp(msg, sz_msg,"object list cleared");
+		snprintfapp(msg, sz_msg,", object list cleared");
 	} else {
 		hasError = true;
-		snprintfapp(msg,sz_msg - strlen(msg),"clear object list failed");
+		snprintfapp(msg,sz_msg - strlen(msg),", clear object list failed");
 	}
 	return hasError ? ESP_FAIL : ESP_OK;
 
@@ -445,12 +457,14 @@ static esp_err_t post_handler_load(httpd_req_t *req, char *content) {
 	esp_err_t res = clear_data(msg, sizeof(msg), new_status);
 	if ( res != ESP_OK ) {
 		ESP_LOGW(__func__, "%s", msg);
+		snprintfapp(msg, sizeof(msg), "\n");
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, msg);
         return ESP_FAIL;
 	}
 
 	if ( decode_json4event_root(content, msg, sizeof(msg)) != ESP_OK) {
 		ESP_LOGW(__func__, "%s", msg);
+		snprintfapp(msg, sizeof(msg), "\n");
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, msg);
         return ESP_FAIL;
 	}
@@ -474,6 +488,7 @@ static esp_err_t post_handler_file_store(httpd_req_t *req, char *content, char *
 
 	if ( store_events_to_file(fname, content, msg, sizeof(msg))!= ESP_OK) {
 		ESP_LOGW(__func__, "%s", msg);
+		snprintfapp(msg, sizeof(msg), "\n");
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, msg);
         return ESP_FAIL;
 	}
@@ -501,6 +516,7 @@ static esp_err_t get_handler_file_load(httpd_req_t *req, char *fname, size_t sz_
 	run_status_type new_status = RUN_STATUS_STOPPED;
 	if ( clear_data(msg, sizeof(msg), new_status) != ESP_OK) {
 		ESP_LOGW(__func__, "clear_data failed, %s", msg);
+		snprintfapp(msg, sizeof(msg), "\n");
 		httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, msg);
 		return ESP_FAIL;
 	}
@@ -509,6 +525,7 @@ static esp_err_t get_handler_file_load(httpd_req_t *req, char *fname, size_t sz_
 	if ( load_events_from_file(fname, errmsg, sizeof(errmsg)) != ESP_OK) {
 		snprintfapp(msg,sizeof(msg), ", load content from %s failed: %s",fname, errmsg);
 		ESP_LOGW(__func__, "load_events_from_file failed, %s", msg);
+		snprintfapp(msg, sizeof(msg), "\n");
 		httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, msg);
 		return ESP_FAIL;
 	}
@@ -551,7 +568,8 @@ static esp_err_t get_handler_file_get(httpd_req_t *req, char *fname, size_t sz_f
 	if (f == NULL) {
 		snprintf(msg, sizeof(msg), "failed to open '%s' for reading", fname);
 		ESP_LOGW(__func__, "%s", msg);
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, msg);
+		snprintfapp(msg, sizeof(msg), "\n");
+        httpd_resp_send_err(req, HTTPD_404_NOT_FOUND, msg);
         return ESP_FAIL;
 
 	}
@@ -585,14 +603,18 @@ static esp_err_t post_handler_config_load(httpd_req_t *req, char *buf) {
 	esp_err_t res = decode_json4config_root(buf, errmsg, sizeof(errmsg));
 
 	if (res == ESP_OK) {
-		snprintf(&msg[strlen(msg)],sizeof(msg) - strlen(msg), ", decoding data done: %s",errmsg);
+		snprintfapp(msg, sizeof(msg), ", decoding data done: %s",errmsg);
 	} else {
-		snprintf(&msg[strlen(msg)],sizeof(msg) - strlen(msg), ", decoding data failed: %s",errmsg);
+		snprintfapp(msg, sizeof(msg), ", decoding data failed: %s",errmsg);
+		ESP_LOGW(__func__, "error %s", msg);
+		snprintfapp(msg, sizeof(msg),"\n");
+		httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, msg);
+		return ESP_FAIL;
 	}
 
 	response_with_status(req, msg, new_status);
 
-	return res;
+	return ESP_OK;
 
 }
 
@@ -613,15 +635,17 @@ static esp_err_t post_handler_main(httpd_req_t *req)
 	T_HTTP_PROCCESSING_TYPE *pt = get_http_processing(path);
 
 	if (!pt ) {
-        snprintf(resp_str,sizeof(resp_str),"nothing found\n");
+        snprintf(resp_str,sizeof(resp_str),"nothing found");
         ESP_LOGE(__func__, "%s", resp_str);
+		snprintfapp(resp_str, sizeof(resp_str), "\n");
         httpd_resp_send_err(req, HTTPD_404_NOT_FOUND, resp_str);
         return ESP_FAIL;
 	}
 
 	if ( req->content_len > MAX_CONTENTLEN) {
-        ESP_LOGE(__func__, "Content too large : %d bytes\n", req->content_len);
-        snprintf(resp_str,sizeof(resp_str),"Data size must be less then %d bytes!\n",MAX_CONTENTLEN);
+        ESP_LOGE(__func__, "Content too large : %d bytes", req->content_len);
+        snprintf(resp_str,sizeof(resp_str),"Data size must be less then %d bytes!",MAX_CONTENTLEN);
+		snprintfapp(resp_str, sizeof(resp_str), "\n");
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, resp_str);
         return ESP_FAIL;
 	}
@@ -633,7 +657,7 @@ static esp_err_t post_handler_main(httpd_req_t *req)
 
 	if ((pt->flags & HPF_PATH_FROM_URL) && !strlen(fname) ) {
 		// file name needed
-        snprintf(resp_str,sizeof(resp_str),"filename in URL required\n");
+        snprintf(resp_str,sizeof(resp_str),"filename in URL required");
         ESP_LOGE(__func__, "%s", resp_str);
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, resp_str);
         return ESP_FAIL;
@@ -681,12 +705,12 @@ static esp_err_t post_handler_main(httpd_req_t *req)
     	res = post_handler_file_store(req, buf, fname, sizeof(fname));
     	break;
 
-    case HP_CONFIG:
+    case HP_CONFIG_SET:
     	res = post_handler_config_load(req, buf);
     	break;
 
     default:
-		snprintf(resp_str, sizeof(resp_str),"path='%s' GET only\n", path);
+		snprintf(resp_str, sizeof(resp_str),"path='%s' GET only", path);
 		res = ESP_FAIL;
     }
 
@@ -695,9 +719,11 @@ static esp_err_t post_handler_main(httpd_req_t *req)
 	// End response
     if ( res == ESP_OK ) {
     	ESP_LOGI(__func__, "success: %s", resp_str);
+		snprintfapp(resp_str, sizeof(resp_str), "\n");
     	httpd_resp_send_chunk(req, NULL, 0);
     } else {
     	ESP_LOGE(__func__, "error: %s", resp_str);
+		snprintfapp(resp_str, sizeof(resp_str), "\n");
     	httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, resp_str);
     }
 
@@ -716,15 +742,17 @@ static esp_err_t get_handler_main(httpd_req_t *req)
 
 	T_HTTP_PROCCESSING_TYPE *pt = get_http_processing(path);
 	if (!pt ) {
-        snprintf(resp_str,sizeof(resp_str),"nothing found\n");
+        snprintf(resp_str,sizeof(resp_str),"nothing found");
         ESP_LOGE(__func__, "%s", resp_str);
+		snprintfapp(resp_str, sizeof(resp_str), "\n");
         httpd_resp_send_err(req, HTTPD_404_NOT_FOUND, resp_str);
         return ESP_FAIL;
 	}
 
 	if (pt->flags & HPF_POST) {
-        snprintf(resp_str,sizeof(resp_str),"POST data required\n");
+        snprintf(resp_str,sizeof(resp_str),"POST data required");
         ESP_LOGE(__func__, "%s", resp_str);
+		snprintfapp(resp_str, sizeof(resp_str), "\n");
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, resp_str);
         return ESP_FAIL;
 	}
@@ -736,8 +764,9 @@ static esp_err_t get_handler_main(httpd_req_t *req)
 
 	if ((pt->flags & HPF_PATH_FROM_URL) && !strlen(fname) ) {
 		// file name needed
-        snprintf(resp_str,sizeof(resp_str),"filename in URL required\n");
+        snprintf(resp_str,sizeof(resp_str),"filename in URL required");
         ESP_LOGE(__func__, "%s", resp_str);
+		snprintfapp(resp_str, sizeof(resp_str), "\n");
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, resp_str);
         return ESP_FAIL;
 	}
@@ -794,7 +823,7 @@ static esp_err_t get_handler_main(httpd_req_t *req)
 		get_handler_blank(req);
 		break;
 
-	case HP_CONFIG:
+	case HP_CONFIG_GET:
 		get_handler_config(req);
 		break;
 
@@ -807,8 +836,9 @@ static esp_err_t get_handler_main(httpd_req_t *req)
 		break;
 
 	default:
-		snprintf(resp_str, sizeof(resp_str),"path='%s' todo %d NYI\n", path, pt->todo);
+		snprintf(resp_str, sizeof(resp_str),"path='%s' todo %d NYI", path, pt->todo);
 		ESP_LOGE(__func__, "%s", resp_str);
+		snprintfapp(resp_str, sizeof(resp_str), "\n");
 		httpd_resp_send_err(req, HTTPD_404_NOT_FOUND, resp_str);
 		return ESP_FAIL;
 	}
