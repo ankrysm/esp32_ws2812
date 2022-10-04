@@ -161,6 +161,8 @@ void app_main() {
 	}
 
 	if ( done_with_status == WIFI_CONNECTED ) {
+		// init time service needed for https requests
+	    ESP_ERROR_CHECK(init_time_service(STORAGE_NAMESPACE));
 		init_restservice();
 		cfg_trans_flags |=CFG_WITH_WIFI;
 		// green
