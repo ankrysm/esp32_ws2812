@@ -18,6 +18,14 @@ A REST service is used for controlling the displayed scenes. The interface uses 
 
 To bring the wifi interface up the esptouch framework version 1 is used, you need the esptouch app on a smartphone.
 
+the first led in the strip is used for status display
+
+* white - boot up
+* yellow - search for WIFI
+* green - WIFI connected
+* blue - esptouch started
+* red - no wifi connection
+
 ## API
 
 path - description
