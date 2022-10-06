@@ -119,5 +119,15 @@ for init-, work- or final events
 | "brightness_delta" | yes | start | - | set brightness delta per time slot |
 | "object" | yes | end | - | sets the object being displayed |
 
+## Display bitmap files
+
+A video is a 2-dimensional object that changes in a time dimension.
+Since an LED strip is only one-dimensional, the 2nd dimension of an image can be used as a time dimension.
+Since the RAM of the ESP32 is limited, the data must be available in a format that consumes few resources and can be fetched from an external memory.
+The choice fell on the BMP format, which has been available since at least Windows 3.0.
+
+see
+
+[here](https://de.wikipedia.org/wiki/Windows_Bitmap)
 
 

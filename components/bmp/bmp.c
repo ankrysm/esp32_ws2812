@@ -27,6 +27,7 @@
 //#include "esp_event.h"
 
 #include "bmp.h"
+#include "https_get.h"
 
 typedef enum {
 	BRP_GOT_FILE_HEADER, // 0
@@ -143,6 +144,7 @@ size_t get_linesize() {
 }
 
 /**
+ * callback for https_get
  * to do: 0 - init
  *        1 - read data
  *        2 - finished
@@ -156,14 +158,14 @@ size_t get_linesize() {
  *  0 - wait
  * -1 - error
  */
-int bmp_processing(int todo, uint8_t **buf, size_t *buf_len) {
+int https_callback_bmp_processing(t_https_callback_todo todo, uint8_t **buf, size_t *buf_len) {
 
 	ESP_LOGI(__func__,"todo=%d, phase=%d(%s), buf_len=%u", todo, bmp_read_phase, BRP2TXT(bmp_read_phase), *buf_len);
 
 	EventBits_t uxBits;
 
 
-	if (todo == 0) {
+	if (todo == HCT_INIT) {
 		// init
 		memset(&bmpFileHeader, 0, sizeof(bmpFileHeader));
 		memset(&bmpInfoHeader, 0, sizeof(bmpInfoHeader));
@@ -194,7 +196,7 @@ int bmp_processing(int todo, uint8_t **buf, size_t *buf_len) {
 		//memset(ledzeile, 0, sizeof(ledzeile));
 		return 1;
 
-	} else if (todo==1) {
+	} else if (todo == HCT_READING) {
 
 		// read data
 		if ( buf_len_expected > 0 &&  *buf_len != buf_len_expected) {
@@ -361,7 +363,7 @@ int bmp_processing(int todo, uint8_t **buf, size_t *buf_len) {
 	    	return -1;
 
 		}
-	} else if ( todo==2 ) {
+	} else if ( todo==HCT_FINISH ) {
 		if ( extended_log)
 			ESP_LOGI(__func__,"finished");
 		xEventGroupClearBits(s_bmp_event_group_for_worker, 0xFFFF);
@@ -435,7 +437,8 @@ void bmp_work() {
 		// true: clear bits before function return, false: wait for one of the specified bits
 		uxBits = xEventGroupWaitBits(s_bmp_event_group_for_worker,
 				BMP_BIT_BUFFER1_HAS_DATA | BMP_BIT_BUFFER2_HAS_DATA | BMP_BIT_NO_MORE_DATA,
-				pdTRUE, pdFALSE, portMAX_DELAY);
+				pdTRUE, pdFALSE, 0);
+
 
 		//ESP_LOGI(__func__, "xEventGroupWaitBits_for_worker return 0x%02x", uxBits);
 

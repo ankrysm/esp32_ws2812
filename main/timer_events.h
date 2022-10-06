@@ -51,6 +51,7 @@ typedef enum {
 	WT_COLOR_TRANSITION,
 	WT_RAINBOW,
 	WT_SPARKLE,
+	WT_BMP, // handle bitmap file
 	WT_UNKNOWN
 } what_type;
 
@@ -59,7 +60,8 @@ typedef enum {
 	!strcasecmp(c,"color") ? WT_COLOR : \
 	!strcasecmp(c,"color_transition") ? WT_COLOR_TRANSITION : \
 	!strcasecmp(c,"rainbow") ? WT_RAINBOW : \
-	!strcasecmp(c,"sparkle") ? WT_SPARKLE : WT_UNKNOWN \
+	!strcasecmp(c,"sparkle") ? WT_SPARKLE : \
+	!strcasecmp(c,"bmp") ? WT_BMP : WT_UNKNOWN \
 )
 
 #define WT2TEXT(c) ( \
@@ -67,7 +69,8 @@ typedef enum {
 	c==WT_COLOR ? "color" : \
 	c==WT_COLOR_TRANSITION ? "color_transition" : \
 	c==WT_RAINBOW ? "rainbow" : \
-	c==WT_SPARKLE ? "sparkle" : "unknown" \
+	c==WT_SPARKLE ? "sparkle" : \
+	c==WT_BMP ? "bmp" : "unknown" \
 )
 
 // I - init - no timing
@@ -88,6 +91,9 @@ typedef enum {
 	ET_SET_BRIGHTNESS,       // I Ws F
 	ET_SET_BRIGHTNESS_DELTA, // I Ws -
 	ET_SET_OBJECT,           // I We - oid for object
+	ET_BMP_OPEN,             // I Ws - open internet connection for bmp file
+	ET_BMP_READ,             // - Wr - read bmp data
+	ET_BMP_CLOSE,            // - -- F close connection for bmp
 	ET_UNKNOWN
 } event_type;
 
@@ -106,6 +112,9 @@ typedef enum {
 	!strcasecmp(c,"brightness") ? ET_SET_BRIGHTNESS : \
 	!strcasecmp(c,"brightness_delta") ? ET_SET_BRIGHTNESS_DELTA : \
 	!strcasecmp(c,"object") ? ET_SET_OBJECT : \
+	!strcasecmp(c,"bmp_open") ? ET_BMP_OPEN : \
+	!strcasecmp(c,"bmp_read") ? ET_BMP_READ : \
+	!strcasecmp(c,"bmp_clos") ? ET_BMP_CLOSE : \
 	ET_UNKNOWN \
 )
 
@@ -123,6 +132,9 @@ typedef enum {
 	c==ET_SET_BRIGHTNESS ? "brightness" : \
 	c==ET_SET_BRIGHTNESS_DELTA ? "brightness_delta" : \
 	c==ET_SET_OBJECT ? "object" : \
+	c==ET_BMP_OPEN ? "bmp_open" : \
+	c==ET_BMP_READ ? "bmp_read" : \
+	c==ET_BMP_CLOSE ? "bmp_close" : \
 	"unknown" \
 )
 
