@@ -110,6 +110,7 @@ void app_main() {
 	strip_show(true);
 	firstled(16, 16, 16);
 
+	bmp_init();
 	// log config
 	char buf[256];
 	config2txt(buf, sizeof(buf));

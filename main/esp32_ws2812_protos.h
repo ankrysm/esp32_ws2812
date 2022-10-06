@@ -122,6 +122,8 @@ esp_err_t load_autostart_file();
 // from create_config.c
 esp_err_t decode_json4config_root(char *content, char *errmsg, size_t sz_errmsg);
 
+// from bmp.c
+void bmp_init();
 
 // from create_demo
 void build_demo2(
