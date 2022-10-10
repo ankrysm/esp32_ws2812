@@ -15,10 +15,10 @@ extern char *cfg_autoplayfile;
 /**
  * reads a single T_EVT_TIME element
  */
-static esp_err_t decode_json4event_scene_event_events_data(cJSON *element, uint32_t id, T_EVENT *evt, t_processing_type processing_type, char *errmsg, size_t sz_errmsg) {
+static esp_err_t decode_json4event_scene_event_events_data(cJSON *element, uint32_t id, T_EVENT_GROUP *evt, t_processing_type processing_type, char *errmsg, size_t sz_errmsg) {
 	esp_err_t rc = ESP_FAIL;
 
-	T_EVT_TIME *tevt = NULL;
+	T_EVENT *tevt = NULL;
 
 	char *attr;
 	double val;
@@ -117,7 +117,7 @@ static esp_err_t decode_json4event_scene_event_events_data(cJSON *element, uint3
 	return rc;
 }
 
-static esp_err_t decode_json4event_scene_events_events(cJSON *element, T_EVENT *evt, int *id, t_processing_type processing_type, char *errmsg, size_t sz_errmsg) {
+static esp_err_t decode_json4event_scene_events_events(cJSON *element, T_EVENT_GROUP *evt, int *id, t_processing_type processing_type, char *errmsg, size_t sz_errmsg) {
 
 	char lerrmsg[64];
 	t_result lrc;
@@ -195,12 +195,12 @@ static esp_err_t decode_json4event_object_data(cJSON *element, T_EVT_OBJECT *obj
 			snprintf(errmsg, sz_errmsg,"id=%s, id=%d: could not decocde data: '%s'", obj->oid, id, lerrmsg);
 			break;
 		}
-		data->type = TEXT2WT(sval);
-		if ( data->type == WT_UNKNOWN) {
+		data->type = TEXT2OBJT(sval);
+		if ( data->type == OBJT_UNKNOWN) {
 			snprintf(errmsg, sz_errmsg,"oid=%s, id=%d: object type '%s' unknown", obj->oid, id, sval);
 			break;
 		}
-		ESP_LOGI(__func__, "oid=%s, id=%d: %s=%d(%s)", obj->oid, id, attr, data->type, WT2TEXT(data->type));
+		ESP_LOGI(__func__, "oid=%s, id=%d: %s=%d(%s)", obj->oid, id, attr, data->type, OBJT2TEXT(data->type));
 
 		attr="pos";
 		lrc = evt_get_number(element, attr, &val, lerrmsg, sizeof(lerrmsg));
@@ -223,7 +223,7 @@ static esp_err_t decode_json4event_object_data(cJSON *element, T_EVT_OBJECT *obj
 		}
 
 		// *** need colors ?
-		if ( data->type == WT_COLOR_TRANSITION) {
+		if ( data->type == OBJT_COLOR_TRANSITION) {
 			// a "color from" needed
 			lrc = decode_json_getcolor(element, "color_from", "hsv_from", "rgb_from", &hsv, lerrmsg, sizeof(lerrmsg));
 			if ( lrc == RES_OK ) {
@@ -261,7 +261,7 @@ static esp_err_t decode_json4event_object_data(cJSON *element, T_EVT_OBJECT *obj
 				break; // failed
 			}
 
-		} else if (data->type == WT_RAINBOW) {
+		} else if (data->type == OBJT_RAINBOW) {
 			// no color needed
 
 		} else {
@@ -396,7 +396,7 @@ static esp_err_t decode_json4event_scene_events(cJSON *element, T_SCENE *scene, 
 	//bool bval;
 	//int id = -1;
 	esp_err_t lrc, rc = ESP_FAIL;
-	T_EVENT *evt = NULL;
+	T_EVENT_GROUP *evt = NULL;
 
 	memset(sval, 0, sizeof(sval));
 	do {

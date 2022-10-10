@@ -58,12 +58,12 @@ T_EVENT *find_event(char *id) {
 }
 */
 
-T_EVT_TIME *find_timer_event4marker(T_EVT_TIME *tevt_list, char *marker) {
+T_EVENT *find_timer_event4marker(T_EVENT *tevt_list, char *marker) {
 	if (!tevt_list || !marker || !strlen(marker)) {
 		return NULL; // nothing to find
 	}
 
-	for( T_EVT_TIME *e = tevt_list; e; e=e->nxt) {
+	for( T_EVENT *e = tevt_list; e; e=e->nxt) {
 		if ( e->marker && strlen(e->marker) && !strcasecmp(e->marker, marker) ) {
 			return e; // found!
 		}
@@ -123,7 +123,7 @@ esp_err_t delete_event_by_id(char *id) {
 /**
  * adds an event to the list
  */
-esp_err_t event_list_add(T_SCENE *scene, T_EVENT *evt) {
+esp_err_t event_list_add(T_SCENE *scene, T_EVENT_GROUP *evt) {
 	if (obtain_eventlist_lock() != ESP_OK) {
 		ESP_LOGE(__func__, "couldn't get lock");
 		return ESP_FAIL;
@@ -132,7 +132,7 @@ esp_err_t event_list_add(T_SCENE *scene, T_EVENT *evt) {
 	if ( evt)  {
 		if ( scene->events) {
 			// add at the end of the list
-			T_EVENT *t;
+			T_EVENT_GROUP *t;
 			for (t=scene->events; t->nxt; t=t->nxt){}
 			t->nxt = evt;
 		} else {
@@ -147,10 +147,10 @@ esp_err_t event_list_add(T_SCENE *scene, T_EVENT *evt) {
 }
 
 // creates a new event body
-T_EVENT *create_event(char *id) {
-	T_EVENT *evt=calloc(1, sizeof(T_EVENT));
+T_EVENT_GROUP *create_event(char *id) {
+	T_EVENT_GROUP *evt=calloc(1, sizeof(T_EVENT_GROUP));
 	if ( !evt) {
-		ESP_LOGE(__func__,"couldn't allocate %d bytes for new event", sizeof(T_EVENT));
+		ESP_LOGE(__func__,"couldn't allocate %d bytes for new event", sizeof(T_EVENT_GROUP));
 		return NULL;
 	}
 	// some useful values:
@@ -160,10 +160,10 @@ T_EVENT *create_event(char *id) {
 }
 
 // creates a new timing event and adds it to the event body
-T_EVT_TIME *create_timing_event(T_EVENT *evt, uint32_t id) {
-	T_EVT_TIME *tevt=calloc(1,sizeof(T_EVT_TIME));
+T_EVENT *create_timing_event(T_EVENT_GROUP *evt, uint32_t id) {
+	T_EVENT *tevt=calloc(1,sizeof(T_EVENT));
 	if ( !tevt) {
-		ESP_LOGE(__func__,"couldn't allocate %d bytes for new timing event", sizeof(T_EVT_TIME));
+		ESP_LOGE(__func__,"couldn't allocate %d bytes for new timing event", sizeof(T_EVENT));
 		return NULL;
 	}
 	// some useful values:
@@ -172,7 +172,7 @@ T_EVT_TIME *create_timing_event(T_EVENT *evt, uint32_t id) {
 	if ( !evt->evt_time_list) {
 		evt->evt_time_list = tevt; // first in list
 	} else {
-		T_EVT_TIME *t;
+		T_EVENT *t;
 		for (t = evt->evt_time_list; t->nxt; t=t->nxt ) {}
 		t->nxt = tevt; // added at the end of the list
 	}
@@ -181,10 +181,10 @@ T_EVT_TIME *create_timing_event(T_EVENT *evt, uint32_t id) {
 }
 
 // creates a new init timing event and adds it to the event body
-T_EVT_TIME *create_timing_event_init(T_EVENT *evt, uint32_t id) {
-	T_EVT_TIME *tevt=calloc(1,sizeof(T_EVT_TIME));
+T_EVENT *create_timing_event_init(T_EVENT_GROUP *evt, uint32_t id) {
+	T_EVENT *tevt=calloc(1,sizeof(T_EVENT));
 	if ( !tevt) {
-		ESP_LOGE(__func__,"couldn't allocate %d bytes for new init timing event", sizeof(T_EVT_TIME));
+		ESP_LOGE(__func__,"couldn't allocate %d bytes for new init timing event", sizeof(T_EVENT));
 		return NULL;
 	}
 	// some useful values:
@@ -193,7 +193,7 @@ T_EVT_TIME *create_timing_event_init(T_EVENT *evt, uint32_t id) {
 	if ( !evt->evt_time_init_list) {
 		evt->evt_time_init_list = tevt; // first in list
 	} else {
-		T_EVT_TIME *t;
+		T_EVENT *t;
 		for (t = evt->evt_time_init_list; t->nxt; t=t->nxt ) {}
 		t->nxt = tevt; // added at the end of the list
 	}
@@ -202,10 +202,10 @@ T_EVT_TIME *create_timing_event_init(T_EVENT *evt, uint32_t id) {
 }
 
 // creates a new init timing event and adds it to the event body
-T_EVT_TIME *create_timing_event_final(T_EVENT *evt, uint32_t id) {
-	T_EVT_TIME *tevt=calloc(1,sizeof(T_EVT_TIME));
+T_EVENT *create_timing_event_final(T_EVENT_GROUP *evt, uint32_t id) {
+	T_EVENT *tevt=calloc(1,sizeof(T_EVENT));
 	if ( !tevt) {
-		ESP_LOGE(__func__,"couldn't allocate %d bytes for new init timing event", sizeof(T_EVT_TIME));
+		ESP_LOGE(__func__,"couldn't allocate %d bytes for new init timing event", sizeof(T_EVENT));
 		return NULL;
 	}
 	// some useful values:
@@ -214,7 +214,7 @@ T_EVT_TIME *create_timing_event_final(T_EVENT *evt, uint32_t id) {
 	if ( !evt->evt_time_final_list) {
 		evt->evt_time_final_list = tevt; // first in list
 	} else {
-		T_EVT_TIME *t;
+		T_EVENT *t;
 		for (t = evt->evt_time_final_list; t->nxt; t=t->nxt ) {}
 		t->nxt = tevt; // added at the end of the list
 	}
@@ -422,9 +422,9 @@ esp_err_t object_list_free() {
 }
 
 
-void delete_event_list(T_EVT_TIME *list) {
+void delete_event_list(T_EVENT *list) {
 	if (list) {
-		T_EVT_TIME *t, *w = list;
+		T_EVENT *t, *w = list;
 		while(w) {
 			t = w->nxt;
 			free(w);
@@ -437,7 +437,7 @@ void delete_event_list(T_EVT_TIME *list) {
 /**
  * free an event
  */
-void delete_event(T_EVENT *evt) {
+void delete_event(T_EVENT_GROUP *evt) {
 	if (!evt)
 		return;
 
@@ -466,7 +466,7 @@ void delete_scene(T_SCENE *obj) {
 		return;
 
 	if ( obj->events) {
-		T_EVENT *t, *d = obj->events;
+		T_EVENT_GROUP *t, *d = obj->events;
 		while(d) {
 			t = d->nxt;
 			delete_event(d);

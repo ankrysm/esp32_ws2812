@@ -47,6 +47,8 @@
 #include "lwip/apps/netbiosns.h"
 
 #include "time_sync.h"
+#include "bmp.h"
+#include "https_get.h"
 
 #define LEN_PATH_MAX (ESP_VFS_PATH_MAX+128)
 

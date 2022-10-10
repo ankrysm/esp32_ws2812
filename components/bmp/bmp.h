@@ -12,10 +12,20 @@
 #ifndef COMPONENTS_BMP_BMP_H_
 #define COMPONENTS_BMP_BMP_H_
 
+#include "https_get.h"
+
 // instead windows.h
 typedef uint16_t WORD;
 typedef uint32_t DWORD;
 typedef int32_t LONG;
+
+// sets by working process
+#define BMP_BIT_BUFFER1_PROCESSED  0x01
+#define BMP_BIT_BUFFER2_PROCESSED  0x02
+// sets by reading process
+#define BMP_BIT_BUFFER1_HAS_DATA   0x10
+#define BMP_BIT_BUFFER2_HAS_DATA   0x20
+#define BMP_BIT_NO_MORE_DATA       0x40
 
 // first block: File header
 //          <42><4D><36><20><1C><00><00><00><00><00><36><00><00><00><28><00>
@@ -46,5 +56,12 @@ typedef struct tagBITMAPINFOHEADER {
 }  __attribute__((packed))  BITMAPINFOHEADER;
 
 // third block: data
+
+// prototypes
+EventBits_t get_ux_bits(TickType_t xTicksToWait);
+void set_ux_quit_bits(EventBits_t uxQuitBits);
+uint32_t get_read_length();
+uint8_t *get_read_buffer(int bufnr);
+int https_callback_bmp_processing(t_https_callback_todo todo, uint8_t **buf, size_t *buf_len);
 
 #endif /* COMPONENTS_BMP_BMP_H_ */

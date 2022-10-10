@@ -120,7 +120,7 @@ void calc_pos(T_MOV_EVENT *evt, int32_t *pos, int32_t *delta) {
 	}
 }
 
-static esp_err_t process_effect_fix(T_EVENT *evt, uint64_t timer_period) {
+static esp_err_t process_effect_fix(T_EVENT_GROUP *evt, uint64_t timer_period) {
 	//ESP_LOGI(__func__,"pos=%d", evt->mov_event.w_pos);
 	T_MOV_EVENT *mevt = &(evt->mov_event);
 	mevt->w_status = SCENE_UP;
@@ -131,7 +131,7 @@ static esp_err_t process_effect_fix(T_EVENT *evt, uint64_t timer_period) {
 	return ESP_OK;
 }
 
-static esp_err_t process_effect_rotate(T_EVENT *evt, uint64_t timer_period) {
+static esp_err_t process_effect_rotate(T_EVENT_GROUP *evt, uint64_t timer_period) {
 
 	T_MOV_EVENT *mevt = &(evt->mov_event);
 	mevt->w_status = SCENE_UP;
@@ -160,17 +160,17 @@ static esp_err_t process_effect_rotate(T_EVENT *evt, uint64_t timer_period) {
 	return ESP_OK;
 }
 
-static esp_err_t process_effect_shift(T_EVENT *evt, uint64_t timer_period) {
+static esp_err_t process_effect_shift(T_EVENT_GROUP *evt, uint64_t timer_period) {
 	ESP_LOGI(__func__,"pos=%d", evt->mov_event.w_pos);
 	return ESP_OK;
 }
 
-static esp_err_t process_effect_bounce(T_EVENT *evt, uint64_t timer_period) {
+static esp_err_t process_effect_bounce(T_EVENT_GROUP *evt, uint64_t timer_period) {
 	ESP_LOGI(__func__,"pos=%d", evt->mov_event.w_pos);
 	return ESP_OK;
 }
 
-esp_err_t process_move_events(T_EVENT *evt, uint64_t timer_period) {
+esp_err_t process_move_events(T_EVENT_GROUP *evt, uint64_t timer_period) {
 	switch(evt->mov_event.type) {
 	case MOV_EVENT_FIX: // no move
 		return process_effect_fix(evt, timer_period);

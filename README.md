@@ -26,6 +26,14 @@ the first led in the strip is used for status display
 * blue - esptouch started
 * red - no wifi connection
 
+### objects
+
+this is what to display, may be a solid color, color transition or somethng else. 
+
+### events
+
+There are scenes stored in a chained list. Every scene has a list of events.
+
 ## API
 
 path - description

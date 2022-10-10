@@ -50,13 +50,6 @@ typedef enum {
 static EventGroupHandle_t s_bmp_event_group_for_reader; // read process waits for ...PROCESSED
 static EventGroupHandle_t s_bmp_event_group_for_worker; // worker process waits for ...HAS_DATA, ...NO_MORE_DATA
 
-// sets by working process
-static const int BMP_BIT_BUFFER1_PROCESSED = BIT0; // 0x01
-static const int BMP_BIT_BUFFER2_PROCESSED = BIT1; // 0x02
-// sets by reading process
-static const int BMP_BIT_BUFFER1_HAS_DATA  = BIT4; // 0x10
-static const int BMP_BIT_BUFFER2_HAS_DATA  = BIT5; // 0x20
-static const int BMP_BIT_NO_MORE_DATA      = BIT6; // 0x40
 
 static BITMAPFILEHEADER bmpFileHeader;
 static BITMAPINFOHEADER bmpInfoHeader;
@@ -67,8 +60,11 @@ static uint32_t total_length = 0;
 
 static uint8_t *read_buffer1 = NULL;
 static uint8_t *read_buffer2 = NULL;
-static uint32_t read_buffer1_length = 0;
-static uint32_t read_buffer2_length = 0;
+
+// data amount
+static uint32_t read_buffer_length = 0;
+//static uint32_t read_buffer1_length = 0;
+//static uint32_t read_buffer2_length = 0;
 
 static uint8_t *buffer = NULL;
 
@@ -298,7 +294,7 @@ int https_callback_bmp_processing(t_https_callback_todo todo, uint8_t **buf, siz
 			if ( extended_log)
 				ESP_LOGI(__func__, "read data to buffer 1 len=%lu, total = %lu", *buf_len, total_length);
 
-			read_buffer1_length = *buf_len;
+			read_buffer_length = *buf_len;
 
 			*buf_len = buf_len_expected = sz_read_buffer;
 			*buf = read_buffer2;
@@ -313,7 +309,7 @@ int https_callback_bmp_processing(t_https_callback_todo todo, uint8_t **buf, siz
 			if ( extended_log)
 				ESP_LOGI(__func__, "read data to buffer 2 len=%lu, total = %lu", *buf_len, total_length);
 
-			read_buffer2_length = *buf_len;
+			read_buffer_length = *buf_len;
 
 			*buf_len = buf_len_expected = sz_read_buffer;
 			*buf = read_buffer1;
@@ -340,7 +336,7 @@ int https_callback_bmp_processing(t_https_callback_todo todo, uint8_t **buf, siz
 			if ( extended_log)
 				ESP_LOGI(__func__, "read data to buffer 1 len=%lu, total = %lu", *buf_len, total_length);
 
-			read_buffer1_length = *buf_len;
+			read_buffer_length = *buf_len;
 
 			*buf_len = buf_len_expected = sz_read_buffer;
 			*buf = read_buffer2;
@@ -427,7 +423,9 @@ void bmp_show_line(uint8_t *read_buffer, int bufno, int32_t *mempos, int32_t max
 }
 
 
-void bmp_work() {
+/*
+
+void bmp_() {
 	EventBits_t uxBits, uxQuitBits=0;
 	ESP_LOGI(__func__, "START");
 
@@ -454,8 +452,8 @@ void bmp_work() {
 			if ( extended_log)
 				ESP_LOGI(__func__, "buffer 1 has data");
 
-			while ( mempos < read_buffer1_length) {
-				bmp_show_line(read_buffer1, 1, &mempos, read_buffer1_length);
+			while ( mempos < read_buffer_length) {
+				bmp_show_line(read_buffer1, 1, &mempos, read_buffer_length);
 			}
 
 			if ( extended_log)
@@ -466,8 +464,8 @@ void bmp_work() {
 			if ( extended_log)
 				ESP_LOGI(__func__, "buffer 2 has data");
 
-			while ( mempos < read_buffer2_length) {
-				bmp_show_line(read_buffer2, 2, &mempos, read_buffer2_length);
+			while ( mempos < read_buffer_length) {
+				bmp_show_line(read_buffer2, 2, &mempos, read_buffer_length);
 			}
 
 			if ( extended_log)
@@ -484,4 +482,35 @@ void bmp_work() {
 	ESP_LOGI(__func__, "STOPP");
 
 
+}
+*/
+
+EventBits_t get_ux_bits(TickType_t xTicksToWait) {
+	// true: clear bits before function return, false: wait for one of the specified bits
+	return xEventGroupWaitBits(s_bmp_event_group_for_worker,
+			BMP_BIT_BUFFER1_HAS_DATA | BMP_BIT_BUFFER2_HAS_DATA | BMP_BIT_NO_MORE_DATA,
+			pdTRUE, pdFALSE, xTicksToWait);
+
+}
+
+void set_ux_quit_bits(EventBits_t uxQuitBits) {
+	xEventGroupClearBits(s_bmp_event_group_for_reader, 0xFFFF);
+	if ( extended_log)
+		ESP_LOGI(__func__, "xEventGroupSetBits_for_reader return 0x%02x", uxQuitBits);
+	xEventGroupSetBits(s_bmp_event_group_for_reader, uxQuitBits);
+
+}
+
+uint32_t get_read_length() {
+	return read_buffer_length;
+}
+
+uint8_t *get_read_buffer(int bufnr) {
+	switch(bufnr) {
+	case 1: return read_buffer1;
+	case 2: return read_buffer2;
+	default:
+		ESP_LOGE(__func__, "wrong bufnr %d", bufnr);
+	}
+	return NULL;
 }

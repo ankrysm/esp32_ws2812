@@ -40,9 +40,9 @@ extern const char server_root_cert_pem_end[]   asm("_binary_server_root_cert_pem
 
 static https_get_callback s_callback;
 static esp_http_client_config_t request_config;
+static volatile bool connection_active = false;
 
-esp_err_t _http_event_handler(esp_http_client_event_t *evt)
-{
+esp_err_t _http_event_handler(esp_http_client_event_t *evt){
     switch(evt->event_id) {
         case HTTP_EVENT_ERROR:
             ESP_LOGD(__func__, "HTTP_EVENT_ERROR");
@@ -80,13 +80,7 @@ esp_err_t _http_event_handler(esp_http_client_event_t *evt)
     return ESP_OK;
 }
 
-static void do_https_get()
-{
-//    esp_http_client_config_t config = {
-//         .url = strdup(url),
-//         .event_handler = _http_event_handler,
-//         .cert_pem = server_root_cert_pem_start,
-//     };
+static void do_https_get() {
 
     esp_http_client_handle_t client = esp_http_client_init(&request_config);
     esp_err_t err;
@@ -161,9 +155,15 @@ static void http_main_task(void *pvParameters)
 
     ESP_LOGI(__func__, "Finish http example");
     vTaskDelete(NULL);
+    connection_active = false;
 }
 
 esp_err_t https_get(char *url, https_get_callback callback) {
+	if ( connection_active ) {
+		ESP_LOGW(__func__, "there's an open connection");
+		return ESP_FAIL;
+	}
+
 	memset(&request_config, 0, sizeof(request_config));
     request_config.url = strdup(url);
     request_config.event_handler = _http_event_handler;
@@ -174,4 +174,8 @@ esp_err_t https_get(char *url, https_get_callback callback) {
 
 	return ESP_OK;
 
+}
+
+bool is_https_connection_active() {
+	return connection_active;
 }

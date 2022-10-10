@@ -39,38 +39,38 @@ typedef enum {
  * timing status of a single scene
  ***********************************************/
 typedef enum {
-	TE_WAIT_FOR_START = 0x0000, // wait for start
-	TE_RUNNING        = 0x0001, // timer is running, wait for expire
-	TE_FINISHED       = 0x0002 // timer expired
+	TE_STS_WAIT_FOR_START = 0x0000, // wait for start
+	TE_STS_RUNNING        = 0x0001, // timer is running, wait for expire
+	TE_STS_FINISHED       = 0x0002 // timer expired
 } timer_event_status_type;
 
 typedef enum {
-	WT_NOTHING,
-	WT_CLEAR, // switch of all leds
-	WT_COLOR,
-	WT_COLOR_TRANSITION,
-	WT_RAINBOW,
-	WT_SPARKLE,
-	WT_BMP, // handle bitmap file
-	WT_UNKNOWN
-} what_type;
+	OBJT_NOTHING,
+	OBJT_CLEAR, // switch of all leds
+	OBJT_COLOR,
+	OBJT_COLOR_TRANSITION,
+	OBJT_RAINBOW,
+	OBJT_SPARKLE,
+	OBJT_BMP, // handle bitmap file
+	OBJT_UNKNOWN
+} object_type;
 
-#define TEXT2WT(c) ( \
-	!strcasecmp(c,"clear") ? WT_CLEAR : \
-	!strcasecmp(c,"color") ? WT_COLOR : \
-	!strcasecmp(c,"color_transition") ? WT_COLOR_TRANSITION : \
-	!strcasecmp(c,"rainbow") ? WT_RAINBOW : \
-	!strcasecmp(c,"sparkle") ? WT_SPARKLE : \
-	!strcasecmp(c,"bmp") ? WT_BMP : WT_UNKNOWN \
+#define TEXT2OBJT(c) ( \
+	!strcasecmp(c,"clear") ? OBJT_CLEAR : \
+	!strcasecmp(c,"color") ? OBJT_COLOR : \
+	!strcasecmp(c,"color_transition") ? OBJT_COLOR_TRANSITION : \
+	!strcasecmp(c,"rainbow") ? OBJT_RAINBOW : \
+	!strcasecmp(c,"sparkle") ? OBJT_SPARKLE : \
+	!strcasecmp(c,"bmp") ? OBJT_BMP : OBJT_UNKNOWN \
 )
 
-#define WT2TEXT(c) ( \
-	c==WT_CLEAR ? "clear" : \
-	c==WT_COLOR ? "color" : \
-	c==WT_COLOR_TRANSITION ? "color_transition" : \
-	c==WT_RAINBOW ? "rainbow" : \
-	c==WT_SPARKLE ? "sparkle" : \
-	c==WT_BMP ? "bmp" : "unknown" \
+#define OBJT2TEXT(c) ( \
+	c==OBJT_CLEAR ? "clear" : \
+	c==OBJT_COLOR ? "color" : \
+	c==OBJT_COLOR_TRANSITION ? "color_transition" : \
+	c==OBJT_RAINBOW ? "rainbow" : \
+	c==OBJT_SPARKLE ? "sparkle" : \
+	c==OBJT_BMP ? "bmp" : "unknown" \
 )
 
 // I - init - no timing
@@ -93,7 +93,7 @@ typedef enum {
 	ET_SET_OBJECT,           // I We - oid for object
 	ET_BMP_OPEN,             // I Ws - open internet connection for bmp file
 	ET_BMP_READ,             // - Wr - read bmp data
-	ET_BMP_CLOSE,            // - -- F close connection for bmp
+	ET_BMP_CLOSE,            // - We F close connection for bmp
 	ET_UNKNOWN
 } event_type;
 
@@ -150,7 +150,7 @@ typedef struct EVT_WHAT_COLORTRANSITION {
 
 typedef struct EVT_OBJECT_DATA {
 	int32_t id;
-	what_type type;
+	object_type type;
 	int32_t pos; // relative start position
 	int32_t len; // relative start length
 
@@ -170,7 +170,7 @@ typedef struct EVT_OBJECT {
 } T_EVT_OBJECT;
 
 //  *** when will something happens ***
-typedef struct EVT_TIME {
+typedef struct EVENT {
 	uint32_t id;
 	event_type type; // what to do
 	char marker[LEN_EVT_MARKER]; // destination for jump, value for ET_ JUMP_MARKER
@@ -181,8 +181,8 @@ typedef struct EVT_TIME {
 	char svalue[32];
 	double value;
 
-	struct EVT_TIME *nxt; // next event
-} T_EVT_TIME;
+	struct EVENT *nxt; // next event
+} T_EVENT;
 
 // where will it happen
 typedef struct EVT_WHERE {
@@ -213,7 +213,10 @@ typedef enum {
 		!strcasecmp(c,"finished") ? EVFL_FINISHED : \
 		EVFL_UNKNOWN)
 
-typedef struct EVENT {
+/**
+ * events of a scene
+ */
+typedef struct EVENT_GROUP {
 	char id[LEN_EVT_ID];
 
 	int64_t time; // event time
@@ -231,21 +234,22 @@ typedef struct EVENT {
 	// time dependend events,
 	uint32_t t_repeats; // 0=for evener
 	uint32_t w_t_repeats;
-	T_EVT_TIME *evt_time_list;
-	T_EVT_TIME *evt_time_init_list;
-	T_EVT_TIME *evt_time_final_list;
+
+	T_EVENT *evt_time_init_list;
+	T_EVENT *evt_time_list;
+	T_EVENT *evt_time_final_list;
 
 	// location based events, example
 	//T_EVT_WHERE *evt_where_list;
 
-	struct EVENT *nxt;
-} T_EVENT;
+	struct EVENT_GROUP *nxt;
+} T_EVENT_GROUP;
 
 typedef struct SCENE {
 	char id[LEN_EVT_ID];
 	uint32_t flags;
-	T_EVENT *event; // actual working event
-	T_EVENT *events;
+	T_EVENT_GROUP *event; // actual working event
+	T_EVENT_GROUP *events;
 	struct SCENE *nxt;
 } T_SCENE;
 
