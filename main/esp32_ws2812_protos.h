@@ -97,7 +97,7 @@ esp_err_t delete_object_by_oid(char *oid);
 esp_err_t object_list_free();
 T_EVT_OBJECT *find_object4oid(char *oid);
 T_EVT_OBJECT *create_object(char *oid) ;
-T_EVT_OBJECT_DATA *create_object_data(T_EVT_OBJECT *obj, uint32_t id);
+T_OBJECT_DATA *create_object_data(T_EVT_OBJECT *obj, uint32_t id);
 esp_err_t object_list_add(T_EVT_OBJECT *obj);
 
 // from wifi_vonfig.c
@@ -127,6 +127,9 @@ void bmp_init();
 
 // from process_bmp.c
 esp_err_t bmp_open_connection(char *url);
+esp_err_t bmp_read_data();
+bool get_is_bmp_reading();
+void bmp_stop_processing();
 
 // from create_demo
 void build_demo2(

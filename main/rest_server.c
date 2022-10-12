@@ -178,7 +178,7 @@ static void get_handler_list(httpd_req_t *req) {
 			snprintf(buf, sz_buf, "\n   object '%s'", obj->oid);
 			httpd_resp_send_chunk_l(req, buf);
 			if (obj->data) {
-				for(T_EVT_OBJECT_DATA *data = obj->data; data; data=data->nxt) {
+				for(T_OBJECT_DATA *data = obj->data; data; data=data->nxt) {
 					snprintf(buf, sz_buf,"\n    id=%d, type=%d/%s, pos=%d, len=%d",
 							data->id, data->type, OBJT2TEXT(data->type), data->pos, data->len
 					);

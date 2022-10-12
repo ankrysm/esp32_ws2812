@@ -22,6 +22,9 @@ typedef int32_t LONG;
 // sets by working process
 #define BMP_BIT_BUFFER1_PROCESSED  0x01
 #define BMP_BIT_BUFFER2_PROCESSED  0x02
+#define BMP_BIT_FINISH_PROCESSED   0x04
+#define BMP_BIT_STOP_WORKING       0x08
+
 // sets by reading process
 #define BMP_BIT_BUFFER1_HAS_DATA   0x10
 #define BMP_BIT_BUFFER2_HAS_DATA   0x20
@@ -60,6 +63,8 @@ typedef struct tagBITMAPINFOHEADER {
 // prototypes
 EventBits_t get_ux_bits(TickType_t xTicksToWait);
 void set_ux_quit_bits(EventBits_t uxQuitBits);
+size_t get_bytes_per_bmp_line();
+
 uint32_t get_read_length();
 uint8_t *get_read_buffer(int bufnr);
 int https_callback_bmp_processing(t_https_callback_todo todo, uint8_t **buf, size_t *buf_len);

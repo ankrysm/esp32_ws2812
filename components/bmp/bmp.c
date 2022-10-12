@@ -20,12 +20,7 @@
 #include "freertos/task.h"
 #include "freertos/event_groups.h"
 
-//#include "esp_event.h"
 #include "esp_log.h"
-//#include "esp_system.h"
-//#include "esp_timer.h"
-//#include "esp_event.h"
-
 #include "bmp.h"
 #include "https_get.h"
 
@@ -51,8 +46,8 @@ static EventGroupHandle_t s_bmp_event_group_for_reader; // read process waits fo
 static EventGroupHandle_t s_bmp_event_group_for_worker; // worker process waits for ...HAS_DATA, ...NO_MORE_DATA
 
 
-static BITMAPFILEHEADER bmpFileHeader;
-static BITMAPINFOHEADER bmpInfoHeader;
+BITMAPFILEHEADER bmpFileHeader;
+BITMAPINFOHEADER bmpInfoHeader;
 static t_bmp_read_phase bmp_read_phase = BRP_GOT_FILE_HEADER;
 
 static uint32_t buf_len_expected = 0;
@@ -63,24 +58,16 @@ static uint8_t *read_buffer2 = NULL;
 
 // data amount
 static uint32_t read_buffer_length = 0;
-//static uint32_t read_buffer1_length = 0;
-//static uint32_t read_buffer2_length = 0;
 
 static uint8_t *buffer = NULL;
 
 size_t sz_read_buffer = 0;
 uint32_t lines_read_buffer = 0;
 
-static int log_cnt = 1;
+
+//static int log_cnt = 1;
 static int extended_log = 0;
 
-static uint32_t led_pos =0;
-static int pixel_position =0;
-
-//#define NUMLEDS 200
-
-static uint8_t bgr[3];
-static int bgr_idx = 0;
 
 void bmp_init() {
 
@@ -92,45 +79,10 @@ void bmp_init() {
 
 }
 
-//char ledzeile[NUMLEDS+1];
-
-/*
-char pixel4rgb(uint8_t r, uint8_t g, uint8_t b) {
-	uint32_t s = g+r+b;
-	if ( s>0) {
-		if (g>r && g>b)
-			return 'G';
-		else if(r>g && r>b)
-			return 'R';
-		else if(b>r && b>g)
-			return 'B';
-		else
-			return 'X';
-	}
-	return '.';
-}
-*/
-/*
-void show_strip(int bufno) {
-	ESP_LOGI(__func__, "(bufno: %d) <%s>", bufno, ledzeile);
-	memset(ledzeile, 0, sizeof(ledzeile));
-	led_pos = 0;
-}
-*/
-
-/*
-void paint_pixel(uint8_t r, uint8_t g, uint8_t b) {
-	// BGR
-	if (led_pos >= NUMLEDS)
-		return;
-
-	char c = pixel4rgb(r, g, b);
-	ledzeile[led_pos] = c;
-	led_pos++;
-}
-*/
-
-size_t get_linesize() {
+/**
+ * calculate bytes per line depends from bit count and the pixel per liune
+ */
+size_t get_bytes_per_bmp_line() {
 	return  bmpInfoHeader.biWidth * (
 			bmpInfoHeader.biBitCount == 32 ? 4 :
 			bmpInfoHeader.biBitCount == 24 ? 3 :
@@ -139,11 +91,26 @@ size_t get_linesize() {
 	);
 }
 
+static void free_buffers() {
+	if (read_buffer1) {
+		free(read_buffer1);
+		read_buffer1 = NULL;
+	}
+	if (read_buffer2) {
+		free(read_buffer2);
+		read_buffer2 = NULL;
+	}
+	if ( buffer) {
+		free(buffer);
+		buffer=NULL;
+	}
+	sz_read_buffer = 0;
+	total_length = 0;
+
+}
 /**
  * callback for https_get
- * to do: 0 - init
- *        1 - read data
- *        2 - finished
+ *  to do: init, reading or finished
  *  **buf - pointer to put in received data
  *  *buf_len:
  *     out: expected bytes
@@ -154,14 +121,24 @@ size_t get_linesize() {
  *  0 - wait
  * -1 - error
  */
-int https_callback_bmp_processing(t_https_callback_todo todo, uint8_t **buf, size_t *buf_len) {
+int https_callback_bmp_processing(t_https_callback_todo to_do, uint8_t **buf, size_t *buf_len) {
 
-	ESP_LOGI(__func__,"todo=%d, phase=%d(%s), buf_len=%u", todo, bmp_read_phase, BRP2TXT(bmp_read_phase), *buf_len);
+	ESP_LOGI(__func__,"todo=%d, phase=%d(%s), buf_len=%u", to_do, bmp_read_phase, BRP2TXT(bmp_read_phase), *buf_len);
 
 	EventBits_t uxBits;
 
+	// gets and clears the bit
+    uxBits = xEventGroupClearBits(s_bmp_event_group_for_reader, BMP_BIT_STOP_WORKING);
+    if ( uxBits ) {
+    	// stop processing BMP Stream
+		if ( extended_log)
+			ESP_LOGI(__func__,"stopped");
+		xEventGroupClearBits(s_bmp_event_group_for_worker, 0xFFFF);
+		xEventGroupSetBits(s_bmp_event_group_for_worker, BMP_BIT_NO_MORE_DATA);
+    	return -1;
+    }
 
-	if (todo == HCT_INIT) {
+	if (to_do == HCT_INIT) {
 		// init
 		memset(&bmpFileHeader, 0, sizeof(bmpFileHeader));
 		memset(&bmpInfoHeader, 0, sizeof(bmpInfoHeader));
@@ -170,34 +147,15 @@ int https_callback_bmp_processing(t_https_callback_todo todo, uint8_t **buf, siz
 		*buf_len = buf_len_expected = sizeof(bmpFileHeader);
 		*buf = (uint8_t *) &bmpFileHeader;
 
-		if (read_buffer1) {
-			free(read_buffer1);
-			read_buffer1 = NULL;
-		}
-		if (read_buffer2) {
-			free(read_buffer2);
-			read_buffer2 = NULL;
-		}
-		if ( buffer) {
-			free(buffer);
-			buffer=NULL;
-		}
-		sz_read_buffer = 0;
-		pixel_position = 0;
-		bgr_idx =0;
-		total_length = 0;
-		log_cnt = 1; // log first buffer
-
-		led_pos = 0;
-		//memset(ledzeile, 0, sizeof(ledzeile));
+		free_buffers();
 		return 1;
 
-	} else if (todo == HCT_READING) {
+	} else if (to_do == HCT_READING) {
 
 		// read data
-		if ( buf_len_expected > 0 &&  *buf_len != buf_len_expected) {
-			ESP_LOGW(__func__,"buf_len_received(%ld) != buf_len_expected(%ld)", *buf_len, buf_len_expected);
-			//return -1;
+		if ( buf_len_expected > 0 &&  *buf_len > buf_len_expected) {
+			ESP_LOGW(__func__,"buf_len_received(%ld) > buf_len_expected(%ld)", *buf_len, buf_len_expected);
+			return -1;
 		}
 
 		switch(bmp_read_phase) {
@@ -243,7 +201,7 @@ int https_callback_bmp_processing(t_https_callback_todo todo, uint8_t **buf, siz
 
 			// prepare data read
 			// data len as multiple amount of data per line
-			size_t linesize =get_linesize();
+			size_t linesize =get_bytes_per_bmp_line();
 			sz_read_buffer = linesize;
 			while (sz_read_buffer < 1024 ) {
 				sz_read_buffer += linesize;
@@ -314,8 +272,6 @@ int https_callback_bmp_processing(t_https_callback_todo todo, uint8_t **buf, siz
 			*buf_len = buf_len_expected = sz_read_buffer;
 			*buf = read_buffer1;
 			bmp_read_phase = BRP_GOT_DATA_BUFFER1;
-//			xEventGroupClearBits(s_bmp_event_group_for_worker, 0xFFFF);
-//			xEventGroupSetBits(s_bmp_event_group_for_worker, BMP_BIT_BUFFER2_HAS_DATA);
 
 			// wait for end of processing buffer1
 			// true: clear bits before function return, false: wait for one of the specified bits
@@ -341,8 +297,6 @@ int https_callback_bmp_processing(t_https_callback_todo todo, uint8_t **buf, siz
 			*buf_len = buf_len_expected = sz_read_buffer;
 			*buf = read_buffer2;
 			bmp_read_phase = BRP_GOT_DATA_BUFFER2;
-			//xEventGroupClearBits(s_bmp_event_group_for_worker, 0xFFFF);
-			//xEventGroupSetBits(s_bmp_event_group_for_worker, BMP_BIT_BUFFER1_HAS_DATA);
 
 			// wait for process of buffer 2
 			// true: clear bits before function return, false: wait for one of the specified bits
@@ -359,26 +313,34 @@ int https_callback_bmp_processing(t_https_callback_todo todo, uint8_t **buf, siz
 	    	return -1;
 
 		}
-	} else if ( todo==HCT_FINISH ) {
+	} else if ( to_do==HCT_FINISH ) {
 		if ( extended_log)
 			ESP_LOGI(__func__,"finished");
-		xEventGroupClearBits(s_bmp_event_group_for_worker, 0xFFFF);
+        xEventGroupClearBits(s_bmp_event_group_for_worker, 0xFFFF);
 		xEventGroupSetBits(s_bmp_event_group_for_worker, BMP_BIT_NO_MORE_DATA);
 
+		// true: clear bits before function return, false: wait for one of the specified bits
+        uxBits = xEventGroupWaitBits(s_bmp_event_group_for_reader, BMP_BIT_FINISH_PROCESSED, pdTRUE, pdFALSE, portMAX_DELAY);
+
+        if ( extended_log)
+			ESP_LOGI(__func__,"finish processed");
+        free_buffers();
 		return 0;
+
 	} else {
-		ESP_LOGE(__func__,"unknown todo %d", todo);
+		ESP_LOGE(__func__,"unknown todo %d", to_do);
 	}
 	return -1;
 }
 
+/*
 void bmp_show_line(uint8_t *read_buffer, int bufno, int32_t *mempos, int32_t max_mempos) {
 
 	// 24 bit data: B,G,R
 	// 32 bit data: B,G,R,x
 
 	// bytes per line
-	size_t bytes_per_line = get_linesize();
+	size_t bytes_per_line = get_bytes_per_bmp_line();
 
 	if ( log_cnt > 0) {
 		ESP_LOG_BUFFER_HEXDUMP(__func__,
@@ -421,7 +383,7 @@ void bmp_show_line(uint8_t *read_buffer, int bufno, int32_t *mempos, int32_t max
 	}
 
 }
-
+*/
 
 /*
 
@@ -483,7 +445,7 @@ void bmp_() {
 
 
 }
-*/
+// */
 
 EventBits_t get_ux_bits(TickType_t xTicksToWait) {
 	// true: clear bits before function return, false: wait for one of the specified bits

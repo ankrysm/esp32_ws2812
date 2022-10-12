@@ -83,6 +83,10 @@ esp_err_t _http_event_handler(esp_http_client_event_t *evt){
 static void do_https_get() {
 
     esp_http_client_handle_t client = esp_http_client_init(&request_config);
+    if ( !client ) {
+    	ESP_LOGE(__func__, "failed to init request");
+    	return;
+    }
     esp_err_t err;
     if ((err = esp_http_client_open(client, 0)) != ESP_OK) {
         ESP_LOGE(__func__, "Failed to open HTTP connection: %s", esp_err_to_name(err));

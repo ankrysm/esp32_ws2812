@@ -10,6 +10,11 @@
 
 #include "color.h"
 
+#define LEN_EVT_MARKER 8+1
+#define LEN_EVT_OID 16
+#define LEN_EVT_ID 16
+
+
 typedef enum {
 	RES_OK,
 	RES_NOT_FOUND,
@@ -138,17 +143,18 @@ typedef enum {
 	"unknown" \
 )
 
-// *** what will happen
-typedef struct EVT_WHAT_COLORTRANSITION {
+//************* object and event definitions **************
+
+typedef struct OBJECT_COLORTRANSITION {
 	T_COLOR_HSV hsv_from;
 	T_COLOR_HSV hsv_to;
-} T_EVT_WHAT_COLORTRANSITION;
+} T_OBJECT_COLORTRANSITION;
 
-#define LEN_EVT_MARKER 8+1
-#define LEN_EVT_OID 16
-#define LEN_EVT_ID 16
+typedef struct OBJECT_BMP {
+	bool is_open;
+} T_OBJECT_BMP;
 
-typedef struct EVT_OBJECT_DATA {
+typedef struct OBJECT_DATA {
 	int32_t id;
 	object_type type;
 	int32_t pos; // relative start position
@@ -156,15 +162,16 @@ typedef struct EVT_OBJECT_DATA {
 
 	union {
 		T_COLOR_HSV hsv;  // when only one color is needed
-		T_EVT_WHAT_COLORTRANSITION tr; // color transition
+		T_OBJECT_COLORTRANSITION tr; // color transition
+		T_OBJECT_BMP bmp; // BMP handling
 	} para;
 
-	struct EVT_OBJECT_DATA *nxt;
-} T_EVT_OBJECT_DATA;
+	struct OBJECT_DATA *nxt;
+} T_OBJECT_DATA;
 
 typedef struct EVT_OBJECT {
 	char oid[LEN_EVT_OID];
-	T_EVT_OBJECT_DATA *data;
+	T_OBJECT_DATA *data;
 
 	struct EVT_OBJECT *nxt;
 } T_EVT_OBJECT;

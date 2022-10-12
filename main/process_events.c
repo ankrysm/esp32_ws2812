@@ -9,7 +9,7 @@
 
 static void reset_timing_events(T_EVENT *tevt);
 
-T_EVT_OBJECT_DATA object_data_clear = {
+T_OBJECT_DATA object_data_clear = {
 	.type=OBJT_CLEAR,
 	.pos=0,
 	.len=-1,
@@ -142,7 +142,7 @@ void process_object(T_EVENT_GROUP *evtgrp) {
 
 	// whole length of all sections
 	int32_t len = 0;
-	for (T_EVT_OBJECT_DATA *data = obj->data; data; data=data->nxt) {
+	for (T_OBJECT_DATA *data = obj->data; data; data=data->nxt) {
 		len += data->len;
 	}
 	double flen = len * evtgrp->w_len_factor;
@@ -175,7 +175,7 @@ void process_object(T_EVENT_GROUP *evtgrp) {
 
 	startpos = evtgrp->w_pos;
 	endpos   = evtgrp->w_pos + len;
-	int32_t pos = startpos;
+	int pos = startpos;
 	if ( evtgrp->delta_pos > 0 ) {
 		pos = startpos;
 	} else {
@@ -193,11 +193,11 @@ void process_object(T_EVENT_GROUP *evtgrp) {
 	double df,dr,dg,db;
 
 	bool ende = false;
-	for (T_EVT_OBJECT_DATA *data = obj->data; data; data=data->nxt) {
-		for ( int len=0; len < data->len; len++) {
+	for (T_OBJECT_DATA *data = obj->data; data; data=data->nxt) {
+		for ( int data_pos=0; data_pos < data->len; data_pos++) {
 			switch (data->type) {
 			case OBJT_COLOR:
-				if ( len == 0 ) {
+				if ( data_pos == 0 ) {
 					// initialize
 					c_hsv2rgb(&(data->para.hsv), &rgb);
 					r = f*rgb.r;
@@ -211,7 +211,7 @@ void process_object(T_EVENT_GROUP *evtgrp) {
 			case OBJT_COLOR_TRANSITION: // linear from one color to another
 				// if lvl2-lvl1 = 100 % and len = 4
 				// use 25% 50% 75% 100%, not start with 0%
-				if (len ==0) {
+				if (data_pos ==0) {
 					df = 1.0 / data->len;
 					c_hsv2rgb(&(data->para.tr.hsv_from), &rgb);
 					c_hsv2rgb(&(data->para.tr.hsv_to), &rgb2);
@@ -240,7 +240,7 @@ void process_object(T_EVENT_GROUP *evtgrp) {
 				break;
 
 			case OBJT_RAINBOW:
-				if ( len==0) {
+				if ( data_pos==0) {
 					// init
 					hsv.h=0;
 					hsv.s=100;
@@ -260,7 +260,10 @@ void process_object(T_EVENT_GROUP *evtgrp) {
 				break;
 
 			case OBJT_BMP:
-				// TODO
+				// TODO get the next pixel as RGB
+				if ( get_is_bmp_reading()) {
+					bmp_read_data(pos, &rgb);
+				}
 				break;
 			default:
 				ESP_LOGW(__func__,"what type %d NYI", data->type);

@@ -319,13 +319,13 @@ esp_err_t object_list_add(T_EVT_OBJECT *obj) {
 
 
 // creates a new what to do and adds it to the event body
-T_EVT_OBJECT_DATA *create_object_data(T_EVT_OBJECT *obj, uint32_t id) {
+T_OBJECT_DATA *create_object_data(T_EVT_OBJECT *obj, uint32_t id) {
 	if ( obj == NULL )
 		return NULL;
 
-	T_EVT_OBJECT_DATA *objdata=calloc(1, sizeof(T_EVT_OBJECT_DATA));
+	T_OBJECT_DATA *objdata=calloc(1, sizeof(T_OBJECT_DATA));
 	if ( !objdata) {
-		ESP_LOGE(__func__,"couldn't allocate %d bytes for new 'object'", sizeof(T_EVT_OBJECT_DATA));
+		ESP_LOGE(__func__,"couldn't allocate %d bytes for new 'object'", sizeof(T_OBJECT_DATA));
 		return NULL;
 	}
 	// some useful values:
@@ -334,7 +334,7 @@ T_EVT_OBJECT_DATA *create_object_data(T_EVT_OBJECT *obj, uint32_t id) {
 	if ( !obj->data) {
 		obj->data = objdata;
 	} else {
-		T_EVT_OBJECT_DATA *t;
+		T_OBJECT_DATA *t;
 		for(t=obj->data; t->nxt; t=t->nxt){}
 		t->nxt = objdata;
 	}
@@ -393,7 +393,7 @@ void delete_object(T_EVT_OBJECT *obj) {
 		return;
 
 	if ( obj->data) {
-		T_EVT_OBJECT_DATA *t, *obj_data = obj->data;
+		T_OBJECT_DATA *t, *obj_data = obj->data;
 		while(obj_data) {
 			t = obj_data->nxt;
 			free(obj_data);
