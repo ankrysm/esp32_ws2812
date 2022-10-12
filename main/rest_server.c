@@ -179,9 +179,16 @@ static void get_handler_list(httpd_req_t *req) {
 			httpd_resp_send_chunk_l(req, buf);
 			if (obj->data) {
 				for(T_OBJECT_DATA *data = obj->data; data; data=data->nxt) {
-					snprintf(buf, sz_buf,"\n    id=%d, type=%d/%s, pos=%d, len=%d",
-							data->id, data->type, OBJT2TEXT(data->type), data->pos, data->len
-					);
+					if ( data->type == OBJT_BMP) {
+						snprintf(buf, sz_buf,"\n    id=%d, type=%d/%s, len=%d, url=%s",
+								data->id, data->type, OBJT2TEXT(data->type), data->len,
+								data->para.url
+						);
+					} else {
+						snprintf(buf, sz_buf,"\n    id=%d, type=%d/%s, len=%d",
+								data->id, data->type, OBJT2TEXT(data->type), data->len
+						);
+					}
 					httpd_resp_send_chunk_l(req, buf);
 
 				}
@@ -631,6 +638,7 @@ static esp_err_t post_handler_main(httpd_req_t *req)
 	ESP_LOGI(__func__,"uri='%s', contenlen=%d, path='%s'", req->uri, req->content_len, path);
 
 	char resp_str[255];
+	memset(resp_str, 0, sizeof(resp_str));
 
 	T_HTTP_PROCCESSING_TYPE *pt = get_http_processing(path);
 

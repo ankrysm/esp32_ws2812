@@ -30,7 +30,10 @@ typedef int32_t LONG;
 #define BMP_BIT_BUFFER2_HAS_DATA   0x20
 #define BMP_BIT_NO_MORE_DATA       0x40
 
-// first block: File header
+// header must be packed to map the read data exactly to the memory
+// we had to check the byte order but ESP32 matches, no swap needed
+
+// first block: file header
 //          <42><4D><36><20><1C><00><00><00><00><00><36><00><00><00><28><00>
 // 00000000  42  4d  36  20  1c  00  00  00  00  00  36  00  00  00  28  00  |BM6 ......6...(.|
 //           t   t   s   s   s   s

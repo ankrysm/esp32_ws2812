@@ -119,7 +119,7 @@ typedef enum {
 	!strcasecmp(c,"object") ? ET_SET_OBJECT : \
 	!strcasecmp(c,"bmp_open") ? ET_BMP_OPEN : \
 	!strcasecmp(c,"bmp_read") ? ET_BMP_READ : \
-	!strcasecmp(c,"bmp_clos") ? ET_BMP_CLOSE : \
+	!strcasecmp(c,"bmp_close") ? ET_BMP_CLOSE : \
 	ET_UNKNOWN \
 )
 
@@ -150,20 +150,16 @@ typedef struct OBJECT_COLORTRANSITION {
 	T_COLOR_HSV hsv_to;
 } T_OBJECT_COLORTRANSITION;
 
-typedef struct OBJECT_BMP {
-	bool is_open;
-} T_OBJECT_BMP;
-
 typedef struct OBJECT_DATA {
 	int32_t id;
 	object_type type;
-	int32_t pos; // relative start position
+	//int32_t pos; // relative start position
 	int32_t len; // relative start length
 
 	union {
 		T_COLOR_HSV hsv;  // when only one color is needed
 		T_OBJECT_COLORTRANSITION tr; // color transition
-		T_OBJECT_BMP bmp; // BMP handling
+		char *url;
 	} para;
 
 	struct OBJECT_DATA *nxt;
@@ -202,10 +198,14 @@ typedef struct EVT_WHERE {
 } T_EVT_WHERE;
 
 typedef enum {
-	EVFL_WAIT      =  0x0001, // wait, do not paint something
-	EVFL_CLEARPIXEL=  0x0002,
-	EVFL_FINISHED  =  0x0004,
-	EVFL_UNKNOWN   =  0xFFFF
+	EVFL_WAIT      = 0x0001, // wait, do not paint something
+	EVFL_CLEARPIXEL= 0x0002,
+	EVFL_FINISHED  = 0x0004,
+	EVFL_BMP_OPEN  = 0x0100,
+	EVFL_BMP_READ  = 0x0200, // TODO really needed?
+	EVFL_BMP_CLOSE = 0x0400,
+	EVFL_BMP_MASK  = 0x0F00,
+	EVFL_UNKNOWN   = 0xFFFF
 } event_flags;
 
 typedef enum {

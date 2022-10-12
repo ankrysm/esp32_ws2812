@@ -176,16 +176,16 @@ static esp_err_t decode_json4event_scene_events_events(cJSON *element, T_EVENT_G
 static esp_err_t decode_json4event_object_data(cJSON *element, T_EVT_OBJECT *obj, int id, char *errmsg, size_t sz_errmsg) {
 	esp_err_t rc = ESP_FAIL;
 
-	T_OBJECT_DATA *data;
+	T_OBJECT_DATA *object_data;
 
 	char *attr;
-	char sval[64];
+	char sval[256];
 	double val;
 	t_result lrc;
 	T_COLOR_HSV hsv = {.h=0, .s=0, .v=0};
 	char lerrmsg[64];
 	do {
-		if ( !(data = create_object_data(obj, id))) {
+		if ( !(object_data = create_object_data(obj, id))) {
 			snprintf(errmsg, sz_errmsg,"id=%s, id=%d: could not create data object", obj->oid, id);
 			break;
 		}
@@ -195,41 +195,44 @@ static esp_err_t decode_json4event_object_data(cJSON *element, T_EVT_OBJECT *obj
 			snprintf(errmsg, sz_errmsg,"id=%s, id=%d: could not decocde data: '%s'", obj->oid, id, lerrmsg);
 			break;
 		}
-		data->type = TEXT2OBJT(sval);
-		if ( data->type == OBJT_UNKNOWN) {
+		object_data->type = TEXT2OBJT(sval);
+		if ( object_data->type == OBJT_UNKNOWN) {
 			snprintf(errmsg, sz_errmsg,"oid=%s, id=%d: object type '%s' unknown", obj->oid, id, sval);
 			break;
 		}
-		ESP_LOGI(__func__, "oid=%s, id=%d: %s=%d(%s)", obj->oid, id, attr, data->type, OBJT2TEXT(data->type));
-
-		attr="pos";
-		lrc = evt_get_number(element, attr, &val, lerrmsg, sizeof(lerrmsg));
-		if (lrc == RES_OK) {
-			data->pos = val;
-			ESP_LOGI(__func__, "oid=%s, id=%d: %s=%d", obj->oid, id, attr, data->pos);
-		} else if ( lrc != RES_NOT_FOUND) {
-			snprintf(errmsg, sz_errmsg,"id=%s, id=%d: could not decode data '%s': %s", obj->oid, id, attr, lerrmsg);
-			break;
-		}
+		ESP_LOGI(__func__, "oid=%s, id=%d: %s=%d(%s)", obj->oid, id, attr, object_data->type, OBJT2TEXT(object_data->type));
 
 		attr="len";
 		lrc = evt_get_number(element, attr, &val, lerrmsg, sizeof(lerrmsg));
 		if (lrc== RES_OK) {
-			data->len = val;
-			ESP_LOGI(__func__, "oid=%s, id=%d: %s=%d", obj->oid, id, attr, data->len);
+			object_data->len = val;
+			ESP_LOGI(__func__, "oid=%s, id=%d: %s=%d", obj->oid, id, attr, object_data->len);
 		} else if ( lrc != RES_NOT_FOUND) {
 			snprintf(errmsg, sz_errmsg,"id=%s, id=%d: could not decode data '%s': %s", obj->oid, id, attr, lerrmsg);
 			break;
 		}
 
 		// *** need colors ?
-		if ( data->type == OBJT_COLOR_TRANSITION) {
+		if (object_data->type == OBJT_RAINBOW) {
+			// no color needed
+
+		} else if (object_data->type == OBJT_BMP) {
+			// no color needed, but url
+			attr="url";
+			if (evt_get_string(element, attr, sval, sizeof(sval), lerrmsg, sizeof(lerrmsg)) != RES_OK) {
+				snprintf(errmsg, sz_errmsg,"id=%s, id=%d: could not decode object_data: '%s'", obj->oid, id, lerrmsg);
+				break;
+			}
+			object_data->para.url = strdup(sval);
+			ESP_LOGI(__func__,"oid=%s, id=%d: url='%s'", obj->oid, id, object_data->para.url);
+
+		} else if ( object_data->type == OBJT_COLOR_TRANSITION) {
 			// a "color from" needed
 			lrc = decode_json_getcolor(element, "color_from", "hsv_from", "rgb_from", &hsv, lerrmsg, sizeof(lerrmsg));
 			if ( lrc == RES_OK ) {
-				data->para.tr.hsv_from.h = hsv.h;
-				data->para.tr.hsv_from.s = hsv.s;
-				data->para.tr.hsv_from.v = hsv.v;
+				object_data->para.tr.hsv_from.h = hsv.h;
+				object_data->para.tr.hsv_from.s = hsv.s;
+				object_data->para.tr.hsv_from.v = hsv.v;
 				ESP_LOGI(__func__,"oid=%s, id=%d: %s", obj->oid, id, lerrmsg);
 
 			} else if ( lrc == RES_NOT_FOUND ) {
@@ -238,7 +241,7 @@ static esp_err_t decode_json4event_object_data(cJSON *element, T_EVT_OBJECT *obj
 				break;
 
 			} else {
-				snprintf(errmsg, sz_errmsg,"id=%s, id=%d: could not decode data '%s': %s", obj->oid, id, attr, lerrmsg);
+				snprintf(errmsg, sz_errmsg,"id=%s, id=%d: could not decode object_data '%s': %s", obj->oid, id, attr, lerrmsg);
 				ESP_LOGE(__func__, "oid=%s, id=%d: Error: %s",obj->oid, id, errmsg);
 				break; // failed
 			}
@@ -246,9 +249,9 @@ static esp_err_t decode_json4event_object_data(cJSON *element, T_EVT_OBJECT *obj
 			// a "color to" needed
 			lrc = decode_json_getcolor(element, "color_to", "hsv_to", "rgb_to", &hsv, lerrmsg, sizeof(lerrmsg));
 			if ( lrc == RES_OK ) {
-				data->para.tr.hsv_to.h = hsv.h;
-				data->para.tr.hsv_to.s = hsv.s;
-				data->para.tr.hsv_to.v = hsv.v;
+				object_data->para.tr.hsv_to.h = hsv.h;
+				object_data->para.tr.hsv_to.s = hsv.s;
+				object_data->para.tr.hsv_to.v = hsv.v;
 				ESP_LOGI(__func__,"oid=%s, id=%d: %s", obj->oid, id, lerrmsg);
 
 			} else if ( lrc == RES_NOT_FOUND ) {
@@ -256,21 +259,18 @@ static esp_err_t decode_json4event_object_data(cJSON *element, T_EVT_OBJECT *obj
 				ESP_LOGI(__func__, "%s",errmsg);
 				break;
 			} else {
-				snprintf(errmsg, sz_errmsg,"id=%s, id=%d: could not decode data '%s': %s", obj->oid, id, attr, lerrmsg);
+				snprintf(errmsg, sz_errmsg,"id=%s, id=%d: could not decode object_data '%s': %s", obj->oid, id, attr, lerrmsg);
 				ESP_LOGE(__func__, "oid=%s, id=%d: Error: %s", obj->oid, id, lerrmsg);
 				break; // failed
 			}
 
-		} else if (data->type == OBJT_RAINBOW) {
-			// no color needed
-
 		} else {
-			// a color needed
+			// default: a color needed
 			lrc = decode_json_getcolor(element, "color", "hsv", "rgb", &hsv, lerrmsg, sizeof(lerrmsg));
 			if ( lrc == RES_OK ) {
-				data->para.hsv.h = hsv.h;
-				data->para.hsv.s = hsv.s;
-				data->para.hsv.v = hsv.v;
+				object_data->para.hsv.h = hsv.h;
+				object_data->para.hsv.s = hsv.s;
+				object_data->para.hsv.v = hsv.v;
 				ESP_LOGI(__func__,"oid=%s, id=%d, %s", obj->oid, id, errmsg);
 
 			} else if ( lrc == RES_NOT_FOUND ) {
@@ -279,7 +279,7 @@ static esp_err_t decode_json4event_object_data(cJSON *element, T_EVT_OBJECT *obj
 				break;
 
 			} else {
-				snprintf(errmsg, sz_errmsg,"id=%s, id=%d: could not decode data '%s': %s", obj->oid, id, attr, lerrmsg);
+				snprintf(errmsg, sz_errmsg,"id=%s, id=%d: could not decode object_data '%s': %s", obj->oid, id, attr, lerrmsg);
 				ESP_LOGE(__func__, "oid=%s, id=%d: Error: %s", obj->oid, id, errmsg);
 				break; // failed
 			}

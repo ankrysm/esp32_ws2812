@@ -11,7 +11,7 @@ static void reset_timing_events(T_EVENT *tevt);
 
 T_OBJECT_DATA object_data_clear = {
 	.type=OBJT_CLEAR,
-	.pos=0,
+	//.pos=0,
 	.len=-1,
 	.para.hsv={.h=0,.s=0,.v=0},
 	.nxt=NULL
@@ -260,10 +260,22 @@ void process_object(T_EVENT_GROUP *evtgrp) {
 				break;
 
 			case OBJT_BMP:
-				// TODO get the next pixel as RGB
-				if ( get_is_bmp_reading()) {
-					bmp_read_data(pos, &rgb);
+				// TODO
+				if ( evtgrp->w_flags & EVFL_BMP_OPEN) {
+					if ( bmp_open_connection(data->para.url) != ESP_OK) {
+						ESP_LOGE(__func__,"BMP_OPEN FAILED evt.id='%s', url='%s'",
+								evtgrp->id, data->para.url);
+					}
+				} else if (evtgrp->w_flags & EVFL_BMP_CLOSE) {
+					bmp_stop_processing();
+
+				} else {
+					// get the next pixel as RGB
+					if ( get_is_bmp_reading()) {
+						bmp_read_data(pos, &rgb);
+					}
 				}
+				evtgrp->w_flags &= ~EVFL_BMP_MASK; // reset the bmp-flags
 				break;
 			default:
 				ESP_LOGW(__func__,"what type %d NYI", data->type);
@@ -324,10 +336,11 @@ static void process_event_when_init(T_EVENT_GROUP *evtgrp) {
 			break;
 
 		case ET_BMP_OPEN:
-			if ( bmp_open_connection(evt->svalue) != ESP_OK) {
-				ESP_LOGE(__func__,"INIT FAILED evt.id='%s', tevt.id=%d: type %d(%s), sval='%s'",
-						evtgrp->id, evt->id, evt->type, ET2TEXT(evt->type), evt->svalue);
-			}
+			evtgrp->w_flags |= EVFL_BMP_OPEN;
+//			if ( bmp_open_connection(evt->svalue) != ESP_OK) {
+//				ESP_LOGE(__func__,"INIT FAILED evt.id='%s', tevt.id=%d: type %d(%s), sval='%s'",
+//						evtgrp->id, evt->id, evt->type, ET2TEXT(evt->type), evt->svalue);
+//			}
 			break;
 		default:
 			break;
@@ -412,10 +425,7 @@ void  process_event_when(T_EVENT_GROUP *evtgrp, uint64_t scene_time, uint64_t ti
 				evtgrp->w_brightness_delta = evt->value;
 				break;
 			case ET_BMP_OPEN:
-				if ( bmp_open_connection(evt->svalue) != ESP_OK) {
-					ESP_LOGE(__func__,"INIT FAILED evt.id='%s', tevt.id=%d: type %d(%s), sval='%s'",
-							evtgrp->id, evt->id, evt->type, ET2TEXT(evt->type), evt->svalue);
-				}
+				evtgrp->w_flags |= EVFL_BMP_OPEN;
 				break;
 			default:
 				//ESP_LOGW(__func__,"evt.id=%d, tevt.id=%d: timer of %llu ms, type %d expired, NYI", evt->id, tevt->id, tevt->time, tevt->type);
@@ -434,6 +444,9 @@ void  process_event_when(T_EVENT_GROUP *evtgrp, uint64_t scene_time, uint64_t ti
 					break;
 				case ET_CLEAR:
 					evtgrp->w_flags |= EVFL_CLEARPIXEL;
+					break;
+				case ET_BMP_READ:
+					evtgrp->w_flags |= EVFL_BMP_READ;
 					break;
 				default:
 					break;
@@ -502,6 +515,10 @@ void  process_event_when(T_EVENT_GROUP *evtgrp, uint64_t scene_time, uint64_t ti
 					ESP_LOGE(__func__, "no event for '%s' found", evt->marker);
 					tevt_next = evt->nxt;
 				}
+				break;
+
+			case ET_BMP_CLOSE:
+				evtgrp->w_flags |= EVFL_BMP_CLOSE;
 				break;
 
 			default:

@@ -12,8 +12,6 @@ extern BITMAPINFOHEADER bmpInfoHeader;
 static uint32_t read_buffer_pos = 0; // current position in read_buffer
 static uint32_t read_buffer_len = 0; // data length in read_buffer
 static uint8_t *read_buffer = NULL;
-//static size_t bytes_per_line = 0; // from BMP Header
-//static int pixel_pos = 0;
 
 static bool is_bmp_reading = false;
 
@@ -32,7 +30,6 @@ static void bmp_show_data(int pos, T_COLOR_RGB *rgb ) {
 
 	is_bmp_reading = true;
 
-	//int pixel_position = 0;
 	uint8_t bgr[4];
 
 	int bgr_idx_max = 1;
@@ -69,48 +66,10 @@ static void bmp_show_data(int pos, T_COLOR_RGB *rgb ) {
 		rgb->g = bgr[1];
 		rgb->b = bgr[0];
 	}
-
-/*
-	int bgr_idx = 0;
-
-	for ( int i=0; i<bytes_per_line; i++) {
-		bgr[bgr_idx++] = read_buffer[read_buffer_pos];
-		read_buffer_pos++;
-		if ( bmpInfoHeader.biBitCount == 24 ) {
-			if ( bgr_idx >= 3 ) {
-				// TODO: set pixel data
-				//paint_a_pixel(bgr[2],bgr[1],bgr[0]);
-				bgr_idx = 0;
-				pixel_position++;
-				if ( pixel_position >= bmpInfoHeader.biWidth ) {
-					// TODO line complete
-					//show_strip(bufno);
-					pixel_position = 0; // next line
-				}
-			}
-		} else if ( bmpInfoHeader.biBitCount == 32) {
-			// byte folge rgbx
-			if ( bgr_idx >= 4 ) {
-				// TODO set pixel data
-				// paint_a_pixel(bgr[2],bgr[1],bgr[0]);
-				bgr_idx = 0;
-				pixel_position++;
-				if ( pixel_position >= bmpInfoHeader.biWidth ) {
-					// TODO line complete
-					//show_strip(bufno);
-					pixel_position = 0; // next line
-				}
-			}
-		}
-		if ( read_buffer_pos >= read_buffer_len) {
-			return true;
-		}
-	}
-	return false;
-	*/
  }
 
 esp_err_t bmp_open_connection(char *url) {
+	ESP_LOGI(__func__,"start");
 	esp_err_t res = ESP_OK;
 
 	res = https_get(url, https_callback_bmp_processing);
@@ -119,6 +78,7 @@ esp_err_t bmp_open_connection(char *url) {
 }
 
 void bmp_stop_processing() {
+	ESP_LOGI(__func__,"start");
 	set_ux_quit_bits(BMP_BIT_STOP_WORKING);
 }
 

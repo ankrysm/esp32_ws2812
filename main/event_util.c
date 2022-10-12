@@ -396,6 +396,11 @@ void delete_object(T_EVT_OBJECT *obj) {
 		T_OBJECT_DATA *t, *obj_data = obj->data;
 		while(obj_data) {
 			t = obj_data->nxt;
+			if ( obj_data->type == OBJT_BMP ) {
+				if (obj_data->para.url)
+					free(obj_data->para.url);
+			}
+
 			free(obj_data);
 			obj_data=t;
 		}
