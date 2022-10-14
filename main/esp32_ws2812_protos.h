@@ -13,7 +13,7 @@
 void global_data_init();
 
 // from process_events.c
-void reset_event( T_EVENT_GROUP *evt);
+void reset_event_group( T_EVENT_GROUP *evt);
 void reset_event_repeats(T_EVENT_GROUP *evt);
 void process_scene(T_SCENE *scene, uint64_t scene_time, uint64_t timer_period);
 void reset_scene(T_SCENE *scene);
@@ -82,7 +82,7 @@ esp_err_t release_eventlist_lock();
 void init_eventlist_utils();
 T_EVENT_GROUP *create_event(char *id);
 T_EVENT_GROUP *find_event(char *id);
-T_EVENT *find_timer_event4marker(T_EVENT *tevt_list, char *marker);
+T_EVENT *find_event4marker(T_EVENT *tevt_list, char *marker);
 T_EVENT *create_timing_event(T_EVENT_GROUP *evt, uint32_t id);
 T_EVENT *create_timing_event_init(T_EVENT_GROUP *evt, uint32_t id);
 T_EVENT *create_timing_event_final(T_EVENT_GROUP *evt, uint32_t id);

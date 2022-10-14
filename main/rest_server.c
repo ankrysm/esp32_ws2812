@@ -216,11 +216,11 @@ static void get_handler_list(httpd_req_t *req) {
 					httpd_resp_send_chunk_l(req, buf);
 
 					// INIT events
-					if (evt->evt_time_init_list) {
+					if (evt->evt_init_list) {
 						snprintf(buf, sz_buf,"\n  INIT events:");
 						httpd_resp_send_chunk_l(req, buf);
 
-						for (T_EVENT *tevt = evt->evt_time_init_list; tevt; tevt=tevt->nxt) {
+						for (T_EVENT *tevt = evt->evt_init_list; tevt; tevt=tevt->nxt) {
 							snprintf(buf, sz_buf,"\n    id=%d, time=%llu ms, type=%d/%s, val=%.3f, sval='%s', marker='%s",
 									tevt->id, tevt->time, tevt->type, ET2TEXT(tevt->type), tevt->value, tevt->svalue, tevt->marker);
 							httpd_resp_send_chunk_l(req, buf);

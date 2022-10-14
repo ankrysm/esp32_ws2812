@@ -20,6 +20,7 @@ typedef enum {
 	RES_NOT_FOUND,
 	RES_NO_VALUE,
 	RES_INVALID_DATA_TYPE,
+	RES_FINISHED,
 	RES_FAILED
 } t_result;
 
@@ -41,13 +42,13 @@ typedef enum {
 
 
 /**********************************************
- * timing status of a single scene
+ * status of an event
  ***********************************************/
 typedef enum {
-	TE_STS_WAIT_FOR_START = 0x0000, // wait for start
-	TE_STS_RUNNING        = 0x0001, // timer is running, wait for expire
-	TE_STS_FINISHED       = 0x0002 // timer expired
-} timer_event_status_type;
+	EVT_STS_READY    = 0x0000, // wait for start
+	EVT_STS_RUNNING  = 0x0001, // event is running
+	EVT_STS_FINISHED = 0x0002  // event_finished
+} event_status_type;
 
 typedef enum {
 	OBJT_NOTHING,
@@ -83,36 +84,37 @@ typedef enum {
 // F - finally (all repeats done) - no timing
 typedef enum {
 	ET_NONE,                 // - -- - nothing to do
-	ET_PAUSE,                // - Wsr - do nothing
-	ET_GO_ON,                // - Wr - continue with actual parameter
-	ET_SPEED,                // I Ws - set speed
-	ET_SPEEDUP,              // I Ws - set acceleration
-	ET_BOUNCE,               // - We - change direction speed=-speed
-	ET_REVERSE,              // - We - change delta_pos to -delta_pos
-	ET_GOTO_POS,             // I We - goto to position
-	ET_JUMP_MARKER,          // - We - jump to event with the marker
-	ET_CLEAR,                // I Wr F clear pixels
-	ET_STOP,                 // - We - end of event
-	ET_SET_BRIGHTNESS,       // I Ws F
-	ET_SET_BRIGHTNESS_DELTA, // I Ws -
-	ET_SET_OBJECT,           // I We - oid for object
-	ET_BMP_OPEN,             // I Ws - open internet connection for bmp file
-	ET_BMP_READ,             // - Wr - read bmp data
-	ET_BMP_CLOSE,            // - We F close connection for bmp
+	//ET_PAUSE,                // - Wsr - do nothing
+	//ET_GO_ON,                // - Wr - continue with actual parameter
+	ET_WAIT,                 // - W - wait for condition time, condition...
+	ET_SPEED,                // I W - set speed
+	ET_SPEEDUP,              // I W - set acceleration
+	ET_BOUNCE,               // - W - change direction speed=-speed
+	ET_REVERSE,              // - W - change delta_pos to -delta_pos
+	ET_GOTO_POS,             // I W - goto to position
+	ET_MARKER,               // - W - destination marker
+	ET_JUMP_MARKER,          // - W - jump to event with the marker
+	ET_CLEAR,                // I W F clear pixels
+	//ET_STOP,                 // - W - end of event
+	ET_SET_BRIGHTNESS,       // I W -
+	ET_SET_BRIGHTNESS_DELTA, // I W -
+	ET_SET_OBJECT,           // I W - oid for object
+	ET_BMP_OPEN,             // I W - open internet connection for bmp file
+	ET_BMP_READ,             // - W - read bmp data
+	ET_BMP_CLOSE,            // - W F close connection for bmp
 	ET_UNKNOWN
 } event_type;
 
 
 #define TEXT2ET(c) ( \
-	!strcasecmp(c,"pause") ? ET_PAUSE : \
-	!strcasecmp(c,"go") ? ET_GO_ON : \
+	!strcasecmp(c,"wait") ? ET_WAIT : \
 	!strcasecmp(c,"speed") ? ET_SPEED : \
 	!strcasecmp(c,"speedup") ? ET_SPEEDUP : \
 	!strcasecmp(c,"bounce") ? ET_BOUNCE : \
 	!strcasecmp(c,"reverse") ? ET_REVERSE : \
 	!strcasecmp(c,"goto") ? ET_GOTO_POS : \
+	!strcasecmp(c,"marker") ? ET_MARKER : \
 	!strcasecmp(c,"jump_marker") ? ET_JUMP_MARKER : \
-	!strcasecmp(c,"stop") ? ET_STOP : \
 	!strcasecmp(c,"clear") ? ET_CLEAR : \
 	!strcasecmp(c,"brightness") ? ET_SET_BRIGHTNESS : \
 	!strcasecmp(c,"brightness_delta") ? ET_SET_BRIGHTNESS_DELTA : \
@@ -124,15 +126,14 @@ typedef enum {
 )
 
 #define ET2TEXT(c) ( \
-	c==ET_PAUSE ? "pause" : \
-	c==ET_GO_ON ? "go" : \
+	c==ET_WAIT ? "wait" : \
 	c==ET_SPEED ? "speed" : \
 	c==ET_SPEEDUP ? "speedup" : \
 	c==ET_BOUNCE ? "bounce" : \
 	c==ET_REVERSE ? "reverse" : \
 	c==ET_GOTO_POS ? "goto" : \
+	c==ET_MARKER ? "marker" : \
 	c==ET_JUMP_MARKER ? "jump_marker" : \
-	c==ET_STOP ? "stop" : \
 	c==ET_CLEAR ? "clear" : \
 	c==ET_SET_BRIGHTNESS ? "brightness" : \
 	c==ET_SET_BRIGHTNESS_DELTA ? "brightness_delta" : \
@@ -172,37 +173,36 @@ typedef struct EVT_OBJECT {
 	struct EVT_OBJECT *nxt;
 } T_EVT_OBJECT;
 
-//  *** when will something happens ***
+typedef struct {
+	uint64_t time; // initial duration, when 0 execute immediately
+	int64_t w_time; // working time, count doun from 'time'
+} T_EVENT_PARA_WAIT;
+
 typedef struct EVENT {
 	uint32_t id;
 	event_type type; // what to do
-	char marker[LEN_EVT_MARKER]; // destination for jump, value for ET_ JUMP_MARKER
-	uint64_t time; // initial duration, when 0 execute immediately
-	int64_t w_time; // working time, count doun from 'time'
-	timer_event_status_type status;
 
-	char svalue[32];
-	double value;
+	//	char marker[LEN_EVT_MARKER]; // destination for jump, value for ET_ JUMP_MARKER
+//	uint64_t time; // initial duration, when 0 execute immediately
+//	int64_t w_time; // working time, count doun from 'time'
+	event_status_type status;
+
+	union {
+		T_EVENT_PARA_WAIT wait;
+		char svalue[32];
+		double value;
+	} para;
 
 	struct EVENT *nxt; // next event
 } T_EVENT;
 
-// where will it happen
-typedef struct EVT_WHERE {
-	uint32_t id;
-	event_type type; // what to do
-	double pos;	// at which position
-	// TODO which direction?
-
-	struct EVT_WHERE *nxt;
-} T_EVT_WHERE;
 
 typedef enum {
 	EVFL_WAIT      = 0x0001, // wait, do not paint something
 	EVFL_CLEARPIXEL= 0x0002,
 	EVFL_FINISHED  = 0x0004,
 	EVFL_BMP_OPEN  = 0x0100,
-	EVFL_BMP_READ  = 0x0200, // TODO really needed?
+	EVFL_BMP_READ  = 0x0200, // TO DO really needed?
 	EVFL_BMP_CLOSE = 0x0400,
 	EVFL_BMP_MASK  = 0x0F00,
 	EVFL_UNKNOWN   = 0xFFFF
@@ -226,6 +226,8 @@ typedef enum {
 typedef struct EVENT_GROUP {
 	char id[LEN_EVT_ID];
 
+	event_status_type status;
+
 	int64_t time; // event time
 	uint32_t w_flags;
 	double w_pos;
@@ -242,21 +244,21 @@ typedef struct EVENT_GROUP {
 	uint32_t t_repeats; // 0=for evener
 	uint32_t w_t_repeats;
 
-	T_EVENT *evt_time_init_list;
-	T_EVENT *evt_time_list;
-	T_EVENT *evt_time_final_list;
+	T_EVENT *evt_init_list;
+	T_EVENT *evt_work_list;
+	T_EVENT *evt_final_list;
 
-	// location based events, example
-	//T_EVT_WHERE *evt_where_list;
 
 	struct EVENT_GROUP *nxt;
 } T_EVENT_GROUP;
 
 typedef struct SCENE {
 	char id[LEN_EVT_ID];
-	uint32_t flags;
-	T_EVENT_GROUP *event; // actual working event
-	T_EVENT_GROUP *events;
+	event_status_type status;
+
+	//uint32_t flags;
+	T_EVENT_GROUP *event_group; // actual working event
+	T_EVENT_GROUP *event_groups;
 	struct SCENE *nxt;
 } T_SCENE;
 

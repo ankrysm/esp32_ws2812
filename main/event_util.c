@@ -58,13 +58,13 @@ T_EVENT *find_event(char *id) {
 }
 */
 
-T_EVENT *find_timer_event4marker(T_EVENT *tevt_list, char *marker) {
-	if (!tevt_list || !marker || !strlen(marker)) {
+T_EVENT *find_event4marker(T_EVENT *evt_list, char *marker) {
+	if (!evt_list || !marker || !strlen(marker)) {
 		return NULL; // nothing to find
 	}
 
-	for( T_EVENT *e = tevt_list; e; e=e->nxt) {
-		if ( e->marker && strlen(e->marker) && !strcasecmp(e->marker, marker) ) {
+	for( T_EVENT *e = evt_list; e; e=e->nxt) {
+		if ( e->type == ET_MARKER && e->para.svalue && strlen(e->para.svalue) && !strcasecmp(e->para.svalue, marker) ) {
 			return e; // found!
 		}
 	}
@@ -190,11 +190,11 @@ T_EVENT *create_timing_event_init(T_EVENT_GROUP *evt, uint32_t id) {
 	// some useful values:
 	tevt->id=id;
 
-	if ( !evt->evt_time_init_list) {
-		evt->evt_time_init_list = tevt; // first in list
+	if ( !evt->evt_init_list) {
+		evt->evt_init_list = tevt; // first in list
 	} else {
 		T_EVENT *t;
-		for (t = evt->evt_time_init_list; t->nxt; t=t->nxt ) {}
+		for (t = evt->evt_init_list; t->nxt; t=t->nxt ) {}
 		t->nxt = tevt; // added at the end of the list
 	}
 
@@ -446,7 +446,7 @@ void delete_event(T_EVENT_GROUP *evt) {
 	if (!evt)
 		return;
 
-	delete_event_list(evt->evt_time_init_list);
+	delete_event_list(evt->evt_init_list);
 	delete_event_list(evt->evt_time_list);
 	delete_event_list(evt->evt_time_final_list);
 

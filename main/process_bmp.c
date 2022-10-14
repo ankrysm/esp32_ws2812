@@ -69,7 +69,19 @@ static void bmp_show_data(int pos, T_COLOR_RGB *rgb ) {
  }
 
 esp_err_t bmp_open_connection(char *url) {
+	if (is_bmp_reading ) {
+		ESP_LOGE(__func__, "is_bmp_reading should not be true here");
+		return ESP_FAIL;
+	}
+
+	if ( is_https_connection_active()) {
+		ESP_LOGE(__func__, "is_https_connection_active() should not be true here");
+		return ESP_FAIL;
+	}
+
 	ESP_LOGI(__func__,"start");
+
+	is_bmp_reading = true;
 	esp_err_t res = ESP_OK;
 
 	res = https_get(url, https_callback_bmp_processing);
@@ -82,8 +94,8 @@ void bmp_stop_processing() {
 	set_ux_quit_bits(BMP_BIT_STOP_WORKING);
 }
 
-esp_err_t bmp_read_data(int pos, T_COLOR_RGB *rgb) {
-	esp_err_t res = ESP_OK;
+t_result bmp_read_data(int pos, T_COLOR_RGB *rgb) {
+	t_result res = RES_OK;
 
 	if ( !is_https_connection_active()) {
 		ESP_LOGE(__func__, "there's no open connnection");
@@ -91,14 +103,14 @@ esp_err_t bmp_read_data(int pos, T_COLOR_RGB *rgb) {
 		rgb->r = 32;
 		rgb->g = 0;
 		rgb->b = 0;
-		return ESP_FAIL;
+		return RES_FAILED;
 	}
 
 	if ( pos >= bmpInfoHeader.biWidth ) {
 		rgb->r = 0;
 		rgb->g = 0;
 		rgb->b = 0;
-		return ESP_OK;
+		return RES_OK;
 	}
 
 	// if both values are 0 it is in init, continue with wait for data
@@ -130,6 +142,7 @@ esp_err_t bmp_read_data(int pos, T_COLOR_RGB *rgb) {
 		read_buffer_pos = 0;
 		read_buffer_len = get_read_length();
 		read_buffer = get_read_buffer(bufno);
+		ESP_LOGI(__func__, "buffer %d has data %d", bufno, read_buffer_len);
 		//bytes_per_line = get_bytes_per_bmp_line();
 
 		// maybe the buffer has only one pixel line then he is finished here
@@ -144,6 +157,7 @@ esp_err_t bmp_read_data(int pos, T_COLOR_RGB *rgb) {
 		read_buffer_pos = 0;
 		read_buffer_len = get_read_length();
 		read_buffer = get_read_buffer(bufno);
+		ESP_LOGI(__func__, "buffer %d has data %d", bufno, read_buffer_len);
 		//bytes_per_line = get_bytes_per_bmp_line();
 
 		bmp_show_data(pos, rgb);
@@ -154,9 +168,11 @@ esp_err_t bmp_read_data(int pos, T_COLOR_RGB *rgb) {
 
 	} else if (uxBits & BMP_BIT_NO_MORE_DATA ) {
 		// finished
+		ESP_LOGI(__func__, "finished");
 		bmp_data_reset();
 		is_bmp_reading = false;
 		set_ux_quit_bits(BMP_BIT_FINISH_PROCESSED);
+		res = RES_FINISHED;
 	}
 	return res;
 }

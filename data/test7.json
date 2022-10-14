@@ -14,8 +14,9 @@
 	 		"id":"A",
 	 		"events": [
 			 	{
+			 	"remarks":"this is an event group",
 			 	 "id":"A10",
-		 		"repeats":0,
+		 		"repeats":10,
 			 	 "init": [
 			 	 	{"type":"brightness", "value":0.1},
 		     	 	{"type":"goto", "value":10},
@@ -23,9 +24,10 @@
 		     	 	{"type":"object","value":"o1"}
 			 	 ],
 		     	 "work": [
-				 	{"type":"reverse", "time":3000},
+		     	 	{"type":"wait", "time":3000},
+				 	{"type":"reverse"},
 				 	{"type":"bounce"},
-				 	{"type":"go", "time":3000}
+				 	{"type":"wait", "time":3000}
 				 ],
 				 "final":[
 				 	{"type":"clear"}

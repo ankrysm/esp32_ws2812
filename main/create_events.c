@@ -436,7 +436,7 @@ static esp_err_t decode_json4event_scene_events(cJSON *element, T_SCENE *scene, 
 		snprintf(errmsg, sz_errmsg, "event created");
 		ESP_LOGI(__func__,"id='%s': %s", evt->id, errmsg);
 
-		reset_event(evt);
+		reset_event_group(evt);
 		reset_event_repeats(evt);
 
 		event_list_add(scene, evt);

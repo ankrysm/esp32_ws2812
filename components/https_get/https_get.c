@@ -82,6 +82,7 @@ esp_err_t _http_event_handler(esp_http_client_event_t *evt){
 
 static void do_https_get() {
 
+	ESP_LOGI(__func__, "start '%s'" , request_config->url);
     esp_http_client_handle_t client = esp_http_client_init(&request_config);
     if ( !client ) {
     	ESP_LOGE(__func__, "failed to init request");
@@ -150,6 +151,8 @@ static void do_https_get() {
     esp_http_client_close(client);
     esp_http_client_cleanup(client);
 
+    ESP_LOGI(__func__, "finished '%s'" , request_config->url);
+
     free((void*)request_config.url);
 }
 
@@ -164,9 +167,10 @@ static void http_main_task(void *pvParameters)
 
 esp_err_t https_get(char *url, https_get_callback callback) {
 	if ( connection_active ) {
-		ESP_LOGW(__func__, "there's an open connection");
+		ESP_LOGW(__func__, "there's an open connection url='%s'", url);
 		return ESP_FAIL;
 	}
+	connection_active = true;
 
 	memset(&request_config, 0, sizeof(request_config));
     request_config.url = strdup(url);
@@ -175,7 +179,7 @@ esp_err_t https_get(char *url, https_get_callback callback) {
     s_callback = callback;
 
 	xTaskCreate(&http_main_task, "http_main_task", 8192, NULL, 5, NULL);
-
+	ESP_LOGI(__func__, "'http_main_task' started");
 	return ESP_OK;
 
 }

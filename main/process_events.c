@@ -7,7 +7,7 @@
 
 #include "esp32_ws2812.h"
 
-static void reset_timing_events(T_EVENT *tevt);
+static void reset_events(T_EVENT *tevt);
 
 T_OBJECT_DATA object_data_clear = {
 	.type=OBJT_CLEAR,
@@ -22,103 +22,14 @@ T_EVT_OBJECT event_clear = {
 	.data = &object_data_clear
 };
 
-static int exentended_logging = false;
+static int exentended_logging = true;
 
-// position dependend events
-// sets
-//  * speed or
-//  * acceleration or
-//  * position or
-//  * length or
-//  * brightness or
-//  * color
-// void process_event_where(T_EVENT_GROUP *evt, uint64_t timer_period) {
-	/*
-	T_EVT_WHERE *wevt = evt->w_evt_where;
-	//T_EVT_WHAT *what_list = evt->working.what_list;
-	if ( !wevt ){
-		return; // no changes
-	}
-	// TO DO: check a range: is it near the trigger point, which direction
-	if (evt->working.pos.value < wevt->pos ) {
-		return; // not here
-	}
-
-	evt->working.speed.value = 0.0;
-	evt->working.speed.delta = 0.0;
-	evt->working.len.delta = 0.0;
-	evt->working.what_list = NULL;
-
-	T_EVT_WHERE *nxt = wevt->nxt;
-	evt->w_evt_where = nxt;
-
-	if (nxt) {
-		if ( nxt->para.set_flags & EP_SET_ACCELERATION )
-			evt->working.speed.delta = nxt->para.acceleration * timer_period;
-
-		if ( nxt->para.set_flags & EP_SET_SPEED )
-			evt->working.speed.value = nxt->para.speed;
-
-		if ( nxt->para.set_flags & EP_SET_POSITION )
-			evt->working.pos.value = nxt->para.position;
-
-		if ( nxt->para.set_flags & EP_SET_SHRINK_RATE )
-			evt->working.len.delta = nxt->para.shrink_rate * timer_period;
-
-		if ( nxt->para.set_flags & EP_SET_LEN )
-			evt->working.len.value = nxt->para.len;
-
-		if (nxt->what_list ) {
-			evt->working.what_list = nxt->what_list;
-		}
-	}
-
-	switch (wevt->type) {
-	case ET_REPEAT:
-		// default: from the beginning, if id is specified, find this event
-		evt->w_evt_where = evt->evt_where_list;
-		if ( nxt->para.set_flags & EP_SET_ID ) {
-			// search for id
-			for (T_EVT_WHERE *e = evt->evt_where_list; e; e=e->nxt) {
-				if ( e->id == nxt->para.id) {
-					evt->w_evt_where = e;
-					break;
-				}
-			}
-		}
-		break;
-	case ET_BOUNCE:
-		evt->working.speed.delta = -evt->working.speed.delta;
-		break;
-
-	case ET_STOP: // check if end position reached, leave lights on
-		// position reached
-		evt->working.speed.value = 0.0;
-		evt->working.speed.delta = 0.0;
-		evt->working.len.delta = 0.0;
-		// finished. should be last event in list, next location based event is: nothing
-		evt->w_evt_where = NULL;
-		break;
-	case ET_STOP_CLEAR: // check if end position reached, clears range
-		// position reached
-		evt->working.speed.value = 0.0;
-		evt->working.speed.delta = 0.0;
-		evt->working.len.delta = 0.0;
-		// finished. should be last event in list, next location based event is: nothing
-		evt->w_evt_where = NULL;
-		evt->working.what_list = &event_clear;
-		break;
-	default:
-		ESP_LOGW(__func__,"event type %d NYI", wevt->type);
-	}
-	*/
-// }
 
 // paint the pixel in the calculated range evt->working.pos and evt->working.len.value
 void process_object(T_EVENT_GROUP *evtgrp) {
 
 	if ( evtgrp->w_flags & EVFL_WAIT) {
-		return;
+		return; // do nothing, wait
 	}
 
 	T_EVT_OBJECT *obj = NULL;
@@ -272,7 +183,8 @@ void process_object(T_EVENT_GROUP *evtgrp) {
 				} else {
 					// get the next pixel as RGB
 					if ( get_is_bmp_reading()) {
-						bmp_read_data(pos, &rgb);
+						// returns RES_OK while reading data and RES_FINISHED when done
+						t_result res = bmp_read_data(pos, &rgb);
 					}
 				}
 				evtgrp->w_flags &= ~EVFL_BMP_MASK; // reset the bmp-flags
@@ -301,35 +213,42 @@ void process_object(T_EVENT_GROUP *evtgrp) {
 }
 
 
-static void process_event_when_init(T_EVENT_GROUP *evtgrp) {
+static void process_event_group_init(T_EVENT_GROUP *evtgrp) {
 	//ESP_LOGI(__func__, "started");
-	for(T_EVENT *evt = evtgrp->evt_time_init_list; evt; evt=evt->nxt ) {
-		if (evt->status == TE_STS_FINISHED)
-			continue; // init done
+	for(T_EVENT *evt = evtgrp->evt_init_list; evt; evt=evt->nxt ) {
 
 		if ( exentended_logging)
-			ESP_LOGI(__func__,"INIT evt.id='%s', tevt.id=%d: type %d(%s), val=%.3f, sval='%s'",	evtgrp->id, evt->id, evt->type, ET2TEXT(evt->type), evt->value, evt->svalue);
+			ESP_LOGI(__func__,"INIT evt.id='%s', tevt.id=%d: type %d(%s), val=%.3f, sval='%s'",	evtgrp->id, evt->id, evt->type, ET2TEXT(evt->type), evt->para.value, evt->para.svalue);
 
 		switch(evt->type) {
+
+		case ET_CLEAR:
+			evtgrp->w_flags |= EVFL_CLEARPIXEL;
+			break;
+
 		case ET_SPEED:
-			evtgrp->w_speed = evt->value;
+			evtgrp->w_speed = evt->para.value;
 			break;
+
 		case ET_SPEEDUP:
-			evtgrp->w_acceleration = evt->value;
+			evtgrp->w_acceleration = evt->para.value;
 			break;
+
 		case ET_GOTO_POS:
-			evtgrp->w_pos = evt->value;
+			evtgrp->w_pos = evt->para.value;
 			break;
+
 		case ET_SET_BRIGHTNESS:
-			evtgrp->w_brightness = evt->value;
+			evtgrp->w_brightness = evt->para.value;
 			break;
+
 		case ET_SET_BRIGHTNESS_DELTA:
-			evtgrp->w_brightness_delta = evt->value;
+			evtgrp->w_brightness_delta = evt->para.value;
 			break;
 
 		case ET_SET_OBJECT:
-			if (strlen(evt->svalue)) {
-				strlcpy(evtgrp->w_object_oid, evt->svalue, sizeof(evtgrp->w_object_oid));
+			if (strlen(evt->para.svalue)) {
+				strlcpy(evtgrp->w_object_oid, evt->para.svalue, sizeof(evtgrp->w_object_oid));
 				if ( exentended_logging)
 					ESP_LOGI(__func__,"evt.id='%s', tevt.id=%d: new object_oid='%s'", evtgrp->id, evt->id, evtgrp->w_object_oid);
 			}
@@ -337,69 +256,274 @@ static void process_event_when_init(T_EVENT_GROUP *evtgrp) {
 
 		case ET_BMP_OPEN:
 			evtgrp->w_flags |= EVFL_BMP_OPEN;
-//			if ( bmp_open_connection(evt->svalue) != ESP_OK) {
-//				ESP_LOGE(__func__,"INIT FAILED evt.id='%s', tevt.id=%d: type %d(%s), sval='%s'",
-//						evtgrp->id, evt->id, evt->type, ET2TEXT(evt->type), evt->svalue);
-//			}
 			break;
+
 		default:
 			break;
 		}
-		evt->status = TE_STS_FINISHED;
 	}
 }
 
 
 
-static void process_event_when_final(T_EVENT_GROUP *evtgrp) {
+static void process_event_group_final(T_EVENT_GROUP *evtgrp) {
 	ESP_LOGI(__func__, "started");
-	for(T_EVENT *evt = evtgrp->evt_time_final_list; evt; evt=evt->nxt ) {
-		if (evt->status == TE_STS_FINISHED)
-			continue; // init done
+	for(T_EVENT *evt = evtgrp->evt_final_list; evt; evt=evt->nxt ) {
 
 		if ( exentended_logging) {
-			ESP_LOGI(__func__,"FINAL evt.id='%s', tevt.id=%d: type %d(%s), val=%.3f, sval='%s'",
-				evtgrp->id, evt->id, evt->type, ET2TEXT(evt->type), evt->value, evt->svalue);
-			ESP_LOGI(__func__,"FINAL evt.id='%s', pos=%.2f", evtgrp->id, evtgrp->w_pos);
+			ESP_LOGI(__func__,"FINAL evt.id='%s', tevt.id=%d: type %d(%s), val=%.3f, sval='%s', pos=%.2f",
+				evtgrp->id, evt->id, evt->type, ET2TEXT(evt->type), evt->para.value, evt->para.svalue, evtgrp->w_pos);
 		}
 		switch(evt->type) {
+
 		case ET_CLEAR:
 			evtgrp->w_flags |= EVFL_CLEARPIXEL;
 			break;
-		case ET_SET_BRIGHTNESS:
-			evtgrp->w_brightness = evt->value;
+
+		case ET_BMP_CLOSE:
+			evtgrp->w_flags |= EVFL_BMP_CLOSE;
 			break;
+
 		default:
 			break;
 		}
-		evt->status = TE_STS_FINISHED;
 	}
 }
 
-// time dependend events
-// time values in ms
-// sets several parameters
-void  process_event_when(T_EVENT_GROUP *evtgrp, uint64_t scene_time, uint64_t timer_period) {
-	if (!evtgrp->evt_time_list) {
-		return; // no timing events
+
+void check_for_repeat(T_EVENT_GROUP *evtgrp) {
+	if (evtgrp->t_repeats > 0 ) {
+		if ( evtgrp->w_t_repeats > 0) {
+			evtgrp->w_t_repeats--;
+		}
+	} else {
+		evtgrp->w_t_repeats = 1; // forever
 	}
 
-	//evt->delta_pos = evt->w_speed < 0.0 ? -1 : +1;
+	if ( evtgrp->w_t_repeats == 0 ) {
+		evtgrp->status = EVT_STS_FINISHED;
+		if ( exentended_logging)
+			ESP_LOGI(__func__, "evt.id='%s': repeat events (%d/%d) FINISHED", evtgrp->id, evtgrp->w_t_repeats, evtgrp->t_repeats);
+	} else {
+		if ( exentended_logging)
+			ESP_LOGI(__func__, "evt.id='%s': repeat events (%d/%d) CONTINUE", evtgrp->id, evtgrp->w_t_repeats, evtgrp->t_repeats);
+	}
 
-	// **** INIT events *************
-	process_event_when_init(evtgrp);
+//	if ( evtgrp->w_t_repeats > 0) {
+//		// have to be repeated **************************************************************
+//		// reset event, next turn
+//		if ( exentended_logging)
+//			ESP_LOGI(__func__, "evt.id='%s': repeat events (%d/%d)", evtgrp->id, evtgrp->w_t_repeats, evtgrp->t_repeats);
+//
+//		reset_event_group(evtgrp);
+//		reset_events(tevt_next);
+//		// process init events
+//		process_event_group_init(evtgrp);
+//
+//		if ( exentended_logging)
+//			ESP_LOGI(__func__, "next event to tid=%d", tevt_next->id );
+//	} else {
+//		// done, mark event as finished
+//		evtgrp->w_flags |= EVFL_FINISHED;
+//	}
+
+}
+
+// working events
+// time values in ms
+// sets several parameters
+void  process_event_group_work(T_EVENT_GROUP *evtgrp, uint64_t scene_time, uint64_t timer_period) {
+	if (!evtgrp->evt_work_list) {
+		return; // no events
+	}
 
 	// ************ WORK Events **************************
-	T_EVENT *evt = evtgrp->evt_time_list;
+	bool check_for_repeat = false;
+	T_EVENT *evt = evtgrp->evt_work_list;
+	T_EVENT *evt_next;
 	while(evt) {
 
-		if ( evt->status == TE_STS_FINISHED ) {
-			// finished or is not a paint type
+		if ( evt->status == EVT_STS_FINISHED ) {
+			// already finished
 			evt = evt->nxt;
 			continue;
 		}
 
+		if ( evt->status == EVT_STS_READY ) {
+			evt->status = EVT_STS_FINISHED; // in most cases
+
+			switch(evt->type) {
+			case ET_WAIT:
+				evtgrp->w_flags |= EVFL_WAIT;
+				evt->para.wait.w_time = evt->para.wait.time;
+				evt->status = EVT_STS_RUNNING;
+				break;
+			case ET_SPEED:
+				evtgrp->w_speed = evt->para.value;
+				break;
+			case ET_SPEEDUP:
+				evtgrp->w_acceleration = evt->para.value;
+				break;
+			case ET_BOUNCE:
+				evtgrp->w_speed = -evtgrp->w_speed;
+				break;
+			case ET_REVERSE:
+				evtgrp->delta_pos = evtgrp->delta_pos < 0 ? +1 : -1;
+				break;
+			case ET_GOTO_POS:
+				evtgrp->w_pos = evt->para.value;
+				break;
+			case ET_JUMP_MARKER:
+				// find event with marker
+				evt_next = find_event4marker(evtgrp->evt_work_list, evt->para.svalue);
+				if ( evt_next ) {
+					// found a destination, check for repeat
+					check_for_repeat(evtgrp);
+					if ( evtgrp->status == EVT_STS_FINISHED) {
+						if ( exentended_logging)
+							ESP_LOGI(__func__, "found destination tid=%d, marker='%s' FINISHED", evt_next->id, evt_next->para.svalue);
+						// all remaining events set to finished
+						for (;evt->nxt; evt) {
+							evt->status = EVT_STS_FINISHED;
+						}
+						return;
+					}
+					if ( exentended_logging)
+						ESP_LOGI(__func__, "found destination tid=%d, marker='%s' jump to", evt_next->id, evt_next->para.svalue);
+
+					evt = evt_next;
+					reset_events(evt);
+
+				} else {
+					ESP_LOGE(__func__, "no event for '%s' found", evt->para.svalue);
+				}
+				break;
+			case ET_CLEAR:
+				evtgrp->w_flags |= EVFL_CLEARPIXEL;
+				break;
+			case ET_SET_BRIGHTNESS:
+				evtgrp->w_brightness = evt->para.value;
+				break;
+			case ET_SET_BRIGHTNESS_DELTA:
+				evtgrp->w_brightness_delta = evt->para.value;
+				break;
+			case ET_SET_OBJECT:
+				if (strlen(evt->para.svalue)) {
+					strlcpy(evtgrp->w_object_oid, evt->para.svalue, sizeof(evtgrp->w_object_oid));
+					if ( exentended_logging)
+						ESP_LOGI(__func__,"evt.id='%s', tevt.id=%d: new object_oid='%s'", evtgrp->id, evt->id, evtgrp->w_object_oid);
+				}
+				break;
+			case ET_BMP_OPEN:
+				evtgrp->w_flags |= EVFL_BMP_OPEN;
+				break;
+			case ET_BMP_READ:
+				evtgrp->w_flags |= EVFL_BMP_READ;
+				break;
+			case ET_BMP_CLOSE:
+				evtgrp->w_flags |= EVFL_BMP_CLOSE;
+				break;
+
+			default:
+				//ESP_LOGW(__func__,"evt.id=%d, tevt.id=%d: timer of %llu ms, type %d expired, NYI", evt->id, tevt->id, tevt->time, tevt->type);
+				break;
+			}
+
+		} // if READY
+
+		if ( evt->status == EVT_STS_FINISHED) {
+			evt = evt->nxt;
+			continue;
+		}
+
+		// check EVT_STS_RUNNING events
+		switch (evt->type) {
+		case ET_WAIT:
+			evt->para.wait.w_time -= timer_period;
+			if (evt->para.wait.w_time <=0) {
+				// timer ends
+				evt->status = EVT_STS_FINISHED;
+			}
+			break;
+		default:
+			// should not happen here
+			evt->status = EVT_STS_FINISHED;
+			break;
+		}
+
+		// if a running event finished
+		if ( evt->status == EVT_STS_FINISHED) {
+			evt = evt->nxt;
+			continue;
+		}
+		break; // because of the RUNNING event not finished yet
+	} // while
+
+	if (!evt) {
+		// no more events
+		check_for_repeat(evtgrp);
+		if ( evtgrp->status == EVT_STS_FINISHED) {
+			// all done
+			ESP_LOGI(__func__, "evt.id='%s': repeat events (%d/%d) ALL DONE", evtgrp->id, evtgrp->w_t_repeats, evtgrp->t_repeats);
+			return;
+		}
+		// next turn, reset events
+		reset_event_group(evtgrp);
+		// status is set to READY needs to be RUNNING
+		evtgrp->status = EVT_STS_RUNNING;
+//		reset_events(evtgrp->evt_work_list);
+//		evt = evtgrp->evt_work_list;
+		// process init events
+//		process_event_group_init(evtgrp);
+
+	}
+
+	/*
+			if ( evt->status == EVT_STS_FINISHED) {
+				evt = evt->nxt;
+				if ( !evt ) {
+					check_for_repeat = true;
+					ESP_LOGI(__func__, "last event finished");
+				}
+
+				// check for repeat ********************************************************************
+				if ( check_for_repeat) {
+					// all events finished, repeat it?
+					if (evtgrp->t_repeats > 0 ) {
+						if ( evtgrp->w_t_repeats > 0) {
+							evtgrp->w_t_repeats--;
+						}
+					} else {
+						evtgrp->w_t_repeats = 1; // forever
+					}
+
+					if ( evtgrp->w_t_repeats > 0) {
+						// have to be repeated **************************************************************
+						// reset event, next turn
+						if ( exentended_logging)
+							ESP_LOGI(__func__, "evt.id='%s': repeat events (%d/%d)", evtgrp->id, evtgrp->w_t_repeats, evtgrp->t_repeats);
+
+						reset_event_group(evtgrp);
+						reset_events(tevt_next);
+						// process init events
+						process_event_group_init(evtgrp);
+
+						if ( exentended_logging)
+							ESP_LOGI(__func__, "next event to tid=%d", tevt_next->id );
+					} else {
+						// done, mark event as finished
+						evtgrp->w_flags |= EVFL_FINISHED;
+					}
+				}
+			}
+		}
+
+
+		/// ##################################################################
 		evtgrp->w_flags &= ~EVFL_WAIT;
+
+
+
 
 		if ( evt->status == TE_STS_WAIT_FOR_START) {
 			// Timer start
@@ -496,7 +620,7 @@ void  process_event_when(T_EVENT_GROUP *evtgrp, uint64_t scene_time, uint64_t ti
 
 			case ET_JUMP_MARKER:
 				// find event with marker
-				tevt_next = find_timer_event4marker (evtgrp->evt_time_list, evt->marker);
+				tevt_next = find_event4marker (evtgrp->evt_time_list, evt->marker);
 				if ( tevt_next ) {
 					// have one
 					if (tevt_next == evt) {
@@ -549,10 +673,10 @@ void  process_event_when(T_EVENT_GROUP *evtgrp, uint64_t scene_time, uint64_t ti
 					if ( exentended_logging)
 						ESP_LOGI(__func__, "evt.id='%s': repeat events (%d/%d)", evtgrp->id, evtgrp->w_t_repeats, evtgrp->t_repeats);
 
-					reset_event(evtgrp);
-					reset_timing_events(tevt_next);
+					reset_event_group(evtgrp);
+					reset_events(tevt_next);
 					// process init events
-					process_event_when_init(evtgrp);
+					process_event_group_init(evtgrp);
 
 					if ( exentended_logging)
 						ESP_LOGI(__func__, "next event to tid=%d", tevt_next->id );
@@ -573,7 +697,7 @@ void  process_event_when(T_EVENT_GROUP *evtgrp, uint64_t scene_time, uint64_t ti
 
 	} // while
 
-
+ // */
 }
 
 
@@ -585,31 +709,38 @@ void  process_event_when(T_EVENT_GROUP *evtgrp, uint64_t scene_time, uint64_t ti
  *
  * caller should check EVFL_FINISHED flag
  */
-void process_event(T_EVENT_GROUP *evt, uint64_t scene_time, uint64_t timer_period) {
-	if ( evt->w_flags & EVFL_FINISHED) {
+void process_event_group(T_EVENT_GROUP *evtgrp, uint64_t scene_time, uint64_t timer_period) {
+	if ( evtgrp->status ==  EVT_STS_FINISHED) {
 		return;
 	}
 
-	//ESP_LOGI(__func__, "start process_event_when evt=%d, t=%llu", evt->id, scene_time);
-	process_event_when(evt, scene_time, timer_period);
+	if ( evtgrp->status ==  EVT_STS_READY) {
+		// **** process INIT events *************
+		process_event_group_init(evtgrp);
+		evtgrp->status = EVT_STS_RUNNING;
+	}
 
-	// finished is a new status
-	if ( evt->w_flags & EVFL_FINISHED ) {
-		process_event_when_final(evt);
-		process_object(evt);
+	// here the status is always "running"
+
+	//ESP_LOGI(__func__, "start process_event_when evt=%d, t=%llu", evt->id, scene_time);
+	process_event_group_work(evtgrp, scene_time, timer_period);
+
+	if ( evtgrp->status == EVT_STS_FINISHED ) {
+		process_event_group_final(evtgrp);
+		process_object(evtgrp);
 		return; // not necessary to do more
 	}
 
 	//ESP_LOGI(__func__, "start process_event_what evt=%d", evt->id);
-	process_object(evt);
+	process_object(evtgrp);
 
-	if ( evt->w_flags & EVFL_FINISHED )
+	if ( evtgrp->w_flags & EVFL_FINISHED )
 		return; // not necessary to do more
 
 	// next timestep
-	evt->time += timer_period;
+	evtgrp->time += timer_period;
 
-	if ( evt->w_flags & EVFL_WAIT )
+	if ( evtgrp->w_flags & EVFL_WAIT )
 		return; // no changes while wait
 
 
@@ -617,22 +748,22 @@ void process_event(T_EVENT_GROUP *evt, uint64_t scene_time, uint64_t timer_perio
 	// v = a * t
 	// Δv = a * Δt
 	// speed is leds per ms
-	evt->w_speed += evt->w_acceleration;
+	evtgrp->w_speed += evtgrp->w_acceleration;
 
-	evt->w_len_factor += evt->w_len_factor_delta;
-	if ( evt->w_len_factor < 0.0 ) {
-		evt->w_len_factor = 0.0;
-	} else if ( evt->w_len_factor > 1.0 ) {
-		evt->w_len_factor = 1.0;
+	evtgrp->w_len_factor += evtgrp->w_len_factor_delta;
+	if ( evtgrp->w_len_factor < 0.0 ) {
+		evtgrp->w_len_factor = 0.0;
+	} else if ( evtgrp->w_len_factor > 1.0 ) {
+		evtgrp->w_len_factor = 1.0;
 	}
 
-	evt->w_brightness += evt->w_brightness_delta;
-	if ( evt->w_brightness < 0.0)
-		evt->w_brightness = 0.0;
-	else if(evt->w_brightness > 1.0)
-		evt->w_brightness = 1.0;
+	evtgrp->w_brightness += evtgrp->w_brightness_delta;
+	if ( evtgrp->w_brightness < 0.0)
+		evtgrp->w_brightness = 0.0;
+	else if(evtgrp->w_brightness > 1.0)
+		evtgrp->w_brightness = 1.0;
 
-	evt->w_pos += evt->w_speed;
+	evtgrp->w_pos += evtgrp->w_speed;
 	//ESP_LOGI(__func__, "finished evt=%d", evt->id);
 	//return false;
 
@@ -641,13 +772,13 @@ void process_event(T_EVENT_GROUP *evt, uint64_t scene_time, uint64_t timer_perio
 /**
  * resets all timing events starting from the given event
  */
-static void reset_timing_events(T_EVENT *tevt) {
+static void reset_events(T_EVENT *tevt) {
 	if ( !tevt)
 		return;
 
 	for ( T_EVENT *e = tevt; e; e=e->nxt) {
-		e->w_time = e->time;
-		e->status = TE_STS_WAIT_FOR_START;
+		//e->w_time = e->time;
+		e->status = EVT_STS_READY;
 		//ESP_LOGI(__func__, "id=%d: status=0x%04x", e->id, e->status);
 	}
 }
@@ -657,23 +788,26 @@ static void reset_timing_events(T_EVENT *tevt) {
  *  reset an event,
  *  except repeat parameter and working events
  */
-void reset_event( T_EVENT_GROUP *evt) {
-	evt->w_flags = 0; //evt->flags;
-	evt->w_pos = 0; //evt->pos;
-	evt->w_len_factor = 1.0; //evt->len_factor;
-	evt->w_len_factor_delta = 0.0; //evt->len_factor_delta;
-	evt->w_speed = 0.0; //evt->speed;
-	evt->w_acceleration = 0.0; //evt->acceleration;
-	evt->w_brightness = 1.0; //evt->brightness;
-	evt->w_brightness_delta = 0.0; //evt->brightness_delta;
-	evt->time = 0;
-	evt->delta_pos = 1;
-	memset(evt->w_object_oid,0, LEN_EVT_OID);
+void reset_event_group( T_EVENT_GROUP *evtgrp) {
+	evtgrp->status = EVT_STS_READY;
+	evtgrp->w_flags = 0; //evt->flags;
+	evtgrp->w_pos = 0; //evt->pos;
+	evtgrp->w_len_factor = 1.0; //evt->len_factor;
+	evtgrp->w_len_factor_delta = 0.0; //evt->len_factor_delta;
+	evtgrp->w_speed = 0.0; //evt->speed;
+	evtgrp->w_acceleration = 0.0; //evt->acceleration;
+	evtgrp->w_brightness = 1.0; //evt->brightness;
+	evtgrp->w_brightness_delta = 0.0; //evt->brightness_delta;
+	evtgrp->time = 0;
+	evtgrp->delta_pos = 1;
+	memset(evtgrp->w_object_oid,0, LEN_EVT_OID);
 
-	reset_timing_events(evt->evt_time_init_list);
+	reset_events(evtgrp->evt_work_list);
+
+	//reset_events(evt->evt_init_list);
 
 	if ( exentended_logging)
-		ESP_LOGI(__func__, "event '%s'", evt->id);
+		ESP_LOGI(__func__, "event '%s'", evtgrp->id);
 }
 
 /**
@@ -683,7 +817,7 @@ void reset_event( T_EVENT_GROUP *evt) {
 void reset_event_repeats(T_EVENT_GROUP *evt) {
 
 	evt->w_t_repeats = evt->t_repeats;
-	reset_timing_events(evt->evt_time_final_list);
+	//reset_events(evt->evt_time_final_list);
 
 	if ( exentended_logging)
 		ESP_LOGI(__func__, "event '%s' repeates=%d", evt->id, evt->w_t_repeats);
@@ -691,42 +825,48 @@ void reset_event_repeats(T_EVENT_GROUP *evt) {
 }
 
 void process_scene(T_SCENE *scene, uint64_t scene_time, uint64_t timer_period) {
-	T_EVENT_GROUP *events = scene->events;
-	if ( !events ) {
-		scene->flags |= EVFL_FINISHED;
+	T_EVENT_GROUP *event_groups = scene->event_groups;
+	if ( !event_groups ) {
+		scene->status = EVT_STS_FINISHED;
 		return;
 	}
 
-	if ( scene->flags & EVFL_FINISHED)
+	if ( scene->status == EVT_STS_FINISHED)
 		return;
 
-	if ( !scene->event) {
+	if ( scene->status == EVT_STS_READY) {
+		reset_scene(scene);
+		scene->status = EVT_STS_RUNNING;
 		// first event
-		scene->event=scene->events;
-		reset_event(scene->event);
+		//scene->event_group=scene->event_groups;
+		//reset_event_group(scene->event_group);
 	}
 
+	// scene status is EVT_STS_RUNNING here
 	bool finished = true;
-	for ( ; scene->event; scene->event = scene->event->nxt) {
-		if (scene->event->w_flags & EVFL_FINISHED) {
+	for ( ; scene->event_group; scene->event_group = scene->event_group->nxt) {
+
+		if (scene->event_group->status == EVT_STS_FINISHED) {
 			if ( exentended_logging)
-				ESP_LOGI(__func__,"scene '%s', event '%s' already finished", scene->id, scene->event->id );
+				ESP_LOGI(__func__,"scene '%s', event group '%s' already finished", scene->id, scene->event_group->id );
 			continue; // step over
 		}
+
 		// not finished, process it
-		process_event(scene->event, scene_time, timer_period);
-		if ( !(scene->event->w_flags & EVFL_FINISHED)) {
-			finished = false;
-		} else {
+		process_event_group(scene->event_group, scene_time, timer_period);
+
+		if ( scene->event_group->status == EVT_STS_FINISHED) {
 			if ( exentended_logging)
-				ESP_LOGI(__func__,"scene '%s', event '%s' just finished", scene->id, scene->event->id );
+				ESP_LOGI(__func__,"scene '%s', event '%s' just finished", scene->id, scene->event_group->id );
+		} else {
+			finished = false;
 		}
 
 		break;
 	}
 
 	if (finished) {
-		scene->flags |= EVFL_FINISHED;
+		scene->status = EVT_STS_FINISHED;
 		if ( exentended_logging)
 			ESP_LOGI(__func__, "scene '%s' finished", scene->id);
 	}
@@ -736,13 +876,15 @@ void process_scene(T_SCENE *scene, uint64_t scene_time, uint64_t timer_period) {
 void reset_scene(T_SCENE *scene) {
 	if ( exentended_logging)
 		ESP_LOGI(__func__, "scene '%s'", scene->id);
-	scene->flags = 0;
-	scene->event = NULL;
-	for( T_EVENT_GROUP *evt = scene->events; evt; evt=evt->nxt) {
-		reset_event(evt);
+	// scene->flags = 0;
+	scene->status = EVT_STS_READY;
+	scene->event_group = scene->event_groups;
+	for( T_EVENT_GROUP *evtgrp = scene->event_groups; evtgrp; evtgrp=evtgrp->nxt) {
+		evtgrp->status = EVT_STS_READY;
+		reset_event_group(evtgrp);
 		// additional reset working events
-		reset_timing_events(evt->evt_time_list);
-		reset_event_repeats(evt);
+		//reset_timing_events(evt->evt_time_list);
+		//reset_event_repeats(evtgrp);
 	}
 
 }
