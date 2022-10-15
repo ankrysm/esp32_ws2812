@@ -79,23 +79,28 @@ typedef enum {
 	c==OBJT_BMP ? "bmp" : "unknown" \
 )
 
+
+typedef enum  {
+	EVT_PARA_NONE,
+	EVT_PARA_TIME,
+	EVT_PARA_NUMERIC,
+	EVT_PARA_STRING
+} event_parameter_type;
+
 // I - init - no timing
 // W - at work with timing parameters, s-start, r-running, e-end
 // F - finally (all repeats done) - no timing
 typedef enum {
-	ET_NONE,                 // - -- - nothing to do
-	//ET_PAUSE,                // - Wsr - do nothing
-	//ET_GO_ON,                // - Wr - continue with actual parameter
-	ET_WAIT,                 // - W - wait for condition time, condition...
-	ET_SPEED,                // I W - set speed
-	ET_SPEEDUP,              // I W - set acceleration
-	ET_BOUNCE,               // - W - change direction speed=-speed
-	ET_REVERSE,              // - W - change delta_pos to -delta_pos
-	ET_GOTO_POS,             // I W - goto to position
+	ET_NONE,                 // - - - (-) nothing to do
+	ET_WAIT,                 // - W - (time) wait for condition time, condition...
+	ET_SPEED,                // I W - (numeric) set speed
+	ET_SPEEDUP,              // I W - (numeric) set acceleration
+	ET_BOUNCE,               // - W - (-) change direction speed=-speed
+	ET_REVERSE,              // - W - (-) change delta_pos to -delta_pos
+	ET_GOTO_POS,             // I W - (numeric) goto to position
 	ET_MARKER,               // - W - destination marker
 	ET_JUMP_MARKER,          // - W - jump to event with the marker
 	ET_CLEAR,                // I W F clear pixels
-	//ET_STOP,                 // - W - end of event
 	ET_SET_BRIGHTNESS,       // I W -
 	ET_SET_BRIGHTNESS_DELTA, // I W -
 	ET_SET_OBJECT,           // I W - oid for object
@@ -105,7 +110,17 @@ typedef enum {
 	ET_UNKNOWN
 } event_type;
 
+typedef struct {
+	event_type evt_type;
+	event_parameter_type evt_para_type;
+	char *name;
+	char *help;
+} T_EVENT_CONFIG;
 
+
+
+
+/*
 #define TEXT2ET(c) ( \
 	!strcasecmp(c,"wait") ? ET_WAIT : \
 	!strcasecmp(c,"speed") ? ET_SPEED : \
@@ -143,6 +158,7 @@ typedef enum {
 	c==ET_BMP_CLOSE ? "bmp_close" : \
 	"unknown" \
 )
+*/
 
 //************* object and event definitions **************
 

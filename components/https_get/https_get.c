@@ -82,7 +82,7 @@ esp_err_t _http_event_handler(esp_http_client_event_t *evt){
 
 static void do_https_get() {
 
-	ESP_LOGI(__func__, "start '%s'" , request_config->url);
+	ESP_LOGI(__func__, "start '%s'" , request_config.url);
     esp_http_client_handle_t client = esp_http_client_init(&request_config);
     if ( !client ) {
     	ESP_LOGE(__func__, "failed to init request");
@@ -151,7 +151,7 @@ static void do_https_get() {
     esp_http_client_close(client);
     esp_http_client_cleanup(client);
 
-    ESP_LOGI(__func__, "finished '%s'" , request_config->url);
+    ESP_LOGI(__func__, "finished '%s'" , request_config.url);
 
     free((void*)request_config.url);
 }

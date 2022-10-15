@@ -75,7 +75,7 @@ esp_err_t bmp_open_connection(char *url) {
 	}
 
 	if ( is_https_connection_active()) {
-		ESP_LOGE(__func__, "is_https_connection_active() should not be true here");
+		ESP_LOGE(__func__, "is_https_connection_active()	 should not be true here");
 		return ESP_FAIL;
 	}
 

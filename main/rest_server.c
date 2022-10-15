@@ -207,22 +207,22 @@ static void get_handler_list(httpd_req_t *req) {
 
 	} else {
 		for (T_SCENE *scene = s_scene_list; scene; scene=scene->nxt) {
-			if ( !scene->events) {
+			if ( !scene->event_groups) {
 				snprintf(buf, sz_buf, "\nno events");
 				httpd_resp_send_chunk_l(req, buf);
 			} else {
-				for ( T_EVENT_GROUP *evt= scene->events; evt; evt = evt->nxt) {
-					snprintf(buf, sz_buf, "\nEvent id='%s', repeats=%u:", evt->id, evt->t_repeats);
+				for ( T_EVENT_GROUP *evtgrp= scene->event_groups; evtgrp; evtgrp = evtgrp->nxt) {
+					snprintf(buf, sz_buf, "\nEvent id='%s', repeats=%u:", evtgrp->id, evtgrp->t_repeats);
 					httpd_resp_send_chunk_l(req, buf);
 
 					// INIT events
-					if (evt->evt_init_list) {
+					if (evtgrp->evt_init_list) {
 						snprintf(buf, sz_buf,"\n  INIT events:");
 						httpd_resp_send_chunk_l(req, buf);
 
-						for (T_EVENT *tevt = evt->evt_init_list; tevt; tevt=tevt->nxt) {
-							snprintf(buf, sz_buf,"\n    id=%d, time=%llu ms, type=%d/%s, val=%.3f, sval='%s', marker='%s",
-									tevt->id, tevt->time, tevt->type, ET2TEXT(tevt->type), tevt->value, tevt->svalue, tevt->marker);
+						for (T_EVENT *evt = evtgrp->evt_init_list; evt; evt=evt->nxt) {
+							httpd_resp_send_chunk_l(req,"\n  ");
+							event2text(evt, buf, sizeof(buf));
 							httpd_resp_send_chunk_l(req, buf);
 
 						}
@@ -232,13 +232,13 @@ static void get_handler_list(httpd_req_t *req) {
 					}
 
 					// WORK events
-					if (evt->evt_time_list) {
+					if (evtgrp->evt_work_list) {
 						snprintf(buf, sz_buf,"\n  WORK events:");
 						httpd_resp_send_chunk_l(req, buf);
 
-						for (T_EVENT *tevt = evt->evt_time_list; tevt; tevt=tevt->nxt) {
-							snprintf(buf, sz_buf,"\n    id=%d, time=%llu ms, type=%d/%s, val=%.3f, sval='%s', marker='%s'",
-									tevt->id, tevt->time, tevt->type, ET2TEXT(tevt->type), tevt->value, tevt->svalue, tevt->marker);
+						for (T_EVENT *evt = evtgrp->evt_work_list; evt; evt=evt->nxt) {
+							httpd_resp_send_chunk_l(req,"\n  ");
+							event2text(evt, buf, sizeof(buf));
 							httpd_resp_send_chunk_l(req, buf);
 
 						}
@@ -248,13 +248,13 @@ static void get_handler_list(httpd_req_t *req) {
 					}
 
 					// FINAL events
-					if (evt->evt_time_final_list) {
+					if (evtgrp->evt_final_list) {
 						snprintf(buf, sz_buf,"\n  FINAL events:");
 						httpd_resp_send_chunk_l(req, buf);
 
-						for (T_EVENT *tevt = evt->evt_time_final_list; tevt; tevt=tevt->nxt) {
-							snprintf(buf, sz_buf,"\n    id=%d, time=%llu ms, type=%d/%s, val=%.3f, sval='%s', marker='%s'",
-									tevt->id, tevt->time, tevt->type, ET2TEXT(tevt->type), tevt->value, tevt->svalue, tevt->marker);
+						for (T_EVENT *evt = evtgrp->evt_final_list; evt; evt=evt->nxt) {
+							httpd_resp_send_chunk_l(req,"\n  ");
+							event2text(evt, buf, sizeof(buf));
 							httpd_resp_send_chunk_l(req, buf);
 
 						}

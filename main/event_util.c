@@ -16,6 +16,24 @@ static  SemaphoreHandle_t xSemaphore = NULL;
 
 static 	TickType_t xSemDelay = 5000 / portTICK_PERIOD_MS;
 
+T_EVENT_CONFIG event_config_tab[] = {
+		{ET_WAIT, EVT_PARA_TIME, "wait", "wait for n ms"},
+		{ET_SPEED, EVT_PARA_NUMERIC, "speed", "speed in leds per second"},
+		{ET_SPEEDUP, EVT_PARA_NUMERIC, "speedup", "speedup delta speed per display cycle"},
+		{ET_BOUNCE, EVT_PARA_NONE, "bounce", "reverse speed"},
+		{ET_REVERSE, EVT_PARA_NONE, "reverse", "reverse paint direction"},
+		{ET_GOTO_POS, EVT_PARA_NUMERIC, "goto", "go to led position"},
+		{ET_MARKER, EVT_PARA_STRING, "marker", "set marker"},
+		{ET_JUMP_MARKER, EVT_PARA_STRING, "jump_marker", "jump to marker"},
+		{ET_CLEAR,EVT_PARA_NONE, "clear", "blank the strip"},
+		{ET_SET_BRIGHTNESS, EVT_PARA_NUMERIC,"brightness", "set brightness"},
+		{ET_SET_BRIGHTNESS_DELTA, EVT_PARA_NUMERIC,"brightness_delta", "set brightness delta per display cycle"},
+		{ET_SET_OBJECT, EVT_PARA_STRING, "object","set objectid from object table"},
+		{ET_BMP_OPEN, EVT_PARA_NONE, "bmp_open", "open BMP stream, defined by 'bmp' object"},
+		{ET_BMP_READ, EVT_PARA_NONE, "bmp_read","read BMP data line by line and display it"},
+		{ET_BMP_CLOSE, EVT_PARA_NONE, "bmp_close", "close BMP stream"},
+		{ET_NONE, EVT_PARA_NONE, "", ""} // end of table
+};
 
 esp_err_t obtain_eventlist_lock() {
 	if( xSemaphoreTake( xSemaphore, xSemDelay ) == pdTRUE ) {
@@ -38,6 +56,54 @@ void init_eventlist_utils() {
 }
 
 
+T_EVENT_CONFIG *find_event_config(char *name) {
+	for (int i=0; event_config_tab[i].evt_type != ET_NONE; i++ ) {
+		if ( !strcasecmp(name, event_config_tab[i].name)) {
+			// matched
+			return &event_config_tab[i];
+		}
+	}
+	return NULL;
+}
+
+bool print_event_config_r(int *pos, char *buf, size_t sz_buf) {
+	if (event_config_tab[*pos].evt_type == ET_NONE) {
+		*pos = 0;
+		return true; // end of table
+	}
+	switch (event_config_tab[*pos].evt_para_type) {
+	case EVT_PARA_NONE:
+		snprintf(buf, sz_buf, "\"type\":\"%s\" - %s", event_config_tab[*pos].name, event_config_tab[*pos].help);
+		break;
+	case EVT_PARA_TIME:
+		snprintf(buf, sz_buf, "\"type\":\"%s\", \"time\":<time value>  - %s",
+				event_config_tab[*pos].name, event_config_tab[*pos].help
+		);
+		break;
+	case EVT_PARA_NUMERIC:
+		snprintf(buf, sz_buf, "\"type\":\"%s\", \"value\":<numeric value>  - %s",
+				event_config_tab[*pos].name, event_config_tab[*pos].help
+		);
+		break;
+	case EVT_PARA_STRING:
+		snprintf(buf, sz_buf, "\"type\":\"%s\", \"value\":\"<string value>\"  - %s",
+				event_config_tab[*pos].name, event_config_tab[*pos].help
+		);
+		break;
+	}
+	(*pos)++;
+	return false;
+}
+
+char *eventype2text(event_type type) {
+	for (int i=0; event_config_tab[i].evt_type != ET_NONE; i++ ) {
+		if ( event_config_tab[i].evt_type == type) {
+			// matched
+			return event_config_tab[i].name;
+		}
+	}
+	return "????";
+}
 
 /**
  * find an event by id
@@ -130,14 +196,14 @@ esp_err_t event_list_add(T_SCENE *scene, T_EVENT_GROUP *evt) {
 	}
 
 	if ( evt)  {
-		if ( scene->events) {
+		if ( scene->event_groups) {
 			// add at the end of the list
 			T_EVENT_GROUP *t;
-			for (t=scene->events; t->nxt; t=t->nxt){}
+			for (t=scene->event_groups; t->nxt; t=t->nxt){}
 			t->nxt = evt;
 		} else {
 			// first entry
-			scene->events = evt;
+			scene->event_groups = evt;
 		}
 
 	} else {
@@ -160,7 +226,7 @@ T_EVENT_GROUP *create_event(char *id) {
 }
 
 // creates a new timing event and adds it to the event body
-T_EVENT *create_timing_event(T_EVENT_GROUP *evt, uint32_t id) {
+T_EVENT *create_event_work(T_EVENT_GROUP *evt, uint32_t id) {
 	T_EVENT *tevt=calloc(1,sizeof(T_EVENT));
 	if ( !tevt) {
 		ESP_LOGE(__func__,"couldn't allocate %d bytes for new timing event", sizeof(T_EVENT));
@@ -169,11 +235,11 @@ T_EVENT *create_timing_event(T_EVENT_GROUP *evt, uint32_t id) {
 	// some useful values:
 	tevt->id=id;
 
-	if ( !evt->evt_time_list) {
-		evt->evt_time_list = tevt; // first in list
+	if ( !evt->evt_work_list) {
+		evt->evt_work_list = tevt; // first in list
 	} else {
 		T_EVENT *t;
-		for (t = evt->evt_time_list; t->nxt; t=t->nxt ) {}
+		for (t = evt->evt_work_list; t->nxt; t=t->nxt ) {}
 		t->nxt = tevt; // added at the end of the list
 	}
 
@@ -181,7 +247,7 @@ T_EVENT *create_timing_event(T_EVENT_GROUP *evt, uint32_t id) {
 }
 
 // creates a new init timing event and adds it to the event body
-T_EVENT *create_timing_event_init(T_EVENT_GROUP *evt, uint32_t id) {
+T_EVENT *create_event_init(T_EVENT_GROUP *evt, uint32_t id) {
 	T_EVENT *tevt=calloc(1,sizeof(T_EVENT));
 	if ( !tevt) {
 		ESP_LOGE(__func__,"couldn't allocate %d bytes for new init timing event", sizeof(T_EVENT));
@@ -202,7 +268,7 @@ T_EVENT *create_timing_event_init(T_EVENT_GROUP *evt, uint32_t id) {
 }
 
 // creates a new init timing event and adds it to the event body
-T_EVENT *create_timing_event_final(T_EVENT_GROUP *evt, uint32_t id) {
+T_EVENT *create_event_final(T_EVENT_GROUP *evt, uint32_t id) {
 	T_EVENT *tevt=calloc(1,sizeof(T_EVENT));
 	if ( !tevt) {
 		ESP_LOGE(__func__,"couldn't allocate %d bytes for new init timing event", sizeof(T_EVENT));
@@ -211,11 +277,11 @@ T_EVENT *create_timing_event_final(T_EVENT_GROUP *evt, uint32_t id) {
 	// some useful values:
 	tevt->id=id;
 
-	if ( !evt->evt_time_final_list) {
-		evt->evt_time_final_list = tevt; // first in list
+	if ( !evt->evt_final_list) {
+		evt->evt_final_list = tevt; // first in list
 	} else {
 		T_EVENT *t;
-		for (t = evt->evt_time_final_list; t->nxt; t=t->nxt ) {}
+		for (t = evt->evt_final_list; t->nxt; t=t->nxt ) {}
 		t->nxt = tevt; // added at the end of the list
 	}
 
@@ -447,8 +513,8 @@ void delete_event(T_EVENT_GROUP *evt) {
 		return;
 
 	delete_event_list(evt->evt_init_list);
-	delete_event_list(evt->evt_time_list);
-	delete_event_list(evt->evt_time_final_list);
+	delete_event_list(evt->evt_work_list);
+	delete_event_list(evt->evt_final_list);
 
 	/*
 	if (evt->evt_where_list) {
@@ -466,19 +532,19 @@ void delete_event(T_EVENT_GROUP *evt) {
 
 
 // delete a scene, caller must free obj itselves
-void delete_scene(T_SCENE *obj) {
-	if (!obj)
+void delete_scene(T_SCENE *scene) {
+	if (!scene)
 		return;
 
-	if ( obj->events) {
-		T_EVENT_GROUP *t, *d = obj->events;
+	if ( scene->event_groups) {
+		T_EVENT_GROUP *t, *d = scene->event_groups;
 		while(d) {
 			t = d->nxt;
 			delete_event(d);
 			d=t;
 		}
 	}
-	free(obj);
+	free(scene);
 }
 
 esp_err_t scene_list_free() {
@@ -504,4 +570,49 @@ esp_err_t scene_list_free() {
 
 
 // ******************************************************************************
+
+
+void event2text(T_EVENT *evt, char *buf, size_t sz_buf) {
+	switch(evt->type) {
+	case ET_WAIT:
+		snprintf(buf, sz_buf,"id=%d, type=%d/%s, time=%llu ms",
+			evt->id, evt->type, eventype2text(evt->type), evt->para.wait.time);
+		break;
+
+		// with numeric parameter
+	case ET_SPEED:
+	case ET_SPEEDUP:
+	case ET_SET_BRIGHTNESS:
+	case ET_SET_BRIGHTNESS_DELTA:
+	case ET_GOTO_POS:
+		snprintf(buf, sz_buf,"id=%d, type=%d/%s, val=%.3f",
+			evt->id, evt->type, eventype2text(evt->type), evt->para.value);
+		break;
+
+		// with string parameter
+	case ET_MARKER:
+	case ET_JUMP_MARKER:
+	case ET_SET_OBJECT:
+		snprintf(buf, sz_buf,"id=%d, type=%d/%s, val='%s'",
+			evt->id, evt->type, eventype2text(evt->type), evt->para.svalue);
+		break;
+
+		// type only, without parameter
+	case ET_NONE:
+	case ET_BOUNCE:
+	case ET_REVERSE:
+	case ET_CLEAR:
+	case ET_BMP_OPEN:
+	case ET_BMP_READ:
+	case ET_BMP_CLOSE:
+		snprintf(buf, sz_buf,"id=%d, type=%d/%s",
+			evt->id, evt->type, eventype2text(evt->type));
+		break;
+
+	default:
+		snprintf(buf, sz_buf,"id=%d, type=%d/%s, unknown values",
+			evt->id, evt->type, eventype2text(evt->type));
+	}
+
+}
 
