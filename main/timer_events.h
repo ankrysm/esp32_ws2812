@@ -45,9 +45,10 @@ typedef enum {
  * status of an event
  ***********************************************/
 typedef enum {
-	EVT_STS_READY    = 0x0000, // wait for start
-	EVT_STS_RUNNING  = 0x0001, // event is running
-	EVT_STS_FINISHED = 0x0002  // event_finished
+	EVT_STS_READY,    // ready for start
+	EVT_STS_STARTING, // wait for start up, maybe there's a delay
+	EVT_STS_RUNNING,  // event is running
+	EVT_STS_FINISHED  // event_finished
 } event_status_type;
 
 typedef enum {
@@ -92,7 +93,9 @@ typedef enum  {
 // F - finally (all repeats done) - no timing
 typedef enum {
 	ET_NONE,                 // - - - (-) nothing to do
-	ET_WAIT,                 // - W - (time) wait for condition time, condition...
+	ET_WAIT,                 // I W - (time) wait for condition time, condition...
+	ET_WAIT_FIRST,           // I - - (time) wait only during first init
+	ET_PAINT,                // - W - (time) paint pixel with the given parameter
 	ET_SPEED,                // I W - (numeric) set speed
 	ET_SPEEDUP,              // I W - (numeric) set acceleration
 	ET_BOUNCE,               // - W - (-) change direction speed=-speed
@@ -118,47 +121,6 @@ typedef struct {
 } T_EVENT_CONFIG;
 
 
-
-
-/*
-#define TEXT2ET(c) ( \
-	!strcasecmp(c,"wait") ? ET_WAIT : \
-	!strcasecmp(c,"speed") ? ET_SPEED : \
-	!strcasecmp(c,"speedup") ? ET_SPEEDUP : \
-	!strcasecmp(c,"bounce") ? ET_BOUNCE : \
-	!strcasecmp(c,"reverse") ? ET_REVERSE : \
-	!strcasecmp(c,"goto") ? ET_GOTO_POS : \
-	!strcasecmp(c,"marker") ? ET_MARKER : \
-	!strcasecmp(c,"jump_marker") ? ET_JUMP_MARKER : \
-	!strcasecmp(c,"clear") ? ET_CLEAR : \
-	!strcasecmp(c,"brightness") ? ET_SET_BRIGHTNESS : \
-	!strcasecmp(c,"brightness_delta") ? ET_SET_BRIGHTNESS_DELTA : \
-	!strcasecmp(c,"object") ? ET_SET_OBJECT : \
-	!strcasecmp(c,"bmp_open") ? ET_BMP_OPEN : \
-	!strcasecmp(c,"bmp_read") ? ET_BMP_READ : \
-	!strcasecmp(c,"bmp_close") ? ET_BMP_CLOSE : \
-	ET_UNKNOWN \
-)
-
-#define ET2TEXT(c) ( \
-	c==ET_WAIT ? "wait" : \
-	c==ET_SPEED ? "speed" : \
-	c==ET_SPEEDUP ? "speedup" : \
-	c==ET_BOUNCE ? "bounce" : \
-	c==ET_REVERSE ? "reverse" : \
-	c==ET_GOTO_POS ? "goto" : \
-	c==ET_MARKER ? "marker" : \
-	c==ET_JUMP_MARKER ? "jump_marker" : \
-	c==ET_CLEAR ? "clear" : \
-	c==ET_SET_BRIGHTNESS ? "brightness" : \
-	c==ET_SET_BRIGHTNESS_DELTA ? "brightness_delta" : \
-	c==ET_SET_OBJECT ? "object" : \
-	c==ET_BMP_OPEN ? "bmp_open" : \
-	c==ET_BMP_READ ? "bmp_read" : \
-	c==ET_BMP_CLOSE ? "bmp_close" : \
-	"unknown" \
-)
-*/
 
 //************* object and event definitions **************
 
@@ -214,14 +176,14 @@ typedef struct EVENT {
 
 
 typedef enum {
-	EVFL_WAIT      = 0x0001, // wait, do not paint something
-	EVFL_CLEARPIXEL= 0x0002,
-	EVFL_FINISHED  = 0x0004,
-	EVFL_BMP_OPEN  = 0x0100,
-	EVFL_BMP_READ  = 0x0200, // TO DO really needed?
-	EVFL_BMP_CLOSE = 0x0400,
-	EVFL_BMP_MASK  = 0x0F00,
-	EVFL_UNKNOWN   = 0xFFFF
+	EVFL_WAIT            = 0x0001, // wait, do not paint something
+	EVFL_WAIT_FIRST_DONE = 0x0002,
+	EVFL_CLEARPIXEL      = 0x0004,
+	EVFL_BMP_OPEN        = 0x0100,
+	EVFL_BMP_READ        = 0x0200, // TO DO really needed?
+	EVFL_BMP_CLOSE       = 0x0400,
+	EVFL_BMP_MASK        = 0x0F00,
+	EVFL_UNKNOWN         = 0xFFFF
 } event_flags;
 
 typedef enum {

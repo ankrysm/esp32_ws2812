@@ -62,7 +62,7 @@ esp_err_t decode_json4config_root(char *content, char *errmsg, size_t sz_errmsg)
 			if ( ival == cfg_cycle) {
 				ESP_LOGI(__func__, "%s=%d not changed", attr, cfg_cycle);
 			} else {
-				cfg_numleds = ival;
+				cfg_cycle = ival;
 				store_it = true;
 				ESP_LOGI(__func__, "%s=%d changed", attr, cfg_cycle);
 			}
@@ -111,7 +111,7 @@ esp_err_t decode_json4config_root(char *content, char *errmsg, size_t sz_errmsg)
 
 		attr="autoplay_file";
 		lrc = evt_get_string(tree, attr, sval, sizeof(sval), errmsg, sz_errmsg);
-		if ( lrc == RES_OK) {
+		if ( lrc == RES_OK || lrc == RES_NO_VALUE) {
 			if (!strcmp(cfg_autoplayfile?cfg_autoplayfile:"", sval)) {
 				ESP_LOGI(__func__, "%s='%s' not changed",
 						attr, cfg_autoplayfile?cfg_autoplayfile:"");
@@ -147,6 +147,7 @@ esp_err_t decode_json4config_root(char *content, char *errmsg, size_t sz_errmsg)
 			break;
 		}
 
+		snprintf(errmsg,sz_errmsg,"success.");
 
 
 		rc = ESP_OK;

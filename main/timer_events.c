@@ -147,10 +147,8 @@ static void periodic_timer_callback(void* arg) {
 		// reset all event data + repeat data
 		if ( s_scene_list) {
 			for ( T_SCENE *scene= s_scene_list; scene; scene = scene->nxt) {
-				reset_scene(scene);
-				//reset_event(evt);
-				//reset_timing_events(evt->evt_time_list);
-				//reset_event_repeats(evt);
+				// process_scene will do the init
+				scene->status = EVT_STS_READY;
 			}
 		} else {
 			// clear the strip
@@ -166,8 +164,7 @@ static void periodic_timer_callback(void* arg) {
 	if ( s_scene_list) {
 		for ( T_SCENE *scene= s_scene_list; scene; scene = scene->nxt) {
 			process_scene(scene, s_scene_time, s_timer_period);
-			//process_event(evt, s_scene_time, s_timer_period);
-			if (! (scene->status & EVT_STS_FINISHED)) {
+			if (scene->status != EVT_STS_FINISHED) {
 				finished = false;
 			}
 		}

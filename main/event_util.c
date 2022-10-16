@@ -18,6 +18,8 @@ static 	TickType_t xSemDelay = 5000 / portTICK_PERIOD_MS;
 
 T_EVENT_CONFIG event_config_tab[] = {
 		{ET_WAIT, EVT_PARA_TIME, "wait", "wait for n ms"},
+		{ET_WAIT_FIRST, EVT_PARA_TIME, "wait_first", "wait for n ms at first init"},
+		{ET_PAINT, EVT_PARA_TIME, "paint", "paint leds with the given parameter"},
 		{ET_SPEED, EVT_PARA_NUMERIC, "speed", "speed in leds per second"},
 		{ET_SPEEDUP, EVT_PARA_NUMERIC, "speedup", "speedup delta speed per display cycle"},
 		{ET_BOUNCE, EVT_PARA_NONE, "bounce", "reverse speed"},
@@ -66,10 +68,14 @@ T_EVENT_CONFIG *find_event_config(char *name) {
 	return NULL;
 }
 
+/**
+ * print event config on position 'pos'
+ * returns true, when more data is available by a new call
+ */
 bool print_event_config_r(int *pos, char *buf, size_t sz_buf) {
 	if (event_config_tab[*pos].evt_type == ET_NONE) {
 		*pos = 0;
-		return true; // end of table
+		return false; // end of table
 	}
 	switch (event_config_tab[*pos].evt_para_type) {
 	case EVT_PARA_NONE:
@@ -92,7 +98,7 @@ bool print_event_config_r(int *pos, char *buf, size_t sz_buf) {
 		break;
 	}
 	(*pos)++;
-	return false;
+	return true;
 }
 
 char *eventype2text(event_type type) {
@@ -104,6 +110,54 @@ char *eventype2text(event_type type) {
 	}
 	return "????";
 }
+
+void event2text(T_EVENT *evt, char *buf, size_t sz_buf) {
+	switch(evt->type) {
+	case ET_WAIT:
+	case ET_WAIT_FIRST:
+	case ET_PAINT:
+		snprintf(buf, sz_buf,"id=%d, type=%d/%s, time=%llu ms",
+			evt->id, evt->type, eventype2text(evt->type), evt->para.wait.time);
+		break;
+
+		// with numeric parameter
+	case ET_SPEED:
+	case ET_SPEEDUP:
+	case ET_SET_BRIGHTNESS:
+	case ET_SET_BRIGHTNESS_DELTA:
+	case ET_GOTO_POS:
+		snprintf(buf, sz_buf,"id=%d, type=%d/%s, val=%.3f",
+			evt->id, evt->type, eventype2text(evt->type), evt->para.value);
+		break;
+
+		// with string parameter
+	case ET_MARKER:
+	case ET_JUMP_MARKER:
+	case ET_SET_OBJECT:
+		snprintf(buf, sz_buf,"id=%d, type=%d/%s, val='%s'",
+			evt->id, evt->type, eventype2text(evt->type), evt->para.svalue);
+		break;
+
+		// type only, without parameter
+	case ET_NONE:
+	case ET_BOUNCE:
+	case ET_REVERSE:
+	case ET_CLEAR:
+	case ET_BMP_OPEN:
+	case ET_BMP_READ:
+	case ET_BMP_CLOSE:
+		snprintf(buf, sz_buf,"id=%d, type=%d/%s",
+			evt->id, evt->type, eventype2text(evt->type));
+		break;
+
+	default:
+		snprintf(buf, sz_buf,"id=%d, type=%d/%s, unknown values",
+			evt->id, evt->type, eventype2text(evt->type));
+	}
+
+}
+
+
 
 /**
  * find an event by id
@@ -516,18 +570,7 @@ void delete_event(T_EVENT_GROUP *evt) {
 	delete_event_list(evt->evt_work_list);
 	delete_event_list(evt->evt_final_list);
 
-	/*
-	if (evt->evt_where_list) {
-		T_EVT_WHERE *t, *w = evt->evt_where_list;
-		while(w) {
-			t = w->nxt;
-			free(w);
-			w=t;
-		}
-	}
-	*/
 	free(evt);
-
 }
 
 
@@ -571,48 +614,4 @@ esp_err_t scene_list_free() {
 
 // ******************************************************************************
 
-
-void event2text(T_EVENT *evt, char *buf, size_t sz_buf) {
-	switch(evt->type) {
-	case ET_WAIT:
-		snprintf(buf, sz_buf,"id=%d, type=%d/%s, time=%llu ms",
-			evt->id, evt->type, eventype2text(evt->type), evt->para.wait.time);
-		break;
-
-		// with numeric parameter
-	case ET_SPEED:
-	case ET_SPEEDUP:
-	case ET_SET_BRIGHTNESS:
-	case ET_SET_BRIGHTNESS_DELTA:
-	case ET_GOTO_POS:
-		snprintf(buf, sz_buf,"id=%d, type=%d/%s, val=%.3f",
-			evt->id, evt->type, eventype2text(evt->type), evt->para.value);
-		break;
-
-		// with string parameter
-	case ET_MARKER:
-	case ET_JUMP_MARKER:
-	case ET_SET_OBJECT:
-		snprintf(buf, sz_buf,"id=%d, type=%d/%s, val='%s'",
-			evt->id, evt->type, eventype2text(evt->type), evt->para.svalue);
-		break;
-
-		// type only, without parameter
-	case ET_NONE:
-	case ET_BOUNCE:
-	case ET_REVERSE:
-	case ET_CLEAR:
-	case ET_BMP_OPEN:
-	case ET_BMP_READ:
-	case ET_BMP_CLOSE:
-		snprintf(buf, sz_buf,"id=%d, type=%d/%s",
-			evt->id, evt->type, eventype2text(evt->type));
-		break;
-
-	default:
-		snprintf(buf, sz_buf,"id=%d, type=%d/%s, unknown values",
-			evt->id, evt->type, eventype2text(evt->type));
-	}
-
-}
 

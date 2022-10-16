@@ -103,6 +103,12 @@ static void http_help(httpd_req_t *req) {
 		);
 		httpd_resp_send_chunk_l(req, resp_str);
 	}
+	int pos =0;
+	httpd_resp_send_chunk_l(req, "event syntax:\n");
+	while (print_event_config_r(&pos, resp_str, sizeof(resp_str))) {
+		httpd_resp_send_chunk_l(req, resp_str);
+		httpd_resp_send_chunk_l(req, "\n");
+	}
 }
 
 static void add_system_informations(cJSON *root) {
@@ -430,9 +436,12 @@ static void get_handler_blank(httpd_req_t *req) {
 	response_with_status(req, "BLANK done", get_scene_status());
 }
 
-static void get_handler_config(httpd_req_t *req) {
+static void get_handler_config(httpd_req_t *req, char *msg) {
     httpd_resp_set_type(req, "application/json");
     cJSON *root = cJSON_CreateObject();
+
+    if (msg && strlen(msg))
+    	cJSON_AddStringToObject(root, "msg", msg);
 
     // configuration
     add_config_informations(root);
@@ -598,11 +607,11 @@ static esp_err_t get_handler_file_get(httpd_req_t *req, char *fname, size_t sz_f
  * load data into memory
  * first stop scene
  */
-static esp_err_t post_handler_config_load(httpd_req_t *req, char *buf) {
+static esp_err_t post_handler_config_set(httpd_req_t *req, char *buf) {
 	char msg[255];
 	memset(msg, 0, sizeof(msg));
 
-	// stop display, clear data
+	// stop display for newe config
 	run_status_type new_status = RUN_STATUS_STOPPED;
 	set_scene_status(new_status);
 
@@ -619,7 +628,7 @@ static esp_err_t post_handler_config_load(httpd_req_t *req, char *buf) {
 		return ESP_FAIL;
 	}
 
-	response_with_status(req, msg, new_status);
+	get_handler_config(req, msg);
 
 	return ESP_OK;
 
@@ -714,7 +723,7 @@ static esp_err_t post_handler_main(httpd_req_t *req)
     	break;
 
     case HP_CONFIG_SET:
-    	res = post_handler_config_load(req, buf);
+    	res = post_handler_config_set(req, buf);
     	break;
 
     default:
@@ -832,7 +841,7 @@ static esp_err_t get_handler_main(httpd_req_t *req)
 		break;
 
 	case HP_CONFIG_GET:
-		get_handler_config(req);
+		get_handler_config(req,"");
 		break;
 
 	case HP_RESET:
