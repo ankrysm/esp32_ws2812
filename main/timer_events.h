@@ -83,7 +83,6 @@ typedef enum {
 
 typedef enum  {
 	EVT_PARA_NONE,
-	EVT_PARA_TIME,
 	EVT_PARA_NUMERIC,
 	EVT_PARA_STRING
 } event_parameter_type;
@@ -96,6 +95,7 @@ typedef enum {
 	ET_WAIT,                 // I W - (time) wait for condition time, condition...
 	ET_WAIT_FIRST,           // I - - (time) wait only during first init
 	ET_PAINT,                // - W - (time) paint pixel with the given parameter
+	ET_DISTANCE,             // - W - (numeric) paint until has moved n leds
 	ET_SPEED,                // I W - (numeric) set speed
 	ET_SPEEDUP,              // I W - (numeric) set acceleration
 	ET_BOUNCE,               // - W - (-) change direction speed=-speed
@@ -120,8 +120,6 @@ typedef struct {
 	char *help;
 } T_EVENT_CONFIG;
 
-
-
 //************* object and event definitions **************
 
 typedef struct OBJECT_COLORTRANSITION {
@@ -132,7 +130,6 @@ typedef struct OBJECT_COLORTRANSITION {
 typedef struct OBJECT_DATA {
 	int32_t id;
 	object_type type;
-	//int32_t pos; // relative start position
 	int32_t len; // relative start length
 
 	union {
@@ -151,22 +148,17 @@ typedef struct EVT_OBJECT {
 	struct EVT_OBJECT *nxt;
 } T_EVT_OBJECT;
 
-typedef struct {
-	uint64_t time; // initial duration, when 0 execute immediately
-	int64_t w_time; // working time, count doun from 'time'
-} T_EVENT_PARA_WAIT;
+//typedef struct {
+//	uint64_t time; // initial duration, when 0 execute immediately
+//	int64_t w_time; // working time, count doun from 'time'
+//} T_EVENT_PARA_WAIT;
 
 typedef struct EVENT {
 	uint32_t id;
 	event_type type; // what to do
-
-	//	char marker[LEN_EVT_MARKER]; // destination for jump, value for ET_ JUMP_MARKER
-//	uint64_t time; // initial duration, when 0 execute immediately
-//	int64_t w_time; // working time, count doun from 'time'
 	event_status_type status;
-
 	union {
-		T_EVENT_PARA_WAIT wait;
+//		T_EVENT_PARA_WAIT wait;
 		char svalue[32];
 		double value;
 	} para;
@@ -209,12 +201,14 @@ typedef struct EVENT_GROUP {
 	int64_t time; // event time
 	uint32_t w_flags;
 	double w_pos;
+	double w_distance;
 	double w_len_factor;
 	double w_len_factor_delta;
 	double w_speed;
 	double w_acceleration;
 	double w_brightness;
 	double w_brightness_delta;
+	int64_t w_wait_time;
 	int32_t delta_pos; // +1 or -1
 	char w_object_oid[LEN_EVT_OID];
 

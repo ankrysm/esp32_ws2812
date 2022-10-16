@@ -17,9 +17,10 @@ static  SemaphoreHandle_t xSemaphore = NULL;
 static 	TickType_t xSemDelay = 5000 / portTICK_PERIOD_MS;
 
 T_EVENT_CONFIG event_config_tab[] = {
-		{ET_WAIT, EVT_PARA_TIME, "wait", "wait for n ms"},
-		{ET_WAIT_FIRST, EVT_PARA_TIME, "wait_first", "wait for n ms at first init"},
-		{ET_PAINT, EVT_PARA_TIME, "paint", "paint leds with the given parameter"},
+		{ET_WAIT, EVT_PARA_NUMERIC, "wait", "wait for n ms"},
+		{ET_WAIT_FIRST, EVT_PARA_NUMERIC, "wait_first", "wait for n ms at first init"},
+		{ET_PAINT, EVT_PARA_NUMERIC, "paint", "paint leds with the given parameter"},
+		{ET_DISTANCE, EVT_PARA_NUMERIC, "distance", "paint until object has moved n leds"},
 		{ET_SPEED, EVT_PARA_NUMERIC, "speed", "speed in leds per second"},
 		{ET_SPEEDUP, EVT_PARA_NUMERIC, "speedup", "speedup delta speed per display cycle"},
 		{ET_BOUNCE, EVT_PARA_NONE, "bounce", "reverse speed"},
@@ -81,11 +82,6 @@ bool print_event_config_r(int *pos, char *buf, size_t sz_buf) {
 	case EVT_PARA_NONE:
 		snprintf(buf, sz_buf, "\"type\":\"%s\" - %s", event_config_tab[*pos].name, event_config_tab[*pos].help);
 		break;
-	case EVT_PARA_TIME:
-		snprintf(buf, sz_buf, "\"type\":\"%s\", \"time\":<time value>  - %s",
-				event_config_tab[*pos].name, event_config_tab[*pos].help
-		);
-		break;
 	case EVT_PARA_NUMERIC:
 		snprintf(buf, sz_buf, "\"type\":\"%s\", \"value\":<numeric value>  - %s",
 				event_config_tab[*pos].name, event_config_tab[*pos].help
@@ -113,19 +109,17 @@ char *eventype2text(event_type type) {
 
 void event2text(T_EVENT *evt, char *buf, size_t sz_buf) {
 	switch(evt->type) {
+
+		// with numeric parameter
 	case ET_WAIT:
 	case ET_WAIT_FIRST:
 	case ET_PAINT:
-		snprintf(buf, sz_buf,"id=%d, type=%d/%s, time=%llu ms",
-			evt->id, evt->type, eventype2text(evt->type), evt->para.wait.time);
-		break;
-
-		// with numeric parameter
 	case ET_SPEED:
 	case ET_SPEEDUP:
 	case ET_SET_BRIGHTNESS:
 	case ET_SET_BRIGHTNESS_DELTA:
 	case ET_GOTO_POS:
+	case ET_DISTANCE:
 		snprintf(buf, sz_buf,"id=%d, type=%d/%s, val=%.3f",
 			evt->id, evt->type, eventype2text(evt->type), evt->para.value);
 		break;
@@ -157,27 +151,6 @@ void event2text(T_EVENT *evt, char *buf, size_t sz_buf) {
 
 }
 
-
-
-/**
- * find an event by id
- * (without lock)
- */
-/*
-T_EVENT *find_event(char *id) {
-	if (!s_event_list) {
-		return NULL; // nothing available
-	}
-
-	for( T_EVENT *e = s_event_list; e; e=e->nxt) {
-		if ( !strcasecmp(e->id, id)) {
-			return e; // found!
-		}
-	}
-	return NULL; // not found
-}
-*/
-
 T_EVENT *find_event4marker(T_EVENT *evt_list, char *marker) {
 	if (!evt_list || !marker || !strlen(marker)) {
 		return NULL; // nothing to find
@@ -201,44 +174,6 @@ void get_new_event_id(char *id, size_t sz_id) {
 	snprintf(id,sz_id,"%u", n);
 
 }
-
-/*
-esp_err_t delete_event_by_id(char *id) {
-	if (obtain_eventlist_lock() != ESP_OK) {
-		ESP_LOGE(__func__, "couldn't get lock");
-		return ESP_FAIL;
-	}
-	bool found = false;
-	if ( s_event_list)  {
-		T_EVENT *prev = NULL;
-		for (T_EVENT *evt=s_event_list; evt; evt=evt->nxt) {
-			if ( !strcasecmp(evt->id, id) ) {
-				// found, delete it
-				if (prev == NULL ) {
-					s_event_list = evt->nxt;
-				} else {
-					prev->nxt = evt->nxt;
-				}
-				delete_event(evt);
-				found = true;
-				break;
-			}
-			prev = evt;
-		}
-	}
-
-	if (found)
-		ESP_LOGI(__func__,"event %s deleted", id);
-	else
-		ESP_LOGI(__func__,"event %s not found", id);
-
-	esp_err_t rc = release_eventlist_lock();
-	if ( rc == ESP_OK && !found )
-		rc = ESP_ERR_NOT_FOUND;
-
-	return rc;
-}
-*/
 
 /**
  * adds an event to the list
@@ -343,45 +278,6 @@ T_EVENT *create_event_final(T_EVENT_GROUP *evt, uint32_t id) {
 }
 
 // ***********************************************************************
-
-/*
-esp_err_t delete_object_by_oid(char *oid) {
-	if (obtain_eventlist_lock() != ESP_OK) {
-		ESP_LOGE(__func__, "couldn't get lock");
-		return ESP_FAIL;
-	}
-
-	bool found = false;
-	if ( s_object_list)  {
-		T_EVT_OBJECT *prev = NULL;
-		for (T_EVT_OBJECT *obj=s_object_list; obj; obj=obj->nxt) {
-			if (!strcasecmp( obj->oid, oid) ) {
-				// found, delete it
-				if (prev == NULL ) {
-					s_object_list = obj->nxt;
-				} else {
-					prev->nxt = obj->nxt;
-				}
-				delete_object(obj);
-				found = true;
-				break;
-			}
-			prev = obj;
-		}
-	}
-
-	if (found)
-		ESP_LOGI(__func__,"object '%s' deleted", oid);
-	else
-		ESP_LOGI(__func__,"object '%s' not found", oid);
-
-	esp_err_t rc = release_eventlist_lock();
-	if ( rc == ESP_OK && !found )
-		rc = ESP_ERR_NOT_FOUND;
-
-	return rc;
-}
-*/
 
 T_EVT_OBJECT* find_object4oid(char *oid) {
 	if (!s_object_list) {

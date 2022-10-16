@@ -65,18 +65,7 @@ static esp_err_t decode_json4event_scene_event_events_data(cJSON *element, uint3
 		ESP_LOGI(__func__, "%s/%s/%d: event '%s' created", hint, evtgrp->id, id, eventype2text(evt->type));
 
 		// parameter
-		if (evtcfg->evt_para_type == EVT_PARA_TIME) {
-			attr="time"; // optional default 0
-			evt->para.wait.time = 0;
-			lrc = evt_get_number(element, attr, &val, lerrmsg, sizeof(lerrmsg));
-			if (lrc == ESP_OK) {
-				evt->para.wait.time = val;
-				ESP_LOGI(__func__, "evtid=%d: %s=%llu", id, attr, evt->para.wait.time);
-			} else {
-				snprintf(errmsg, sz_errmsg,"%s/%s/%d: could not decode '%s': '%s'", hint, evtgrp->id, id, attr, lerrmsg);
-				break;
-			}
-		} else if (evtcfg->evt_para_type == EVT_PARA_STRING) {
+		if (evtcfg->evt_para_type == EVT_PARA_STRING) {
 			attr="value";
 			lrc = evt_get_string(element, attr, sval, sizeof(sval), lerrmsg, sizeof(lerrmsg));
 			if (lrc == RES_OK) {
@@ -99,48 +88,6 @@ static esp_err_t decode_json4event_scene_event_events_data(cJSON *element, uint3
 		} else {
 			// no parameter expected
 		}
-
-//		attr="time"; // optional default 0
-//		tevt->time = 0;
-//		lrc = evt_get_number(element, attr, &val, lerrmsg, sizeof(lerrmsg));
-//		if (lrc == ESP_OK) {
-//			tevt->time = val;
-//			ESP_LOGI(__func__, "tid=%d: %s=%llu", id, attr, tevt->time);
-//		} else if ( lrc != RES_NOT_FOUND) {
-//			snprintf(errmsg, sz_errmsg,"%s/%s/%d: could not decode '%s': '%s'", hint, evt->id, id, attr, lerrmsg);
-//			break;
-//		}
-//
-//		attr="marker"; // optional, for jump to
-//		lrc = evt_get_string(element, attr, sval, sizeof(sval), lerrmsg, sizeof(lerrmsg));
-//		if ( lrc == RES_OK) {
-//			strlcpy(tevt->marker, sval,LEN_EVT_MARKER );
-//			ESP_LOGI(__func__, "%s/%s/%d: %s='%s'", hint, evt->id, id, attr, tevt->marker);
-//		} else if ( lrc != RES_NOT_FOUND) {
-//			snprintf(errmsg, sz_errmsg,"%s/%s/%d: could not decode '%s': '%s'", hint, evt->id, id, attr, lerrmsg);
-//			break;
-//		}
-//
-//		attr="value"; // may be number or string
-//		lrc = evt_get_number(element, attr, &val, lerrmsg, sizeof(lerrmsg));
-//		if (lrc == RES_OK) {
-//			tevt->value = val;
-//			ESP_LOGI(__func__, "%s/%s/%d: %s=%.3f",hint, evt->id,  id, attr, tevt->value);
-//
-//		} else if (lrc == RES_INVALID_DATA_TYPE) {
-//			// not a number
-//			lrc = evt_get_string(element, attr, sval, sizeof(sval), lerrmsg, sizeof(lerrmsg));
-//			if (lrc == RES_OK) {
-//				strlcpy(tevt->svalue, sval,sizeof(tevt->svalue));
-//				ESP_LOGI(__func__, "%s/%s/%d: %s='%s'", hint, evt->id, id, attr, tevt->svalue);
-//			}  else if ( lrc != RES_NOT_FOUND) {
-//				snprintf(errmsg, sz_errmsg,"%s/%s/%d: could not decode '%s': '%s'", hint, evt->id, id, attr, lerrmsg);
-//				break;
-//			}
-//		} else if ( lrc != RES_NOT_FOUND) {
-//			snprintf(errmsg, sz_errmsg,"%s/%s/%d: could not decode '%s': '%s'", hint, evt->id, id, attr, lerrmsg);
-//			break;
-//		}
 
 		rc = ESP_OK;
 	} while(0);

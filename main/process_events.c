@@ -232,7 +232,7 @@ static void process_event_group_init(T_EVENT_GROUP *evtgrp) {
 
 		case ET_WAIT: /// wait for Statup
 			evtgrp->w_flags |= EVFL_WAIT;
-			evt->para.wait.w_time = evt->para.wait.time;
+			evtgrp->w_wait_time = evt->para.value;
 			evtgrp->status = EVT_STS_STARTING;
 			break;
 
@@ -241,7 +241,7 @@ static void process_event_group_init(T_EVENT_GROUP *evtgrp) {
 				break; // not at first init
 			}
 			evtgrp->w_flags |= EVFL_WAIT;
-			evt->para.wait.w_time = evt->para.wait.time;
+			evtgrp->w_wait_time = evt->para.value;
 			evtgrp->status = EVT_STS_STARTING;
 			break;
 
@@ -297,8 +297,8 @@ static void process_event_group_starting(T_EVENT_GROUP *evtgrp, uint64_t scene_t
 		case ET_WAIT:
 		case ET_WAIT_FIRST:
 			nproc++;
-			evt->para.wait.w_time -= timer_period;
-			if (evt->para.wait.w_time <=0) {
+			evtgrp->w_wait_time -= timer_period;
+			if (evtgrp->w_wait_time <=0) {
 				// timer ends, event done, reset wait flag
 				evtgrp->status = EVT_STS_RUNNING;
 				evtgrp->w_flags &= ~EVFL_WAIT;
@@ -409,17 +409,21 @@ void  process_event_group_work(T_EVENT_GROUP *evtgrp, uint64_t scene_time, uint6
 		}
 
 		if ( evt->status == EVT_STS_READY ) {
-			// initialize event
+			// initialize work event
 			evt->status = EVT_STS_FINISHED; // in most cases
 
 			switch(evt->type) {
 			case ET_WAIT:
 				evtgrp->w_flags |= EVFL_WAIT;
-				evt->para.wait.w_time = evt->para.wait.time;
+				evtgrp->w_wait_time = evt->para.value;
 				evt->status = EVT_STS_RUNNING;
 				break;
 			case ET_PAINT:
-				evt->para.wait.w_time = evt->para.wait.time;
+				evtgrp->w_wait_time = evt->para.value;
+				evt->status = EVT_STS_RUNNING;
+				break;
+			case ET_DISTANCE:
+				evtgrp->w_distance = evt->para.value;
 				evt->status = EVT_STS_RUNNING;
 				break;
 			case ET_SPEED:
@@ -509,17 +513,24 @@ void  process_event_group_work(T_EVENT_GROUP *evtgrp, uint64_t scene_time, uint6
 		// here always: EVT_STS_RUNNING
 		switch (evt->type) {
 		case ET_WAIT:
-			evt->para.wait.w_time -= timer_period;
-			if (evt->para.wait.w_time <=0) {
+			evtgrp->w_wait_time -= timer_period;
+			if (evtgrp->w_wait_time <=0) {
 				// timer ends, event done, reset wait flag
 				evt->status = EVT_STS_FINISHED;
 				evtgrp->w_flags &= ~EVFL_WAIT;
 			}
 			break;
 		case ET_PAINT:
-			evt->para.wait.w_time -= timer_period;
-			if (evt->para.wait.w_time <=0) {
-				// timer ends, event done, reset wait flag
+			evtgrp->w_wait_time -= timer_period;
+			if (evtgrp->w_wait_time <=0) {
+				// timer ends
+				evt->status = EVT_STS_FINISHED;
+			}
+			break;
+		case ET_DISTANCE:
+			evtgrp->w_distance -= abs(evtgrp->w_speed);
+			if ( evtgrp->w_distance <= 0.0) {
+				// distance reached
 				evt->status = EVT_STS_FINISHED;
 			}
 			break;
@@ -626,6 +637,7 @@ void process_event_group_main(T_EVENT_GROUP *evtgrp, uint64_t scene_time, uint64
 		evtgrp->w_brightness = 1.0;
 
 	evtgrp->w_pos += evtgrp->w_speed;
+
 	//ESP_LOGI(__func__, "finished evt=%d", evt->id);
 	//return false;
 
@@ -691,15 +703,6 @@ static void reset_events(T_EVENT *events, char *msg) {
 
 	for ( T_EVENT *evt = events; evt; evt=evt->nxt) {
 		evt->status = EVT_STS_READY;
-		switch(evt->type) {
-		case ET_WAIT:
-		case ET_WAIT_FIRST:
-		case ET_PAINT:
-			evt->para.wait.w_time = evt->para.wait.time;
-			break;
-		default:
-			break;
-		}
 		if (extended_logging)
 			ESP_LOGI(__func__, "%s: id=%d: status=%d, event '%s'", msg, evt->id, evt->status, eventype2text(evt->type));
 	}
@@ -712,14 +715,16 @@ static void reset_events(T_EVENT *events, char *msg) {
  */
 void reset_event_group( T_EVENT_GROUP *evtgrp) {
 	evtgrp->status = EVT_STS_READY;
-	evtgrp->w_flags = 0; //evt->flags;
-	evtgrp->w_pos = 0; //evt->pos;
-	evtgrp->w_len_factor = 1.0; //evt->len_factor;
-	evtgrp->w_len_factor_delta = 0.0; //evt->len_factor_delta;
-	evtgrp->w_speed = 0.0; //evt->speed;
-	evtgrp->w_acceleration = 0.0; //evt->acceleration;
-	evtgrp->w_brightness = 1.0; //evt->brightness;
-	evtgrp->w_brightness_delta = 0.0; //evt->brightness_delta;
+	evtgrp->w_flags = 0;
+	evtgrp->w_pos = 0;
+	evtgrp->w_len_factor = 1.0;
+	evtgrp->w_len_factor_delta = 0.0;
+	evtgrp->w_speed = 0.0;
+	evtgrp->w_acceleration = 0.0;
+	evtgrp->w_brightness = 1.0;
+	evtgrp->w_brightness_delta = 0.0;
+	evtgrp->w_distance = 0.0;
+	evtgrp->w_wait_time = 0;
 	evtgrp->time = 0;
 	evtgrp->delta_pos = 1;
 	memset(evtgrp->w_object_oid,0, LEN_EVT_OID);
