@@ -95,13 +95,13 @@ bool print_event_config_r(int *pos, char *buf, size_t sz_buf);
 void event2text(T_EVENT *evt, char *buf, size_t sz_buf);
 char *eventype2text(event_type type);
 
-void delete_object(T_EVT_OBJECT *obj);
+void delete_object(T_DISPLAY_OBJECT *obj);
 esp_err_t delete_object_by_oid(char *oid);
 esp_err_t object_list_free();
-T_EVT_OBJECT *find_object4oid(char *oid);
-T_EVT_OBJECT *create_object(char *oid) ;
-T_OBJECT_DATA *create_object_data(T_EVT_OBJECT *obj, uint32_t id);
-esp_err_t object_list_add(T_EVT_OBJECT *obj);
+T_DISPLAY_OBJECT *find_object4oid(char *oid);
+T_DISPLAY_OBJECT *create_object(char *oid) ;
+T_DISPLAY_OBJECT_DATA *create_object_data(T_DISPLAY_OBJECT *obj, uint32_t id);
+esp_err_t object_list_add(T_DISPLAY_OBJECT *obj);
 
 // from wifi_vonfig.c
 void initialise_wifi();
@@ -133,6 +133,7 @@ esp_err_t bmp_open_connection(char *url);
 t_result bmp_read_data(int pos, T_COLOR_RGB *rgb);
 bool get_is_bmp_reading();
 void bmp_stop_processing();
+t_result open_bmp_data_url(char *id);
 
 // from create_demo
 void build_demo2(

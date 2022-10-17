@@ -158,10 +158,10 @@ static esp_err_t decode_json4event_scene_events_events(cJSON *element, T_EVENT_G
 
 }
 
-static esp_err_t decode_json4event_object_data(cJSON *element, T_EVT_OBJECT *obj, int id, char *errmsg, size_t sz_errmsg) {
+static esp_err_t decode_json4event_object_data(cJSON *element, T_DISPLAY_OBJECT *obj, int id, char *errmsg, size_t sz_errmsg) {
 	esp_err_t rc = ESP_FAIL;
 
-	T_OBJECT_DATA *object_data;
+	T_DISPLAY_OBJECT_DATA *object_data;
 
 	char *attr;
 	char sval[256];
@@ -296,7 +296,7 @@ static esp_err_t decode_json4event_object_data(cJSON *element, T_EVT_OBJECT *obj
 static esp_err_t decode_json4event_object(cJSON *element,  char *errmsg, size_t sz_errmsg) {
 	esp_err_t rc = ESP_FAIL;
 
-	T_EVT_OBJECT *obj = NULL;
+	T_DISPLAY_OBJECT *obj = NULL;
 
 	char *attr;
 	char sval[64];

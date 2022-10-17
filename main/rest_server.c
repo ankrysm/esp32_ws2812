@@ -14,7 +14,7 @@
 
 #define MAX_CONTENTLEN 10240
 
-extern T_EVT_OBJECT *s_object_list;
+extern T_DISPLAY_OBJECT *s_object_list;
 extern esp_vfs_spiffs_conf_t fs_conf;
 
 typedef struct rest_server_context {
@@ -180,11 +180,11 @@ static void get_handler_list(httpd_req_t *req) {
 		snprintf(buf, sz_buf, "\nno objectst");
 		httpd_resp_send_chunk_l(req, buf);
 	} else {
-		for (T_EVT_OBJECT *obj=s_object_list; obj; obj=obj->nxt) {
+		for (T_DISPLAY_OBJECT *obj=s_object_list; obj; obj=obj->nxt) {
 			snprintf(buf, sz_buf, "\n   object '%s'", obj->oid);
 			httpd_resp_send_chunk_l(req, buf);
 			if (obj->data) {
-				for(T_OBJECT_DATA *data = obj->data; data; data=data->nxt) {
+				for(T_DISPLAY_OBJECT_DATA *data = obj->data; data; data=data->nxt) {
 					if ( data->type == OBJT_BMP) {
 						snprintf(buf, sz_buf,"\n    id=%d, type=%d/%s, len=%d, url=%s",
 								data->id, data->type, OBJT2TEXT(data->type), data->len,

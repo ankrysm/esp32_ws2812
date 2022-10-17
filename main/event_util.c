@@ -9,7 +9,7 @@
 
 
 extern T_SCENE *s_scene_list;
-extern T_EVT_OBJECT *s_object_list;
+extern T_DISPLAY_OBJECT *s_object_list;
 
 // to lock access to event-List
 static  SemaphoreHandle_t xSemaphore = NULL;
@@ -33,7 +33,7 @@ T_EVENT_CONFIG event_config_tab[] = {
 		{ET_SET_BRIGHTNESS_DELTA, EVT_PARA_NUMERIC,"brightness_delta", "set brightness delta per display cycle"},
 		{ET_SET_OBJECT, EVT_PARA_STRING, "object","set objectid from object table"},
 		{ET_BMP_OPEN, EVT_PARA_NONE, "bmp_open", "open BMP stream, defined by 'bmp' object"},
-		{ET_BMP_READ, EVT_PARA_NONE, "bmp_read","read BMP data line by line and display it"},
+		{ET_BMP_READ, EVT_PARA_NUMERIC, "bmp_read","read BMP data line by line and display it, max n lines, -1 all lines"},
 		{ET_BMP_CLOSE, EVT_PARA_NONE, "bmp_close", "close BMP stream"},
 		{ET_NONE, EVT_PARA_NONE, "", ""} // end of table
 };
@@ -279,12 +279,12 @@ T_EVENT *create_event_final(T_EVENT_GROUP *evt, uint32_t id) {
 
 // ***********************************************************************
 
-T_EVT_OBJECT* find_object4oid(char *oid) {
+T_DISPLAY_OBJECT* find_object4oid(char *oid) {
 	if (!s_object_list) {
 		return NULL;
 	}
 
-	T_EVT_OBJECT *t;
+	T_DISPLAY_OBJECT *t;
 	for (t = s_object_list; t; t = t->nxt) {
 		if (!strcasecmp(t->oid, oid)) {
 			return t;
@@ -295,13 +295,13 @@ T_EVT_OBJECT* find_object4oid(char *oid) {
 
 
 // creates a new what to do and adds it to the event body
-T_EVT_OBJECT *create_object(char *oid) {
+T_DISPLAY_OBJECT *create_object(char *oid) {
 	if ( oid == NULL || strlen(oid) == 0)
 		return NULL;
 
-	T_EVT_OBJECT *obj=calloc(1, sizeof(T_EVT_OBJECT));
+	T_DISPLAY_OBJECT *obj=calloc(1, sizeof(T_DISPLAY_OBJECT));
 	if ( !obj) {
-		ESP_LOGE(__func__,"couldn't allocate %d bytes for new 'object't", sizeof(T_EVT_OBJECT));
+		ESP_LOGE(__func__,"couldn't allocate %d bytes for new 'object't", sizeof(T_DISPLAY_OBJECT));
 		return NULL;
 	}
 	// some useful values:
@@ -310,7 +310,7 @@ T_EVT_OBJECT *create_object(char *oid) {
 	return obj;
 }
 
-esp_err_t object_list_add(T_EVT_OBJECT *obj) {
+esp_err_t object_list_add(T_DISPLAY_OBJECT *obj) {
 	if (obtain_eventlist_lock() != ESP_OK) {
 		ESP_LOGE(__func__, "couldn't get lock");
 		return ESP_FAIL;
@@ -319,7 +319,7 @@ esp_err_t object_list_add(T_EVT_OBJECT *obj) {
 	if ( obj)  {
 		if ( s_object_list) {
 			// add at the end of the list
-			T_EVT_OBJECT *t;
+			T_DISPLAY_OBJECT *t;
 			for (t=s_object_list; t->nxt; t=t->nxt){}
 			t->nxt = obj;
 		} else {
@@ -335,13 +335,13 @@ esp_err_t object_list_add(T_EVT_OBJECT *obj) {
 
 
 // creates a new what to do and adds it to the event body
-T_OBJECT_DATA *create_object_data(T_EVT_OBJECT *obj, uint32_t id) {
+T_DISPLAY_OBJECT_DATA *create_object_data(T_DISPLAY_OBJECT *obj, uint32_t id) {
 	if ( obj == NULL )
 		return NULL;
 
-	T_OBJECT_DATA *objdata=calloc(1, sizeof(T_OBJECT_DATA));
+	T_DISPLAY_OBJECT_DATA *objdata=calloc(1, sizeof(T_DISPLAY_OBJECT_DATA));
 	if ( !objdata) {
-		ESP_LOGE(__func__,"couldn't allocate %d bytes for new 'object'", sizeof(T_OBJECT_DATA));
+		ESP_LOGE(__func__,"couldn't allocate %d bytes for new 'object'", sizeof(T_DISPLAY_OBJECT_DATA));
 		return NULL;
 	}
 	// some useful values:
@@ -350,7 +350,7 @@ T_OBJECT_DATA *create_object_data(T_EVT_OBJECT *obj, uint32_t id) {
 	if ( !obj->data) {
 		obj->data = objdata;
 	} else {
-		T_OBJECT_DATA *t;
+		T_DISPLAY_OBJECT_DATA *t;
 		for(t=obj->data; t->nxt; t=t->nxt){}
 		t->nxt = objdata;
 	}
@@ -404,12 +404,12 @@ esp_err_t scene_list_add(T_SCENE *obj) {
 // #################### Free data structures ########################################
 
 
-void delete_object(T_EVT_OBJECT *obj) {
+void delete_object(T_DISPLAY_OBJECT *obj) {
 	if (!obj)
 		return;
 
 	if ( obj->data) {
-		T_OBJECT_DATA *t, *obj_data = obj->data;
+		T_DISPLAY_OBJECT_DATA *t, *obj_data = obj->data;
 		while(obj_data) {
 			t = obj_data->nxt;
 			if ( obj_data->type == OBJT_BMP ) {
@@ -431,7 +431,7 @@ esp_err_t object_list_free() {
 	}
 
 	if (s_object_list) {
-		T_EVT_OBJECT *nxt;
+		T_DISPLAY_OBJECT *nxt;
 		while(s_object_list) {
 			nxt = s_object_list->nxt;
 			delete_object(s_object_list);

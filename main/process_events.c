@@ -8,8 +8,9 @@
 #include "esp32_ws2812.h"
 
 static void reset_events(T_EVENT *events, char *msg);
+static void check_for_repeat(T_EVENT_GROUP *evtgrp);
 
-T_OBJECT_DATA object_data_clear = {
+T_DISPLAY_OBJECT_DATA object_data_clear = {
 	.type=OBJT_CLEAR,
 	//.pos=0,
 	.len=-1,
@@ -17,7 +18,7 @@ T_OBJECT_DATA object_data_clear = {
 	.nxt=NULL
 };
 
-T_EVT_OBJECT event_clear = {
+T_DISPLAY_OBJECT event_clear = {
 	.oid="CLEAR",
 	.data = &object_data_clear
 };
@@ -26,6 +27,9 @@ static int extended_logging = true;
 
 
 // paint the pixel in the calculated range evt->working.pos and evt->working.len.value
+/**
+ * paint objects
+ */
 void process_object(T_EVENT_GROUP *evtgrp) {
 
 	//if ( extended_logging)
@@ -35,7 +39,7 @@ void process_object(T_EVENT_GROUP *evtgrp) {
 		return; // do nothing, wait
 	}
 
-	T_EVT_OBJECT *obj = NULL;
+	T_DISPLAY_OBJECT *obj = NULL;
 
 	if ( strlen(evtgrp->w_object_oid)) {
 		obj = find_object4oid(evtgrp->w_object_oid);
@@ -53,10 +57,11 @@ void process_object(T_EVENT_GROUP *evtgrp) {
 	T_COLOR_RGB rgb2 = {.r=0,.g=0,.b=0};
 	T_COLOR_HSV hsv;
 	double dh;
+	bool pixel_data_valid = true;
 
 	// whole length of all sections
 	int32_t len = 0;
-	for (T_OBJECT_DATA *data = obj->data; data; data=data->nxt) {
+	for (T_DISPLAY_OBJECT_DATA *data = obj->data; data; data=data->nxt) {
 		len += data->len;
 	}
 	double flen = len * evtgrp->w_len_factor;
@@ -107,7 +112,7 @@ void process_object(T_EVENT_GROUP *evtgrp) {
 	double df,dr,dg,db;
 
 	bool ende = false;
-	for (T_OBJECT_DATA *data = obj->data; data; data=data->nxt) {
+	for (T_DISPLAY_OBJECT_DATA *data = obj->data; data; data=data->nxt) {
 		for ( int data_pos=0; data_pos < data->len; data_pos++) {
 			switch (data->type) {
 			case OBJT_COLOR:
@@ -174,24 +179,15 @@ void process_object(T_EVENT_GROUP *evtgrp) {
 				break;
 
 			case OBJT_BMP:
-				// TODO
-				if ( evtgrp->w_flags & EVFL_BMP_OPEN) {
-					if ( bmp_open_connection(data->para.url) != ESP_OK) {
-						ESP_LOGE(__func__,"BMP_OPEN FAILED evt.id='%s', url='%s'",
-								evtgrp->id, data->para.url);
-					}
-				} else if (evtgrp->w_flags & EVFL_BMP_CLOSE) {
+				// get the next pixel as RGB
+				t_result res = bmp_read_data(pos, &rgb);
+				pixel_data_valid = res == RES_OK;
+				if ( res == RES_FINISHED ) {
+					ESP_LOGI(__func__,"bmp_read_data: all lines read");
 					bmp_stop_processing();
-
-				} else {
-					// get the next pixel as RGB
-					if ( get_is_bmp_reading()) {
-						// returns RES_OK while reading data and RES_FINISHED when done
-						t_result res = bmp_read_data(pos, &rgb);
-					}
 				}
-				evtgrp->w_flags &= ~EVFL_BMP_MASK; // reset the bmp-flags
 				break;
+
 			default:
 				ESP_LOGW(__func__,"what type %d NYI", data->type);
 			}
@@ -199,7 +195,7 @@ void process_object(T_EVENT_GROUP *evtgrp) {
 			//ESP_LOGI(__func__,"paint id=%d, type=%d, len=%d, pos=%d, dpos=%d, startpos=%d, endpos=%d, dstart=%d, dend=%d",
 			//		w->id, w->type, w->len, pos, evt->delta_pos, startpos, endpos, dstart, dend);
 
-			if ( pos >=0 && pos < get_numleds() && pos >= dstart && pos <= dend) {
+			if ( pixel_data_valid && pos >=0 && pos < get_numleds() && pos >= dstart && pos <= dend) {
 				c_checkrgb_abs(&rgb);
 				strip_set_pixel(pos, &rgb);
 			}
@@ -278,7 +274,7 @@ static void process_event_group_init(T_EVENT_GROUP *evtgrp) {
 			break;
 
 		case ET_BMP_OPEN:
-			evtgrp->w_flags |= EVFL_BMP_OPEN;
+			open_bmp_data_url(evtgrp->w_object_oid);
 			break;
 
 		default:
@@ -339,7 +335,9 @@ static void process_event_group_final(T_EVENT_GROUP *evtgrp) {
 			break;
 
 		case ET_BMP_CLOSE:
-			evtgrp->w_flags |= EVFL_BMP_CLOSE;
+			// evtgrp->w_flags |= EVFL_BMP_CLOSE;
+			bmp_stop_processing();
+			evtgrp->w_bmp_remaining_lines = 0;
 			break;
 
 		default:
@@ -349,44 +347,6 @@ static void process_event_group_final(T_EVENT_GROUP *evtgrp) {
 }
 
 
-static void check_for_repeat(T_EVENT_GROUP *evtgrp) {
-	if (evtgrp->t_repeats > 0 ) {
-		if ( evtgrp->w_t_repeats > 0) {
-			evtgrp->w_t_repeats--;
-		}
-	} else {
-		evtgrp->w_t_repeats = 1; // forever
-	}
-
-	if ( evtgrp->w_t_repeats == 0 ) {
-		evtgrp->status = EVT_STS_FINISHED;
-		if ( extended_logging)
-			ESP_LOGI(__func__, "evt.id='%s': repeat events (%d/%d) FINISHED", evtgrp->id, evtgrp->w_t_repeats, evtgrp->t_repeats);
-	} else {
-		if ( extended_logging)
-			ESP_LOGI(__func__, "evt.id='%s': repeat events (%d/%d) CONTINUE", evtgrp->id, evtgrp->w_t_repeats, evtgrp->t_repeats);
-	}
-}
-
-//	if ( evtgrp->w_t_repeats > 0) {
-//		// have to be repeated **************************************************************
-//		// reset event, next turn
-//		if ( exentended_logging)
-//			ESP_LOGI(__func__, "evt.id='%s': repeat events (%d/%d)", evtgrp->id, evtgrp->w_t_repeats, evtgrp->t_repeats);
-//
-//		reset_event_group(evtgrp);
-//		reset_events(tevt_next);
-//		// process init events
-//		process_event_group_init(evtgrp);
-//
-//		if ( exentended_logging)
-//			ESP_LOGI(__func__, "next event to tid=%d", tevt_next->id );
-//	} else {
-//		// done, mark event as finished
-//		evtgrp->w_flags |= EVFL_FINISHED;
-//	}
-
-//}
 
 // working events
 // time values in ms
@@ -483,13 +443,15 @@ void  process_event_group_work(T_EVENT_GROUP *evtgrp, uint64_t scene_time, uint6
 				}
 				break;
 			case ET_BMP_OPEN:
-				evtgrp->w_flags |= EVFL_BMP_OPEN;
+				open_bmp_data_url(evtgrp->w_object_oid);
 				break;
 			case ET_BMP_READ:
-				evtgrp->w_flags |= EVFL_BMP_READ;
+				evtgrp->w_bmp_remaining_lines = evt->para.value;
 				break;
 			case ET_BMP_CLOSE:
-				evtgrp->w_flags |= EVFL_BMP_CLOSE;
+				//evtgrp->w_flags |= EVFL_BMP_CLOSE;
+				bmp_stop_processing();
+				evtgrp->w_bmp_remaining_lines = 0;
 				break;
 
 			default:
@@ -510,7 +472,7 @@ void  process_event_group_work(T_EVENT_GROUP *evtgrp, uint64_t scene_time, uint6
 			continue;
 		}
 
-		// here always: EVT_STS_RUNNING
+		// **** here always: EVT_STS_RUNNING ******
 		switch (evt->type) {
 		case ET_WAIT:
 			evtgrp->w_wait_time -= timer_period;
@@ -528,10 +490,26 @@ void  process_event_group_work(T_EVENT_GROUP *evtgrp, uint64_t scene_time, uint6
 			}
 			break;
 		case ET_DISTANCE:
-			evtgrp->w_distance -= abs(evtgrp->w_speed);
+			evtgrp->w_distance -= fabs(evtgrp->w_speed);
 			if ( evtgrp->w_distance <= 0.0) {
 				// distance reached
 				evt->status = EVT_STS_FINISHED;
+			}
+			break;
+		case ET_BMP_READ:
+			if ( !get_is_bmp_reading()) {
+				ESP_LOGI(__func__,"bmp_read_data: all data read");
+				evt->status = EVT_STS_FINISHED;
+				break;
+			}
+
+			if (evtgrp->w_bmp_remaining_lines > 0) {
+				(evtgrp->w_bmp_remaining_lines)--;
+				if ( evtgrp->w_bmp_remaining_lines == 0) {
+					ESP_LOGI(__func__,"bmp_read_data: all lines read");
+					bmp_stop_processing();
+					evt->status = EVT_STS_FINISHED;
+				}
 			}
 			break;
 		default:
@@ -725,6 +703,7 @@ void reset_event_group( T_EVENT_GROUP *evtgrp) {
 	evtgrp->w_brightness_delta = 0.0;
 	evtgrp->w_distance = 0.0;
 	evtgrp->w_wait_time = 0;
+	evtgrp->w_bmp_remaining_lines = 0;
 	evtgrp->time = 0;
 	evtgrp->delta_pos = 1;
 	memset(evtgrp->w_object_oid,0, LEN_EVT_OID);
@@ -763,4 +742,22 @@ void reset_scene(T_SCENE *scene) {
 
 }
 
+static void check_for_repeat(T_EVENT_GROUP *evtgrp) {
+	if (evtgrp->t_repeats > 0 ) {
+		if ( evtgrp->w_t_repeats > 0) {
+			evtgrp->w_t_repeats--;
+		}
+	} else {
+		evtgrp->w_t_repeats = 1; // forever
+	}
+
+	if ( evtgrp->w_t_repeats == 0 ) {
+		evtgrp->status = EVT_STS_FINISHED;
+		if ( extended_logging)
+			ESP_LOGI(__func__, "evt.id='%s': repeat events (%d/%d) FINISHED", evtgrp->id, evtgrp->w_t_repeats, evtgrp->t_repeats);
+	} else {
+		if ( extended_logging)
+			ESP_LOGI(__func__, "evt.id='%s': repeat events (%d/%d) CONTINUE", evtgrp->id, evtgrp->w_t_repeats, evtgrp->t_repeats);
+	}
+}
 

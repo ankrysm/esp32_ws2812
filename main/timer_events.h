@@ -20,6 +20,8 @@ typedef enum {
 	RES_NOT_FOUND,
 	RES_NO_VALUE,
 	RES_INVALID_DATA_TYPE,
+	RES_OUT_OF_RANGE,
+	RES_NOT_ACTIVE,
 	RES_FINISHED,
 	RES_FAILED
 } t_result;
@@ -92,9 +94,9 @@ typedef enum  {
 // F - finally (all repeats done) - no timing
 typedef enum {
 	ET_NONE,                 // - - - (-) nothing to do
-	ET_WAIT,                 // I W - (time) wait for condition time, condition...
-	ET_WAIT_FIRST,           // I - - (time) wait only during first init
-	ET_PAINT,                // - W - (time) paint pixel with the given parameter
+	ET_WAIT,                 // I W - (numeric) wait n ms
+	ET_WAIT_FIRST,           // I - - (numeric) wait n ms only during first init
+	ET_PAINT,                // - W - (numeric) paint pixel with the given parameter
 	ET_DISTANCE,             // - W - (numeric) paint until has moved n leds
 	ET_SPEED,                // I W - (numeric) set speed
 	ET_SPEEDUP,              // I W - (numeric) set acceleration
@@ -108,7 +110,7 @@ typedef enum {
 	ET_SET_BRIGHTNESS_DELTA, // I W -
 	ET_SET_OBJECT,           // I W - oid for object
 	ET_BMP_OPEN,             // I W - open internet connection for bmp file
-	ET_BMP_READ,             // - W - read bmp data
+	ET_BMP_READ,             // - W - (numeric) read n lines from bmp data (-1 = until bmp ends)
 	ET_BMP_CLOSE,            // - W F close connection for bmp
 	ET_UNKNOWN
 } event_type;
@@ -139,14 +141,14 @@ typedef struct OBJECT_DATA {
 	} para;
 
 	struct OBJECT_DATA *nxt;
-} T_OBJECT_DATA;
+} T_DISPLAY_OBJECT_DATA;
 
 typedef struct EVT_OBJECT {
 	char oid[LEN_EVT_OID];
-	T_OBJECT_DATA *data;
+	T_DISPLAY_OBJECT_DATA *data;
 
 	struct EVT_OBJECT *nxt;
-} T_EVT_OBJECT;
+} T_DISPLAY_OBJECT;
 
 //typedef struct {
 //	uint64_t time; // initial duration, when 0 execute immediately
@@ -171,10 +173,10 @@ typedef enum {
 	EVFL_WAIT            = 0x0001, // wait, do not paint something
 	EVFL_WAIT_FIRST_DONE = 0x0002,
 	EVFL_CLEARPIXEL      = 0x0004,
-	EVFL_BMP_OPEN        = 0x0100,
-	EVFL_BMP_READ        = 0x0200, // TO DO really needed?
-	EVFL_BMP_CLOSE       = 0x0400,
-	EVFL_BMP_MASK        = 0x0F00,
+//	EVFL_BMP_OPEN        = 0x0100,
+//	EVFL_BMP_READ        = 0x0200, // TO DO really needed?
+//	EVFL_BMP_CLOSE       = 0x0400,
+//	EVFL_BMP_MASK        = 0x0F00,
 	EVFL_UNKNOWN         = 0xFFFF
 } event_flags;
 
@@ -209,6 +211,7 @@ typedef struct EVENT_GROUP {
 	double w_brightness;
 	double w_brightness_delta;
 	int64_t w_wait_time;
+	int64_t w_bmp_remaining_lines;
 	int32_t delta_pos; // +1 or -1
 	char w_object_oid[LEN_EVT_OID];
 
