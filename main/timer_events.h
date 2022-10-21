@@ -19,6 +19,7 @@ typedef enum {
 	RES_OK,
 	RES_NOT_FOUND,
 	RES_NO_VALUE,
+	RES_NO_DATA,
 	RES_INVALID_DATA_TYPE,
 	RES_OUT_OF_RANGE,
 	RES_NOT_ACTIVE,
@@ -173,10 +174,6 @@ typedef enum {
 	EVFL_WAIT            = 0x0001, // wait, do not paint something
 	EVFL_WAIT_FIRST_DONE = 0x0002,
 	EVFL_CLEARPIXEL      = 0x0004,
-//	EVFL_BMP_OPEN        = 0x0100,
-//	EVFL_BMP_READ        = 0x0200, // TO DO really needed?
-//	EVFL_BMP_CLOSE       = 0x0400,
-//	EVFL_BMP_MASK        = 0x0F00,
 	EVFL_UNKNOWN         = 0xFFFF
 } event_flags;
 

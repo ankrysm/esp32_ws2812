@@ -26,192 +26,6 @@ T_DISPLAY_OBJECT event_clear = {
 static int extended_logging = true;
 
 
-// paint the pixel in the calculated range evt->working.pos and evt->working.len.value
-/**
- * paint objects
- */
-void process_object(T_EVENT_GROUP *evtgrp) {
-
-	//if ( extended_logging)
-	//	ESP_LOGI(__func__, "startetd evtgrp '%s', flags 0x%x, sts=%d, pos=%d", evtgrp->id, evtgrp->w_flags, evtgrp->status, evtgrp->w_pos);
-
-	if ( evtgrp->w_flags & EVFL_WAIT) {
-		return; // do nothing, wait
-	}
-
-	T_DISPLAY_OBJECT *obj = NULL;
-
-	if ( strlen(evtgrp->w_object_oid)) {
-		obj = find_object4oid(evtgrp->w_object_oid);
-		if ( !obj) {
-			ESP_LOGW(__func__, "evt.id='%s', no object found for oid='%s'", evtgrp->id, evtgrp->w_object_oid);
-		}
-	}
-	if (! obj) {
-		ESP_LOGI(__func__, "nothing to paint");
-		return;
-	}
-
-	int32_t startpos, endpos;
-	T_COLOR_RGB rgb = {.r=0,.g=0,.b=0};
-	T_COLOR_RGB rgb2 = {.r=0,.g=0,.b=0};
-	T_COLOR_HSV hsv;
-	double dh;
-	bool pixel_data_valid = true;
-
-	// whole length of all sections
-	int32_t len = 0;
-	for (T_DISPLAY_OBJECT_DATA *data = obj->data; data; data=data->nxt) {
-		len += data->len;
-	}
-	double flen = len * evtgrp->w_len_factor;
-
-	if ( flen < 1.0 ) {
-		return; // nothing left to display
-	}
-
-	if ( evtgrp->w_flags & EVFL_CLEARPIXEL) {
-		evtgrp->w_flags &= ~EVFL_CLEARPIXEL; // reset the flag
-		startpos = floor(evtgrp->w_pos);
-		endpos   = ceil(evtgrp->w_pos + len);
-		strip_set_range(startpos, endpos, &rgb);
-		ESP_LOGI(__func__, "clear pixel %d .. %d", startpos, endpos);
-		return;
-	}
-
-	// display range length:
-	//   len/2 - lenf/2 = (len-lenf)/2
-	//
-	// len   = 10 10   10      11
-	// lenf  =  2  3    1      11
-	// pos   =  4  3.5  4.5     5.5
-	// start =  4  3    4       0
-	// end   =  6  6    5      11
-	//
-	// 0123456789
-	// xxxxxxxxxx
-	//     XX
-
-	startpos = evtgrp->w_pos;
-	endpos   = evtgrp->w_pos + len;
-	int pos = startpos;
-	if ( evtgrp->delta_pos > 0 ) {
-		pos = startpos;
-	} else {
-		pos = endpos;
-	}
-	double f = evtgrp->w_brightness;
-
-	int32_t dstart = startpos + floor(len - flen)/2.0;
-	int32_t dend = ceil(dstart + flen);
-
-	//ESP_LOGI(__func__, "pos=%d..%d, +%d d=%d..%d", startpos, endpos, evt->delta_pos, dstart, dend);
-	double r,g,b;
-
-	// for color transition
-	double df,dr,dg,db;
-
-	bool ende = false;
-	for (T_DISPLAY_OBJECT_DATA *data = obj->data; data; data=data->nxt) {
-		for ( int data_pos=0; data_pos < data->len; data_pos++) {
-			switch (data->type) {
-			case OBJT_COLOR:
-				if ( data_pos == 0 ) {
-					// initialize
-					c_hsv2rgb(&(data->para.hsv), &rgb);
-					r = f*rgb.r;
-					g = f*rgb.g;
-					b = f*rgb.b;
-					rgb.r = r;
-					rgb.g = g;
-					rgb.r = r;
-				}
-				break;
-			case OBJT_COLOR_TRANSITION: // linear from one color to another
-				// if lvl2-lvl1 = 100 % and len = 4
-				// use 25% 50% 75% 100%, not start with 0%
-				if (data_pos ==0) {
-					df = 1.0 / data->len;
-					c_hsv2rgb(&(data->para.tr.hsv_from), &rgb);
-					c_hsv2rgb(&(data->para.tr.hsv_to), &rgb2);
-					dr = 1.0 *(rgb2.r - rgb.r) * df;
-					dg = 1.0 *(rgb2.g - rgb.g) * df;
-					db = 1.0 *(rgb2.b - rgb.b) * df;
-					r=rgb.r;
-					g=rgb.g;
-					b=rgb.b;
-					/*ESP_LOGI(__func__,"color transition rgb %d/%d/%d -> %d/%d/%d, drgb=%.1f/%.1f/%.1f, f=%.2f "
-							,rgb.r, rgb.g, rgb.b
-							,rgb2.r, rgb2.g, rgb2.b
-							,dr,dg,db
-							,f
-							);*/
-				}
-				r+=dr;
-				g+=dg;
-				b+=db;
-				rgb.r = f * r;
-				rgb.g = f * g;
-				rgb.b = f * b;
-				/*ESP_LOGI(__func__,"pos=%d, color transition rgb %d/%d/%d"
-						,pos,rgb.r, rgb.g, rgb.b
-						);*/
-				break;
-
-			case OBJT_RAINBOW:
-				if ( data_pos==0) {
-					// init
-					hsv.h=0;
-					hsv.s=100;
-					hsv.v=100;
-					dh = 360.0 / data->len;
-				}
-				c_hsv2rgb(&hsv, &rgb);
-				rgb.r = f * rgb.r;
-				rgb.g = f * rgb.g;
-				rgb.b = f * rgb.b;
-				hsv.h += dh;
-				if ( hsv.h > 360)
-					hsv.h=360;
-				break;
-
-			case OBJT_SPARKLE:
-				break;
-
-			case OBJT_BMP:
-				// get the next pixel as RGB
-				t_result res = bmp_read_data(pos, &rgb);
-				pixel_data_valid = res == RES_OK;
-				if ( res == RES_FINISHED ) {
-					ESP_LOGI(__func__,"bmp_read_data: all lines read");
-					bmp_stop_processing();
-				}
-				break;
-
-			default:
-				ESP_LOGW(__func__,"what type %d NYI", data->type);
-			}
-
-			//ESP_LOGI(__func__,"paint id=%d, type=%d, len=%d, pos=%d, dpos=%d, startpos=%d, endpos=%d, dstart=%d, dend=%d",
-			//		w->id, w->type, w->len, pos, evt->delta_pos, startpos, endpos, dstart, dend);
-
-			if ( pixel_data_valid && pos >=0 && pos < get_numleds() && pos >= dstart && pos <= dend) {
-				c_checkrgb_abs(&rgb);
-				strip_set_pixel(pos, &rgb);
-			}
-			pos += evtgrp->delta_pos;
-			if ( pos < startpos || pos > endpos) {
-				ende = true;
-				break; // done.
-			}
-		}
-		if ( ende)
-			break;
-	}
-	// ESP_LOGI(__func__, "ENDE");
-}
-
-
 static void process_event_group_init(T_EVENT_GROUP *evtgrp) {
 	ESP_LOGI(__func__, "started");
 
@@ -274,7 +88,7 @@ static void process_event_group_init(T_EVENT_GROUP *evtgrp) {
 			break;
 
 		case ET_BMP_OPEN:
-			open_bmp_data_url(evtgrp->w_object_oid);
+			bmp_open_url(evtgrp->w_object_oid);
 			break;
 
 		default:
@@ -443,10 +257,11 @@ void  process_event_group_work(T_EVENT_GROUP *evtgrp, uint64_t scene_time, uint6
 				}
 				break;
 			case ET_BMP_OPEN:
-				open_bmp_data_url(evtgrp->w_object_oid);
+				bmp_open_url(evtgrp->w_object_oid);
 				break;
 			case ET_BMP_READ:
 				evtgrp->w_bmp_remaining_lines = evt->para.value;
+				evt->status = EVT_STS_RUNNING;
 				break;
 			case ET_BMP_CLOSE:
 				//evtgrp->w_flags |= EVFL_BMP_CLOSE;
@@ -503,7 +318,9 @@ void  process_event_group_work(T_EVENT_GROUP *evtgrp, uint64_t scene_time, uint6
 				break;
 			}
 
+			// if remaining lines < 0 wait for EOF
 			if (evtgrp->w_bmp_remaining_lines > 0) {
+				ESP_LOGI(__func__,"remaining lines %lld",evtgrp->w_bmp_remaining_lines);
 				(evtgrp->w_bmp_remaining_lines)--;
 				if ( evtgrp->w_bmp_remaining_lines == 0) {
 					ESP_LOGI(__func__,"bmp_read_data: all lines read");
@@ -584,9 +401,6 @@ void process_event_group_main(T_EVENT_GROUP *evtgrp, uint64_t scene_time, uint64
 
 	//ESP_LOGI(__func__, "start process_event_what evt=%d", evt->id);
 	process_object(evtgrp);
-
-//	if ( evtgrp->w_flags & EVFL_FINISHED )
-//		return; // not necessary to do more
 
 	// next timestep
 	evtgrp->time += timer_period;

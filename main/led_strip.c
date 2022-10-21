@@ -88,34 +88,6 @@ void strip_show(bool forced) {
 		snprintf(msg,sizeof(msg),"%s%u->%u", (forced?"(f)":""), last_hash, hash);
 		led_strip_demo(msg);
 	}
-	/*
-#ifdef STRIP_DEMO
-	{
-		char txt[1024];
-		uint32_t pos=0;
-		snprintf(txt,sizeof(txt),"%s%u->%u #### LED:<", (forced?"(f)":""), last_hash, hash);
-		for (int i=0; i<get_numleds(); i++) {
-			uint32_t g= led_strip_pixels[pos++]; // g
-			uint32_t r= led_strip_pixels[pos++]; // r
-			uint32_t b= led_strip_pixels[pos++]; //b
-			uint32_t s = g+r+b;
-			if ( s>0) {
-				if (g>r && g>b)
-					strlcat(txt,"G",sizeof(txt));
-				else if(r>g && r>b)
-					strlcat(txt,"R",sizeof(txt));
-				else if(b>r && b>g)
-					strlcat(txt,"B",sizeof(txt));
-				else strlcat(txt,"X",sizeof(txt));
-			} else {
-				strlcat(txt,".",sizeof(txt));
-			}
-		}
-		strlcat(txt,">",sizeof(txt));
-		ESP_LOGI(__func__, "%s", txt);
-	}
-#endif
-*/
 	// send data to strip
 	led_strip_refresh();
 

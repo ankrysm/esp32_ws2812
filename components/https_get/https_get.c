@@ -42,6 +42,8 @@ static https_get_callback s_callback;
 static esp_http_client_config_t request_config;
 static volatile bool connection_active = false;
 
+static TaskHandle_t xHandle = NULL;
+
 esp_err_t _http_event_handler(esp_http_client_event_t *evt){
     switch(evt->event_id) {
         case HTTP_EVENT_ERROR:
@@ -152,17 +154,19 @@ static void do_https_get() {
     esp_http_client_cleanup(client);
 
     ESP_LOGI(__func__, "finished '%s'" , request_config.url);
-
     free((void*)request_config.url);
+
 }
 
 static void http_main_task(void *pvParameters)
 {
+    ESP_LOGI(__func__, "*** start ***");
     do_https_get();
+    ESP_LOGI(__func__, "*** do_https_get finished ****");
 
-    ESP_LOGI(__func__, "Finish http example");
-    vTaskDelete(NULL);
     connection_active = false;
+    ESP_LOGI(__func__, "*** finished, connection active=%s ***", connection_active?"true":"false");
+    vTaskDelete(NULL);
 }
 
 esp_err_t https_get(char *url, https_get_callback callback) {
@@ -178,7 +182,7 @@ esp_err_t https_get(char *url, https_get_callback callback) {
     request_config.cert_pem = server_root_cert_pem_start;
     s_callback = callback;
 
-	xTaskCreate(&http_main_task, "http_main_task", 8192, NULL, 5, NULL);
+	xTaskCreate(&http_main_task, "http_main_task", 8192, NULL, 5, &xHandle);
 	ESP_LOGI(__func__, "'http_main_task' started");
 	return ESP_OK;
 

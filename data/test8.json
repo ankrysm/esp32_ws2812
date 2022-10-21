@@ -2,7 +2,7 @@
 	 "objects" : [
 		 {  "id":"bmp",
 			"list" :[
-			 	{"type":"bmp", "len":30, "url":"https://www.kobe-files.de/testbw1.bmp"}
+			 	{"type":"bmp", "len":30, "url":"https://kobe-files.de/test2_20x100.bmp"}
 			 ]
 		  }
 	  ],
@@ -17,11 +17,12 @@
 		     	 	{"type":"object","value":"bmp"},
 			 	 	{"type":"bmp_open"}, 
 			 	 	{"type":"brightness", "value":0.1},
-		     	 	{"type":"goto", "value":10},
+		     	 	{"type":"goto", "value":5},
 		     	 	{"type":"wait_first", "value":1000}
 			 	 ],
 		     	 "work": [
-			 	 	{"type":"bmp_read", "value":-1}
+			 	 	{"type":"bmp_read", "value":-2},
+			 	 	{"type":"wait", "value":5000}
 				 ],
 				 "final":[
 				 	{"type":"clear"}

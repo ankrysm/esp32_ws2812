@@ -97,6 +97,18 @@ void led_strip_set_pixel(int32_t idx, uint8_t r, uint8_t g, uint8_t b) {
 
 }
 
+/**
+ * copies 'nbuf' bytes from 'buf' to led strip memory at position 'idx'
+ */
+void led_strip_memcpy(int32_t idx, uint8_t *buf, uint32_t nbuf) {
+
+	uint32_t pos = 3 * idx;
+	if ( pos + nbuf >  s_numleds * 3) {
+		nbuf = s_numleds * 3 - pos;
+	}
+	memcpy(&(led_strip_pixels[pos]), buf, nbuf);
+}
+
 bool is_led_strip_initialized() {
 	return led_strip_pixels ? true : false;
 }

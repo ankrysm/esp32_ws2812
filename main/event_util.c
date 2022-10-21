@@ -120,6 +120,7 @@ void event2text(T_EVENT *evt, char *buf, size_t sz_buf) {
 	case ET_SET_BRIGHTNESS_DELTA:
 	case ET_GOTO_POS:
 	case ET_DISTANCE:
+	case ET_BMP_READ:
 		snprintf(buf, sz_buf,"id=%d, type=%d/%s, val=%.3f",
 			evt->id, evt->type, eventype2text(evt->type), evt->para.value);
 		break;
@@ -138,7 +139,6 @@ void event2text(T_EVENT *evt, char *buf, size_t sz_buf) {
 	case ET_REVERSE:
 	case ET_CLEAR:
 	case ET_BMP_OPEN:
-	case ET_BMP_READ:
 	case ET_BMP_CLOSE:
 		snprintf(buf, sz_buf,"id=%d, type=%d/%s",
 			evt->id, evt->type, eventype2text(evt->type));

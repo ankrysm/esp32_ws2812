@@ -9,64 +9,153 @@
 
 extern BITMAPINFOHEADER bmpInfoHeader;
 
-static uint32_t read_buffer_pos = 0; // current position in read_buffer
+//static uint32_t read_buffer_pos = 0; // current position in read_buffer
 static uint32_t read_buffer_len = 0; // data length in read_buffer
 static uint8_t *read_buffer = NULL;
+static uint32_t rd_mempos = 0;
 
 static volatile bool is_bmp_reading = false;
 
 static int bufno=0; // which buffer has data 1 or 2, depends on HAS_DATA-bit
 
+
 static void bmp_data_reset() {
-	read_buffer_pos = 0;
+//	read_buffer_pos = 0;
 	read_buffer_len = 0;
 	read_buffer = NULL;
-	bufno=0;
+	rd_mempos = 0;
+	bufno = 0;
 }
 
-static void bmp_show_data(int pos, T_COLOR_RGB *rgb ) {
+
+/**
+ * function copies one pixel line from bmp in BGR/BGRx-format into
+ * the buffer buf in a RGB-Format
+ *
+ * maximum bytes are sz_buf
+ *
+ * returns bytes per line
+ */
+static size_t bmp_show_data(uint8_t *buf, size_t sz_buf ) {
 	// 24 bit data: B,G,R
 	// 32 bit data: B,G,R,x
 
 	uint8_t bgr[4];
 
-	int bgr_idx_max = 1;
-	if ( bmpInfoHeader.biBitCount == 16) {
-		bgr_idx_max = 2;
-		ESP_LOGE(__func__, "biBitCount %d NYI",bmpInfoHeader.biBitCount);
-		return;
-	} else if ( bmpInfoHeader.biBitCount == 24 ) {
-		bgr_idx_max = 3;
-	} else if (bmpInfoHeader.biBitCount == 32) {
-		bgr_idx_max = 4;
-	} else {
-		ESP_LOGE(__func__, "biBitCount %d NYI",bmpInfoHeader.biBitCount);
-		return;
+	uint32_t bytes_per_pixel = get_bytes_per_pixel();
+	uint32_t bytes_per_line = get_bytes_per_line(); //bgr_idx_max * bmpInfoHeader.biWidth;
+
+	uint32_t wr_mempos = 0;
+	uint32_t wr_max_mempos = MAX(0,sz_buf-3); // -3 because check once before write
+
+	int bgr_idx = 0;
+
+	for ( int i=0; i < bytes_per_line; i++ ) {
+
+		bgr[bgr_idx++] = read_buffer[rd_mempos++];
+		if ( bgr_idx < bytes_per_pixel)
+			continue;
+
+		bgr_idx = 0;
+		uint8_t r=0,g=0,b=0;
+		switch(bytes_per_pixel) {
+		case 1:
+			r = g = b = bgr[0]; // TODO not really this way, use as grayscale
+			break;
+		case 2: // 565 schema BBBBBGGG GGGRRRRR
+			b = bgr[0] & 0xF1;
+			g = ((bgr[0] & 0x07) << 5) | (bgr[1] >> 5);
+			r = bgr[1] & 0xF1;
+			break;
+		case 3: // BGR
+			b = bgr[0];
+			g = bgr[1];
+			r = bgr[2];
+			break;
+		case 4: // BGRx
+			b = bgr[0];
+			g = bgr[1];
+			r = bgr[2];
+			break;
+		}
+
+		if ( wr_mempos < wr_max_mempos ) {
+			buf[wr_mempos++] = r;
+			buf[wr_mempos++] = g;
+			buf[wr_mempos++] = b;
+		}
+	}
+	return bytes_per_line;
+}
+
+/**
+ * function checks if more data needed, if true, check the
+ * bits provided from the http client task
+ *
+ * if a buffer is processed, the http client task will be informed by setting a bit
+ */
+t_result bmp_work(uint8_t *buf, size_t sz_buf) {
+	memset(buf, 0, sz_buf);
+	t_result res =RES_OK;
+
+	if ( read_buffer_len == 0 ) {
+		// more data needed
+		EventBits_t uxBits=get_ux_bits(0);
+		if ( uxBits & BMP_BIT_BUFFER1_HAS_DATA ) {
+			bufno = 1;
+		} else if ( uxBits & BMP_BIT_BUFFER2_HAS_DATA ) {
+			bufno = 2;
+		} else if (uxBits & BMP_BIT_NO_MORE_DATA ) {
+			// no more data
+			// finished
+			ESP_LOGI(__func__, "finished");
+			bmp_data_reset();
+			is_bmp_reading = false;
+			set_ux_quit_bits(BMP_BIT_FINISH_PROCESSED);
+			return RES_FINISHED;
+		} else {
+			// no new data
+			return RES_NO_DATA;
+		}
+
+		// new data buffer available
+		rd_mempos = 0;
+		read_buffer_len = get_read_length();
+		read_buffer = get_read_buffer(bufno);
+		ESP_LOGI(__func__, "buffer %d has %d bytes", bufno, read_buffer_len);
 	}
 
-	for ( int bgr_idx = 0; bgr_idx < bgr_idx_max && read_buffer_pos < read_buffer_len; bgr_idx++) {
-		bgr[bgr_idx] = read_buffer[read_buffer_pos];
-		read_buffer_pos++;
+	if ( read_buffer_len > 0 ) {
+		// has more data
+		bmp_show_data(buf, sz_buf);
+
+		// buffer processed ?
+		if ( rd_mempos < read_buffer_len) {
+			return RES_OK; // not yet
+		}
+
+		// buffer processed
+		switch(bufno) {
+		case 0: break; // init or if all data received
+		case 1: set_ux_quit_bits(BMP_BIT_BUFFER1_PROCESSED); break;
+		case 2: set_ux_quit_bits(BMP_BIT_BUFFER2_PROCESSED); break;
+		default:
+			ESP_LOGE(__func__, "unexpected bufno %d", bufno);
+		}
+		bmp_data_reset();
+		return ESP_OK;
 	}
 
 
-	if ( bmpInfoHeader.biBitCount == 16) {
-		// NYI
-		rgb->r = 32;
-		rgb->g = 0;
-		rgb->b = 0;
-	} else if ( bmpInfoHeader.biBitCount == 24 ) {
-		rgb->r = bgr[2];
-		rgb->g = bgr[1];
-		rgb->b = bgr[0];
-	} else if (bmpInfoHeader.biBitCount == 32) {
-		rgb->r = bgr[2];
-		rgb->g = bgr[1];
-		rgb->b = bgr[0];
-	}
- }
+	return res;
+}
 
-esp_err_t bmp_open_connection(char *url) {
+bool get_is_bmp_reading() {
+	return is_bmp_reading;
+}
+
+
+static esp_err_t bmp_open_connection(char *url) {
 	if ( !url || !strlen(url)) {
 		ESP_LOGE(__func__, "missing url");
 		return ESP_FAIL;
@@ -85,111 +174,16 @@ esp_err_t bmp_open_connection(char *url) {
 	ESP_LOGI(__func__,"start");
 
 	is_bmp_reading = true;
-	esp_err_t res = ESP_OK;
+	esp_err_t res;
+
+	bmp_data_reset();
 
 	res = https_get(url, https_callback_bmp_processing);
 
 	return res;
 }
 
-void bmp_stop_processing() {
-	ESP_LOGI(__func__,"start");
-	set_ux_quit_bits(BMP_BIT_STOP_WORKING);
-}
-
-t_result bmp_read_data(int pos, T_COLOR_RGB *rgb) {
-
-	if ( !is_bmp_reading ) {
-		rgb->r = 0;
-		rgb->g = 0;
-		rgb->b = 0;
-		return RES_NOT_ACTIVE;
-	}
-
-	if ( !is_https_connection_active()) {
-		ESP_LOGE(__func__, "there's no open connnection");
-		is_bmp_reading = false;
-		rgb->r = 32;
-		rgb->g = 0;
-		rgb->b = 0;
-		return RES_FAILED;
-	}
-
-	if ( pos >= bmpInfoHeader.biWidth ) {
-		rgb->r = 0;
-		rgb->g = 0;
-		rgb->b = 0;
-		return RES_OUT_OF_RANGE;
-	}
-
-	// if both values are 0 it is in init, continue with wait for data
-	if ( read_buffer_pos < read_buffer_len ) {
-		// buffer has more data, show stored buffer data
-		bmp_show_data(pos, rgb);
-
-		if ( read_buffer_pos >= read_buffer_len ) {
-			// processing buffer finished
-			switch(bufno) {
-			case 0: break; // may be during init
-			case 1: set_ux_quit_bits(BMP_BIT_BUFFER1_PROCESSED); break;
-			case 2: set_ux_quit_bits(BMP_BIT_BUFFER2_PROCESSED); break;
-			default:
-				ESP_LOGE(__func__, "unexpected bufno %d", bufno);
-				return ESP_FAIL;
-			}
-			bmp_data_reset();
-		}
-		return ESP_OK;
-	}
-
-	// wait for new data
-
-	t_result res = RES_OK;
-	EventBits_t uxBits=get_ux_bits(0);
-
-	if ( uxBits & BMP_BIT_BUFFER1_HAS_DATA ) {
-		bufno = 1;
-		read_buffer_pos = 0;
-		read_buffer_len = get_read_length();
-		read_buffer = get_read_buffer(bufno);
-		ESP_LOGI(__func__, "buffer %d has data %d", bufno, read_buffer_len);
-
-		// maybe the buffer has only one pixel line then he is finished here
-		bmp_show_data(pos, rgb);
-		if ( read_buffer_pos >= read_buffer_len ) {
-			bmp_data_reset();
-			set_ux_quit_bits(BMP_BIT_BUFFER1_PROCESSED);
-		}
-
-	} else if ( uxBits & BMP_BIT_BUFFER2_HAS_DATA ) {
-		bufno = 2;
-		read_buffer_pos = 0;
-		read_buffer_len = get_read_length();
-		read_buffer = get_read_buffer(bufno);
-		ESP_LOGI(__func__, "buffer %d has data %d", bufno, read_buffer_len);
-
-		bmp_show_data(pos, rgb);
-		if ( read_buffer_pos >= read_buffer_len ) {
-			bmp_data_reset();
-			set_ux_quit_bits(BMP_BIT_BUFFER2_PROCESSED);
-		}
-
-	} else if (uxBits & BMP_BIT_NO_MORE_DATA ) {
-		// finished
-		ESP_LOGI(__func__, "finished");
-		bmp_data_reset();
-		is_bmp_reading = false;
-		set_ux_quit_bits(BMP_BIT_FINISH_PROCESSED);
-		res = RES_FINISHED;
-	}
-	return res;
-}
-
-bool get_is_bmp_reading() {
-	return is_bmp_reading;
-}
-
-t_result open_bmp_data_url(char *id) {
+t_result bmp_open_url(char *id) {
 	T_DISPLAY_OBJECT *obj = find_object4oid(id);
 	if  ( !obj ) {
 		ESP_LOGE(__func__, "no object '%s' found", id ? id : "");
@@ -209,9 +203,19 @@ t_result open_bmp_data_url(char *id) {
 		return RES_FAILED;
 	}
 	ESP_LOGI(__func__,"bmp_open_connection success, url='%s'", data->para.url);
-
 	return RES_OK;
 }
 
+void bmp_stop_processing() {
+	ESP_LOGI(__func__,"start");
+	set_ux_quit_bits(BMP_BIT_STOP_WORKING);
+	EventBits_t uxbits = get_ux_bits(0);
+	if ( uxbits == BMP_BIT_FINISH_PROCESSED ) {
+		ESP_LOGI(__func__,"finished");
+	} else {
+		ESP_LOGW(__func__,"unexpected event bits 0x%x", uxbits);
+	}
+	is_bmp_reading=false;
+}
 
 

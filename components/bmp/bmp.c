@@ -79,17 +79,24 @@ void bmp_init() {
 
 }
 
-/**
- * calculate bytes per line depends from bit count and the pixel per liune
- */
-size_t get_bytes_per_bmp_line() {
-	return  bmpInfoHeader.biWidth * (
-			bmpInfoHeader.biBitCount == 32 ? 4 :
-			bmpInfoHeader.biBitCount == 24 ? 3 :
-			bmpInfoHeader.biBitCount == 16 ? 2 :
-			1
-	);
+uint32_t get_bytes_per_pixel() {
+	uint32_t bytes_per_pixel = 1;
+	if ( bmpInfoHeader.biBitCount == 16) {
+		bytes_per_pixel = 2;
+	} else if ( bmpInfoHeader.biBitCount == 24 ) {
+		bytes_per_pixel = 3;
+	} else if (bmpInfoHeader.biBitCount == 32) {
+		bytes_per_pixel = 4;
+	} else {
+		ESP_LOGE(__func__, "biBitCount %d NYI",bmpInfoHeader.biBitCount);
+	}
+	return bytes_per_pixel;
 }
+
+uint32_t get_bytes_per_line() {
+	return bmpInfoHeader.biWidth * get_bytes_per_pixel();
+}
+
 
 static void free_buffers() {
 	if (read_buffer1) {
@@ -123,34 +130,36 @@ static void free_buffers() {
  */
 int https_callback_bmp_processing(t_https_callback_todo to_do, uint8_t **buf, size_t *buf_len) {
 
-	ESP_LOGI(__func__,"todo=%d, phase=%d(%s), buf_len=%u", to_do, bmp_read_phase, BRP2TXT(bmp_read_phase), *buf_len);
+	//ESP_LOGI(__func__,"todo=%d, phase=%d(%s), buf_len=%u", to_do, bmp_read_phase, BRP2TXT(bmp_read_phase), *buf_len);
 
 	EventBits_t uxBits;
-
-	// gets and clears the bit
-    uxBits = xEventGroupClearBits(s_bmp_event_group_for_reader, BMP_BIT_STOP_WORKING);
-    if ( uxBits ) {
-    	// stop processing BMP Stream
-		if ( extended_log)
-			ESP_LOGI(__func__,"stopped");
-		xEventGroupClearBits(s_bmp_event_group_for_worker, 0xFFFF);
-		xEventGroupSetBits(s_bmp_event_group_for_worker, BMP_BIT_NO_MORE_DATA);
-    	return -1;
-    }
 
 	if (to_do == HCT_INIT) {
 		// init
 		memset(&bmpFileHeader, 0, sizeof(bmpFileHeader));
 		memset(&bmpInfoHeader, 0, sizeof(bmpInfoHeader));
+		free_buffers();
 
 		bmp_read_phase = BRP_GOT_FILE_HEADER;
 		*buf_len = buf_len_expected = sizeof(bmpFileHeader);
 		*buf = (uint8_t *) &bmpFileHeader;
+		ESP_LOGI(__func__,"todo=%d, phase=%d(%s), buf_len=%u", to_do, bmp_read_phase, BRP2TXT(bmp_read_phase), *buf_len);
 
-		free_buffers();
 		return 1;
 
 	} else if (to_do == HCT_READING) {
+		// gets and clears the bit
+	    uxBits = xEventGroupClearBits(s_bmp_event_group_for_worker, BMP_BIT_STOP_WORKING);
+	    if ( uxBits)
+	    	ESP_LOGI(__func__, "uxBits = 0x%X", uxBits);
+
+	    if ( uxBits & BMP_BIT_STOP_WORKING ) {
+	    	// stop processing BMP Stream
+	    	ESP_LOGI(__func__,"stopped");
+			xEventGroupClearBits(s_bmp_event_group_for_worker, 0xFFFF);
+			xEventGroupSetBits(s_bmp_event_group_for_worker, BMP_BIT_NO_MORE_DATA);
+	    	return -1;
+	    }
 
 		// read data
 		if ( buf_len_expected > 0 &&  *buf_len > buf_len_expected) {
@@ -176,6 +185,7 @@ int https_callback_bmp_processing(t_https_callback_todo to_do, uint8_t **buf, si
 
 			*buf_len = buf_len_expected = sizeof(bmpInfoHeader);
 			*buf = (uint8_t *) &bmpInfoHeader;
+			ESP_LOGI(__func__,"todo=%d, phase=%d(%s), buf_len=%u", to_do, bmp_read_phase, BRP2TXT(bmp_read_phase), *buf_len);
 			return 1;
 
 		case BRP_GOT_INFO_HEADER:
@@ -201,7 +211,7 @@ int https_callback_bmp_processing(t_https_callback_todo to_do, uint8_t **buf, si
 
 			// prepare data read
 			// data len as multiple amount of data per line
-			size_t linesize =get_bytes_per_bmp_line();
+			size_t linesize =get_bytes_per_line();
 			sz_read_buffer = linesize;
 			while (sz_read_buffer < 1024 ) {
 				sz_read_buffer += linesize;
@@ -225,6 +235,7 @@ int https_callback_bmp_processing(t_https_callback_todo to_do, uint8_t **buf, si
 				*buf_len= buf_len_expected = skip_data_cnt;
 				*buf=buffer;
 				bmp_read_phase = BRP_GOT_SKIPPED_DATA;
+				ESP_LOGI(__func__,"todo=%d, phase=%d(%s), buf_len=%u", to_do, bmp_read_phase, BRP2TXT(bmp_read_phase), *buf_len);
 				return 1;
 			}
 
@@ -232,6 +243,7 @@ int https_callback_bmp_processing(t_https_callback_todo to_do, uint8_t **buf, si
 			*buf_len = buf_len_expected = sz_read_buffer;
 			*buf = read_buffer1;
 			bmp_read_phase = BRP_GOT_FIRST_DATA_BUFFER1;
+			ESP_LOGI(__func__,"todo=%d, phase=%d(%s), buf_len=%u", to_do, bmp_read_phase, BRP2TXT(bmp_read_phase), *buf_len);
 			return 1;
 
 		case BRP_GOT_SKIPPED_DATA:
@@ -244,10 +256,12 @@ int https_callback_bmp_processing(t_https_callback_todo to_do, uint8_t **buf, si
 			*buf_len = buf_len_expected = sz_read_buffer;
 			*buf = read_buffer1;
 			bmp_read_phase = BRP_GOT_FIRST_DATA_BUFFER1;
+			ESP_LOGI(__func__,"todo=%d, phase=%d(%s), buf_len=%u", to_do, bmp_read_phase, BRP2TXT(bmp_read_phase), *buf_len);
 			return 1;
 
 		case BRP_GOT_FIRST_DATA_BUFFER1:
 			// buffer 1 is filled, can be processes, try to fill buffer 2 immediately
+			ESP_LOG_BUFFER_HEXDUMP(__func__, read_buffer1, 32, ESP_LOG_INFO);
 			total_length += *buf_len;
 			if ( extended_log)
 				ESP_LOGI(__func__, "read data to buffer 1 len=%lu, total = %lu", *buf_len, total_length);
@@ -259,6 +273,9 @@ int https_callback_bmp_processing(t_https_callback_todo to_do, uint8_t **buf, si
 			bmp_read_phase = BRP_GOT_DATA_BUFFER2;
 			xEventGroupClearBits(s_bmp_event_group_for_worker, 0xFFFF);
 			xEventGroupSetBits(s_bmp_event_group_for_worker, BMP_BIT_BUFFER1_HAS_DATA);
+			ESP_LOGI(__func__,"todo=%d, phase=%d(%s), buf_len=%u", to_do, bmp_read_phase, BRP2TXT(bmp_read_phase), *buf_len);
+
+
 			return 1;
 
 		case BRP_GOT_DATA_BUFFER2:
@@ -282,6 +299,7 @@ int https_callback_bmp_processing(t_https_callback_todo to_do, uint8_t **buf, si
 	    	if ( uxBits & BMP_BIT_BUFFER1_PROCESSED) {
 				xEventGroupClearBits(s_bmp_event_group_for_worker, 0xFFFF);
 				xEventGroupSetBits(s_bmp_event_group_for_worker, BMP_BIT_BUFFER2_HAS_DATA);
+				ESP_LOGI(__func__,"todo=%d, phase=%d(%s), buf_len=%u", to_do, bmp_read_phase, BRP2TXT(bmp_read_phase), *buf_len);
 	    		return 1;
 	    	}
 	    	ESP_LOGE(__func__,"unexpected uxBits 0x%04x",uxBits);
@@ -307,6 +325,7 @@ int https_callback_bmp_processing(t_https_callback_todo to_do, uint8_t **buf, si
 	    	if ( uxBits & BMP_BIT_BUFFER2_PROCESSED) {
 				xEventGroupClearBits(s_bmp_event_group_for_worker, 0xFFFF);
 				xEventGroupSetBits(s_bmp_event_group_for_worker, BMP_BIT_BUFFER1_HAS_DATA);
+				ESP_LOGI(__func__,"todo=%d, phase=%d(%s), buf_len=%u", to_do, bmp_read_phase, BRP2TXT(bmp_read_phase), *buf_len);
 	    		return 1;
 	    	}
 	    	ESP_LOGE(__func__,"unexpected uxBits 0x%04x",uxBits);
@@ -322,10 +341,9 @@ int https_callback_bmp_processing(t_https_callback_todo to_do, uint8_t **buf, si
 		// true: clear bits before function return, false: wait for one of the specified bits
         uxBits = xEventGroupWaitBits(s_bmp_event_group_for_reader, BMP_BIT_FINISH_PROCESSED, pdTRUE, pdFALSE, portMAX_DELAY);
 
-        if ( extended_log)
-			ESP_LOGI(__func__,"finish processed");
         free_buffers();
-		return 0;
+        ESP_LOGI(__func__,"finish processed");
+    	ESP_LOGI(__func__,"todo=%d, phase=%d(%s), buf_len=%u", to_do, bmp_read_phase, BRP2TXT(bmp_read_phase), *buf_len);
 
 	} else {
 		ESP_LOGE(__func__,"unknown todo %d", to_do);
