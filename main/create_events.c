@@ -65,26 +65,41 @@ static esp_err_t decode_json4event_scene_event_events_data(cJSON *element, uint3
 		ESP_LOGI(__func__, "%s/%s/%d: event '%s' created", hint, evtgrp->id, id, eventype2text(evt->type));
 
 		// parameter
-		if (evtcfg->evt_para_type == EVT_PARA_STRING) {
+		bool optional_para = evtcfg->evt_para_type & EVT_PARA_OPTIONAL;
+		int evt_para_type = evtcfg->evt_para_type & 0x0F;
+
+		if (evt_para_type == EVT_PARA_STRING) {
 			attr="value";
 			lrc = evt_get_string(element, attr, sval, sizeof(sval), lerrmsg, sizeof(lerrmsg));
 			if (lrc == RES_OK) {
 				strlcpy(evt->para.svalue, sval,sizeof(evt->para.svalue));
-				ESP_LOGI(__func__, "%s/%s/%d: %s='%s'", hint, evtgrp->id, id, attr, evt->para.svalue);
+			} else if (lrc == RES_NOT_FOUND) {
+				if ( !optional_para) {
+					snprintf(errmsg, sz_errmsg,"%s/%s/%d: missing string parameter '%s'", hint, evtgrp->id, id, attr);
+					break;
+				}
 			}  else {
 				snprintf(errmsg, sz_errmsg,"%s/%s/%d: could not decode '%s': '%s'", hint, evtgrp->id, id, attr, lerrmsg);
 				break;
 			}
-		} else if (evtcfg->evt_para_type == EVT_PARA_NUMERIC) {
+			ESP_LOGI(__func__, "%s/%s/%d: %s='%s'", hint, evtgrp->id, id, attr, evt->para.svalue);
+		} else if (evt_para_type == EVT_PARA_NUMERIC) {
 			attr="value";
 			lrc = evt_get_number(element, attr, &val, lerrmsg, sizeof(lerrmsg));
 			if (lrc == RES_OK) {
 				evt->para.value = val;
-				ESP_LOGI(__func__, "%s/%s/%d: %s=%.3f",hint, evtgrp->id,  id, attr, evt->para.value);
+			} else if (lrc == RES_NOT_FOUND) {
+				if ( !optional_para) {
+					snprintf(errmsg, sz_errmsg,"%s/%s/%d: missing numerical parameter '%s'", hint, evtgrp->id, id, attr);
+					break;
+				} else {
+					evt->para.value = -1.0;
+				}
 			} else {
 				snprintf(errmsg, sz_errmsg,"%s/%s/%d: could not decode '%s': '%s'", hint, evtgrp->id, id, attr, lerrmsg);
 				break;
 			}
+			ESP_LOGI(__func__, "%s/%s/%d: %s=%.3f",hint, evtgrp->id,  id, attr, evt->para.value);
 		} else {
 			// no parameter expected
 		}

@@ -96,11 +96,16 @@ static size_t bmp_show_data(uint8_t *buf, size_t sz_buf ) {
  */
 t_result bmp_work(uint8_t *buf, size_t sz_buf) {
 	memset(buf, 0, sz_buf);
+	if (!is_bmp_reading) {
+		ESP_LOGW(__func__, "is_bmp_reading not active");
+		return RES_FINISHED;
+	}
+
 	t_result res =RES_OK;
 
 	if ( read_buffer_len == 0 ) {
 		// more data needed
-		EventBits_t uxBits=get_ux_bits(0);
+		EventBits_t uxBits=get_ux_bits(10); // wait max. 10 ms
 		if ( uxBits & BMP_BIT_BUFFER1_HAS_DATA ) {
 			bufno = 1;
 		} else if ( uxBits & BMP_BIT_BUFFER2_HAS_DATA ) {
@@ -111,7 +116,7 @@ t_result bmp_work(uint8_t *buf, size_t sz_buf) {
 			ESP_LOGI(__func__, "finished");
 			bmp_data_reset();
 			is_bmp_reading = false;
-			set_ux_quit_bits(BMP_BIT_FINISH_PROCESSED);
+			//set_ux_quit_bits(BMP_BIT_FINISH_PROCESSED);
 			return RES_FINISHED;
 		} else {
 			// no new data
@@ -202,14 +207,17 @@ t_result bmp_open_url(char *id) {
 
 void bmp_stop_processing() {
 	ESP_LOGI(__func__,"start");
-	set_ux_quit_bits(BMP_BIT_STOP_WORKING);
-	EventBits_t uxbits = get_ux_bits(0);
-	if ( uxbits == BMP_BIT_FINISH_PROCESSED ) {
+	set_ux_quit_bits(BMP_BIT_STOP_WORKING); // request for stop working
+	/*
+	EventBits_t uxbits = get_ux_bits(10000); // wait 10 secs
+	if ( uxbits & BMP_BIT_NO_MORE_DATA ) {
 		ESP_LOGI(__func__,"finished");
 	} else {
 		ESP_LOGW(__func__,"unexpected event bits 0x%x", uxbits);
 	}
+	set_ux_quit_bits(BMP_BIT_FINISH_PROCESSED); // quit no more data
 	is_bmp_reading=false;
+	*/
 }
 
 

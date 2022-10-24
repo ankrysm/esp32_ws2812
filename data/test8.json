@@ -4,6 +4,11 @@
 			"list" :[
 			 	{"type":"bmp", "len":30, "url":"https://kobe-files.de/test2_20x100.bmp"}
 			 ]
+		  },
+		 {  "id":"bmp1",
+			"list" :[
+			 	{"type":"bmp", "len":300, "url":"https://kobe-files.de/testbild.bmp"}
+			 ]
 		  }
 	  ],
 	 "scenes" : [
@@ -14,15 +19,15 @@
 			 	 "id":"A10",
 		 		 "repeats":1,
 			 	 "init": [
-		     	 	{"type":"object","value":"bmp"},
-			 	 	{"type":"bmp_open"}, 
+		     	 	{"type":"object","value":"bmp1"},
+			 	 	{"type":"bmp_open"},
 			 	 	{"type":"brightness", "value":0.1},
-		     	 	{"type":"goto", "value":5},
-		     	 	{"type":"wait_first", "value":2000}
+		     	 	{"type":"goto", "value":0},
+		     	 	{"type":"wait_first", "value":3000}
 			 	 ],
 		     	 "work": [
-			 	 	{"type":"bmp_read", "value":2},
-			 	 	{"type":"wait", "value":5000}
+			 	 	{"type":"bmp_read", "nixvalue":20},
+			 	 	{"type":"wait", "value":1000}
 				 ],
 				 "final":[
 				 	{"type":"clear"}

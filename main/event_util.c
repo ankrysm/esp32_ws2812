@@ -7,15 +7,6 @@
 
 #include "esp32_ws2812.h"
 
-
-extern T_SCENE *s_scene_list;
-extern T_DISPLAY_OBJECT *s_object_list;
-
-// to lock access to event-List
-static  SemaphoreHandle_t xSemaphore = NULL;
-
-static 	TickType_t xSemDelay = 5000 / portTICK_PERIOD_MS;
-
 T_EVENT_CONFIG event_config_tab[] = {
 		{ET_WAIT, EVT_PARA_NUMERIC, "wait", "wait for n ms"},
 		{ET_WAIT_FIRST, EVT_PARA_NUMERIC, "wait_first", "wait for n ms at first init"},
@@ -33,10 +24,19 @@ T_EVENT_CONFIG event_config_tab[] = {
 		{ET_SET_BRIGHTNESS_DELTA, EVT_PARA_NUMERIC,"brightness_delta", "set brightness delta per display cycle"},
 		{ET_SET_OBJECT, EVT_PARA_STRING, "object","set objectid from object table"},
 		{ET_BMP_OPEN, EVT_PARA_NONE, "bmp_open", "open BMP stream, defined by 'bmp' object"},
-		{ET_BMP_READ, EVT_PARA_NUMERIC, "bmp_read","read BMP data line by line and display it, max n lines, -1 all lines"},
+		{ET_BMP_READ, EVT_PARA_NUMERIC | EVT_PARA_OPTIONAL, "bmp_read","read BMP data line by line and display it, max n lines, -1 all lines (default)"},
 		{ET_BMP_CLOSE, EVT_PARA_NONE, "bmp_close", "close BMP stream"},
 		{ET_NONE, EVT_PARA_NONE, "", ""} // end of table
 };
+
+extern T_SCENE *s_scene_list;
+extern T_DISPLAY_OBJECT *s_object_list;
+
+// to lock access to event-List
+static  SemaphoreHandle_t xSemaphore = NULL;
+
+static 	TickType_t xSemDelay = 5000 / portTICK_PERIOD_MS;
+
 
 esp_err_t obtain_eventlist_lock() {
 	if( xSemaphoreTake( xSemaphore, xSemDelay ) == pdTRUE ) {
@@ -78,19 +78,23 @@ bool print_event_config_r(int *pos, char *buf, size_t sz_buf) {
 		*pos = 0;
 		return false; // end of table
 	}
-	switch (event_config_tab[*pos].evt_para_type) {
+	int evtcfg = event_config_tab[*pos].evt_para_type & 0x0F;
+	bool optional_para = event_config_tab[*pos].evt_para_type & EVT_PARA_OPTIONAL;
+	switch (evtcfg) {
 	case EVT_PARA_NONE:
-		snprintf(buf, sz_buf, "\"type\":\"%s\" - %s", event_config_tab[*pos].name, event_config_tab[*pos].help);
+		snprintf(buf, sz_buf, "\"type\":\"%s\" - %s%s",
+				event_config_tab[*pos].name, event_config_tab[*pos].help,
+				(optional_para ? "(optional)":""));
 		break;
 	case EVT_PARA_NUMERIC:
-		snprintf(buf, sz_buf, "\"type\":\"%s\", \"value\":<numeric value>  - %s",
-				event_config_tab[*pos].name, event_config_tab[*pos].help
-		);
+		snprintf(buf, sz_buf, "\"type\":\"%s\", \"value\":<numeric value>  - %s%s",
+				event_config_tab[*pos].name, event_config_tab[*pos].help,
+				(optional_para ? "(optional)":""));
 		break;
 	case EVT_PARA_STRING:
-		snprintf(buf, sz_buf, "\"type\":\"%s\", \"value\":\"<string value>\"  - %s",
-				event_config_tab[*pos].name, event_config_tab[*pos].help
-		);
+		snprintf(buf, sz_buf, "\"type\":\"%s\", \"value\":\"<string value>\"  - %s%d",
+				event_config_tab[*pos].name, event_config_tab[*pos].help,
+				(optional_para ? "(optional)":""));
 		break;
 	}
 	(*pos)++;

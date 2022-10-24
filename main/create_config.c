@@ -158,6 +158,7 @@ esp_err_t decode_json4config_root(char *content, char *errmsg, size_t sz_errmsg)
 		cJSON_Delete(tree);
 
 	if ( store_it) {
+		set_event_timer_period(cfg_cycle);
 		store_config();
 		ESP_LOGI(__func__, "changed config stored");
 	}

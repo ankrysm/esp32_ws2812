@@ -3,7 +3,7 @@
  *
  *  Created on: Sep 13, 2022
  *      Author: andreas
- * see 
+ * see
  * https://de.wikipedia.org/wiki/Windows_Bitmap
  * https://docs.microsoft.com/en-us/previous-versions//dd183376(v=vs.85)?redirectedfrom=MSDN
  *
@@ -21,7 +21,7 @@ typedef int32_t LONG;
 
 // sets by working process
 #define BMP_BIT_BUFFER_PROCESSED   0x01
-#define BMP_BIT_FINISH_PROCESSED   0x02
+//#define BMP_BIT_FINISH_PROCESSED   0x02
 #define BMP_BIT_STOP_WORKING       0x04
 
 // sets by https-callback process
@@ -70,6 +70,6 @@ size_t get_bytes_per_bmp_line();
 
 uint32_t get_read_length();
 uint8_t *get_read_buffer(int bufnr);
-int https_callback_bmp_processing(t_https_callback_todo todo, uint8_t **buf, size_t *buf_len);
+int https_callback_bmp_processing(t_https_callback_todo todo, uint8_t **buf, uint32_t *buf_len);
 
 #endif /* COMPONENTS_BMP_BMP_H_ */

@@ -15,7 +15,7 @@ typedef enum {
 	HCT_FINISH
 } t_https_callback_todo;
 
-typedef int (*https_get_callback)(t_https_callback_todo todo, uint8_t **buf, size_t *buf_len);
+typedef int (*https_get_callback)(t_https_callback_todo todo, uint8_t **buf, uint32_t *buf_len);
 
 esp_err_t https_get(char *url, https_get_callback callback);
 bool is_https_connection_active();

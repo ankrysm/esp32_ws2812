@@ -25,8 +25,7 @@ static void process_object_bmp(int32_t pos, int32_t len) {
 			bytes_per_line = get_bytes_per_line();
 		led_strip_memcpy(pos, buf, MIN(bytes_per_line, (3*len)));
 	} else if ( res == RES_FINISHED ) {
-		ESP_LOGI(__func__,"bmp_read_data: all lines read");
-		bmp_stop_processing();
+		ESP_LOGI(__func__,"bmp_read_data: all lines read, connection closed");
 	} else {
 		ESP_LOGW(__func__, "unexpected result %d",res);
 		// GRB

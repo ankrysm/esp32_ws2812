@@ -105,20 +105,24 @@ static void do_https_get() {
     ESP_LOGI(__func__,"content chunked? '%s'", chunked?"yes":"no");
 
     uint8_t *buf;
-    size_t expected_len = 0;
+    uint32_t expected_len = 0;
 
     s_callback(HCT_INIT, &buf, &expected_len); // init
 
     int read_len=0;
-    size_t total_read_len = 0;
+    int total_read_len = 0;
+    //int remaining_len = 0;
+    int n_read = 0 ;
+
     do {
 
-    	int len = expected_len;
+    	//remaining_len = expected_len;
     	// wait until expected amount read
-        total_read_len = 0;
-    	while (len > 0 ) {
+    	//remaining_len = 0;
+    	n_read = 0;
+    	while (n_read < expected_len ) {
     		read_len = esp_http_client_read(client, (char *) buf, expected_len);
-
+    		ESP_LOGI(__func__, "read_len = %d", read_len);
     		if (read_len < 0) {
     			ESP_LOGE(__func__, "Error read data 0x%04x", read_len);
     			break;
@@ -126,35 +130,42 @@ static void do_https_get() {
     			ESP_LOGE(__func__, "EOF");
     			break;
     		}
-    		len -= read_len;
+    		//remaining_len -= read_len;
+    		n_read += read_len;
     		total_read_len += read_len;
-    		if ( len>0) {
-    			ESP_LOGI(__func__, "%d bytes read, remains %d", read_len, len);
+    		if ( n_read < expected_len) {
+    			ESP_LOGI(__func__, "%d bytes read (%d/%d)",  read_len, n_read , expected_len);
     		}
     	}
 
-    	if ( read_len <=0)
-    		break;
+    	int rc;
+    	if ( read_len <=0) {
+    		if ( n_read > 0) {
+    			// there's something remaining in the buffer
+    	        rc = s_callback(HCT_READING, &buf, &expected_len);
+    	        ESP_LOGI(__func__, "callback after EOF or failure returned %d", rc);
+    		}
+    		break; // EOF or Error
+    	}
+    	// all read; n_read == expected_len
+        rc = s_callback(HCT_READING, &buf, &expected_len);
+        ESP_LOGI(__func__, "callback returned %d", rc);
 
-        int rc = s_callback(HCT_READING, &buf, &expected_len);
-   		if ( rc < 0 )
-           	break; // failure
+        if ( rc < 0 )
+           	break; // failure or want to stop connection
 
+        // continue with next loop
     } while(1);
 
-    if ( total_read_len > 0 ) {
-    	// there are some data in buf
-    	s_callback(HCT_READING, &buf, &total_read_len);
-    }
-
-    expected_len = 0;
-    s_callback(HCT_FINISH, &buf, &expected_len);
 
     esp_http_client_close(client);
     esp_http_client_cleanup(client);
 
     ESP_LOGI(__func__, "finished '%s'" , request_config.url);
     free((void*)request_config.url);
+
+    expected_len = 0;
+    s_callback(HCT_FINISH, &buf, &expected_len);
 
 }
 
@@ -165,8 +176,8 @@ static void http_main_task(void *pvParameters)
     ESP_LOGI(__func__, "*** do_https_get finished ****");
 
     connection_active = false;
-    ESP_LOGI(__func__, "*** finished, connection active=%s ***", connection_active?"true":"false");
     vTaskDelete(NULL);
+    // no statements here, task deleted
 }
 
 esp_err_t https_get(char *url, https_get_callback callback) {

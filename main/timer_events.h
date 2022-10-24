@@ -85,9 +85,10 @@ typedef enum {
 
 
 typedef enum  {
-	EVT_PARA_NONE,
-	EVT_PARA_NUMERIC,
-	EVT_PARA_STRING
+	EVT_PARA_NONE     = 0x00,
+	EVT_PARA_NUMERIC  = 0x01,
+	EVT_PARA_STRING   = 0x02,
+	EVT_PARA_OPTIONAL = 0x80  // additional to EVT_PARA...
 } event_parameter_type;
 
 // I - init - no timing

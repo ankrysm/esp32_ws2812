@@ -149,7 +149,6 @@ static void process_event_group_final(T_EVENT_GROUP *evtgrp) {
 			break;
 
 		case ET_BMP_CLOSE:
-			// evtgrp->w_flags |= EVFL_BMP_CLOSE;
 			bmp_stop_processing();
 			evtgrp->w_bmp_remaining_lines = 0;
 			break;
