@@ -30,7 +30,7 @@ static void bmp_data_reset() {
 
 /**
  * function copies one pixel line from bmp in BGR/BGRx-format into
- * the buffer buf in a RGB-Format
+ * the buffer buf in a GRB-Format
  *
  * maximum bytes are sz_buf
  *
@@ -80,8 +80,8 @@ static size_t bmp_show_data(uint8_t *buf, size_t sz_buf ) {
 		}
 
 		if ( wr_mempos < wr_max_mempos ) {
-			buf[wr_mempos++] = r;
 			buf[wr_mempos++] = g;
+			buf[wr_mempos++] = r;
 			buf[wr_mempos++] = b;
 		}
 	}
@@ -135,13 +135,7 @@ t_result bmp_work(uint8_t *buf, size_t sz_buf) {
 		}
 
 		// buffer processed
-		switch(bufno) {
-		case 0: break; // init or if all data received
-		case 1: set_ux_quit_bits(BMP_BIT_BUFFER1_PROCESSED); break;
-		case 2: set_ux_quit_bits(BMP_BIT_BUFFER2_PROCESSED); break;
-		default:
-			ESP_LOGE(__func__, "unexpected bufno %d", bufno);
-		}
+		set_ux_quit_bits(BMP_BIT_BUFFER_PROCESSED);
 		bmp_data_reset();
 		return ESP_OK;
 	}

@@ -18,10 +18,10 @@
 			 	 	{"type":"bmp_open"}, 
 			 	 	{"type":"brightness", "value":0.1},
 		     	 	{"type":"goto", "value":5},
-		     	 	{"type":"wait_first", "value":1000}
+		     	 	{"type":"wait_first", "value":2000}
 			 	 ],
 		     	 "work": [
-			 	 	{"type":"bmp_read", "value":-2},
+			 	 	{"type":"bmp_read", "value":2},
 			 	 	{"type":"wait", "value":5000}
 				 ],
 				 "final":[

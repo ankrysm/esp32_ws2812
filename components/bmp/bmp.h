@@ -20,12 +20,11 @@ typedef uint32_t DWORD;
 typedef int32_t LONG;
 
 // sets by working process
-#define BMP_BIT_BUFFER1_PROCESSED  0x01
-#define BMP_BIT_BUFFER2_PROCESSED  0x02
-#define BMP_BIT_FINISH_PROCESSED   0x04
-#define BMP_BIT_STOP_WORKING       0x08
+#define BMP_BIT_BUFFER_PROCESSED   0x01
+#define BMP_BIT_FINISH_PROCESSED   0x02
+#define BMP_BIT_STOP_WORKING       0x04
 
-// sets by reading process
+// sets by https-callback process
 #define BMP_BIT_BUFFER1_HAS_DATA   0x10
 #define BMP_BIT_BUFFER2_HAS_DATA   0x20
 #define BMP_BIT_NO_MORE_DATA       0x40
@@ -38,7 +37,8 @@ typedef int32_t LONG;
 // 00000000  42  4d  36  20  1c  00  00  00  00  00  36  00  00  00  28  00  |BM6 ......6...(.|
 //           t   t   s   s   s   s
 typedef struct tagBITMAPFILEHEADER {
-  char  bfType[2]; // must be 'BM'
+  char  bfType1; // must be 'BM'
+  char  bfType2;
   DWORD bfSize; // The size, in bytes, of the bitmap file (unreliable).
   WORD  bfReserved1; // must be 0
   WORD  bfReserved2; // must be 0

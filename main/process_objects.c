@@ -29,6 +29,14 @@ static void process_object_bmp(int32_t pos, int32_t len) {
 		bmp_stop_processing();
 	} else {
 		ESP_LOGW(__func__, "unexpected result %d",res);
+		// GRB
+		uint8_t r,g,b;
+		r = 32; g=0; b=0;
+		for (int i=0; i<3*len;) {
+			// GRB
+			buf[i++] = g;  buf[i++] = r; buf[i++] = b;
+		}
+		led_strip_memcpy(pos, buf, 3*len);
 	}
 }
 
