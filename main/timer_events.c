@@ -236,6 +236,7 @@ void scenes_blank() {
 	xEventGroupClearBits(s_timer_event_group, EVENT_BITS_ALL);
     xEventGroupSetBits(s_timer_event_group, EVENT_BIT_STOP|EVENT_BIT_BLANK);
     make_it_blank();
+    bmp_stop_processing();
 }
 
 void scenes_pause() {

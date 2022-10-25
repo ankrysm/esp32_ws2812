@@ -9,6 +9,16 @@
 			"list" :[
 			 	{"type":"bmp", "len":300, "url":"https://kobe-files.de/testbild.bmp"}
 			 ]
+		  },
+		 {  "id":"bmp2",
+			"list" :[
+			 	{"type":"bmp", "len":300, "url":"https://kobe-files.de/testbild_300_300.bmp"}
+			 ]
+		  },
+		 {  "id":"bmp3",
+			"list" :[
+			 	{"type":"bmp", "len":300, "url":"https://kobe-files.de/testbild_not_found.bmp"}
+			 ]
 		  }
 	  ],
 	 "scenes" : [
@@ -17,9 +27,9 @@
 	 		"events": [
 			 	{
 			 	 "id":"A10",
-		 		 "repeats":1,
+		 		 "repeats":3,
 			 	 "init": [
-		     	 	{"type":"object","value":"bmp1"},
+		     	 	{"type":"object","value":"bmp3"},
 			 	 	{"type":"bmp_open"},
 			 	 	{"type":"brightness", "value":0.1},
 		     	 	{"type":"goto", "value":0},

@@ -40,7 +40,7 @@ extern const char server_root_cert_pem_end[]   asm("_binary_server_root_cert_pem
 
 static https_get_callback s_callback;
 static esp_http_client_config_t request_config;
-static volatile bool connection_active = false;
+static volatile bool http_client_task_active = false;
 
 static TaskHandle_t xHandle = NULL;
 
@@ -97,66 +97,75 @@ static void do_https_get() {
     }
 
     int content_length =  esp_http_client_fetch_headers(client);
+    int status_code = esp_http_client_get_status_code(client);
     ESP_LOGI(__func__, "connected, content len %d", content_length);
     ESP_LOGI(__func__, "HTTP Stream reader Status = %d, content_length = %lld",
-                    esp_http_client_get_status_code(client),
-                    esp_http_client_get_content_length(client));
+    		status_code,
+			esp_http_client_get_content_length(client));
     bool chunked = esp_http_client_is_chunked_response(client);
     ESP_LOGI(__func__,"content chunked? '%s'", chunked?"yes":"no");
 
     uint8_t *buf;
     uint32_t expected_len = 0;
 
-    s_callback(HCT_INIT, &buf, &expected_len); // init
+    if ( status_code == 200 ) {
+    	s_callback(HCT_INIT, &buf, &expected_len); // init
 
-    int read_len=0;
-    int total_read_len = 0;
-    //int remaining_len = 0;
-    int n_read = 0 ;
+    	int read_len=0;
+    	int total_read_len = 0;
+    	//int remaining_len = 0;
+    	int n_read = 0 ;
 
-    do {
+    	do {
 
-    	//remaining_len = expected_len;
-    	// wait until expected amount read
-    	//remaining_len = 0;
-    	n_read = 0;
-    	while (n_read < expected_len ) {
-    		read_len = esp_http_client_read(client, (char *) buf, expected_len);
-    		ESP_LOGI(__func__, "read_len = %d", read_len);
-    		if (read_len < 0) {
-    			ESP_LOGE(__func__, "Error read data 0x%04x", read_len);
-    			break;
-    		} if ( read_len == 0) {
-    			ESP_LOGE(__func__, "EOF");
-    			break;
+    		//remaining_len = expected_len;
+    		// wait until expected amount read
+    		//remaining_len = 0;
+    		n_read = 0;
+    		while (n_read < expected_len ) {
+    			read_len = esp_http_client_read(client, (char *) buf, expected_len);
+    			ESP_LOGI(__func__, "read_len = %d", read_len);
+    			if (read_len < 0) {
+    				ESP_LOGE(__func__, "Error read data 0x%04x", read_len);
+    				break;
+    			} if ( read_len == 0) {
+    				ESP_LOGE(__func__, "EOF");
+    				break;
+    			}
+    			//remaining_len -= read_len;
+    			n_read += read_len;
+    			total_read_len += read_len;
+    			if ( n_read < expected_len) {
+    				ESP_LOGI(__func__, "%d bytes read (%d/%d)",  read_len, n_read , expected_len);
+    			}
     		}
-    		//remaining_len -= read_len;
-    		n_read += read_len;
-    		total_read_len += read_len;
-    		if ( n_read < expected_len) {
-    			ESP_LOGI(__func__, "%d bytes read (%d/%d)",  read_len, n_read , expected_len);
+
+    		int rc;
+    		if ( read_len <=0) {
+    			if ( n_read > 0) {
+    				// there's something remaining in the buffer
+    				rc = s_callback(HCT_READING, &buf, &expected_len);
+    				ESP_LOGI(__func__, "callback after EOF or failure returned %d", rc);
+    			}
+    			break; // EOF or Error
     		}
-    	}
+    		// all read; n_read == expected_len
+    		rc = s_callback(HCT_READING, &buf, &expected_len);
+    		ESP_LOGI(__func__, "callback returned %d", rc);
 
-    	int rc;
-    	if ( read_len <=0) {
-    		if ( n_read > 0) {
-    			// there's something remaining in the buffer
-    	        rc = s_callback(HCT_READING, &buf, &expected_len);
-    	        ESP_LOGI(__func__, "callback after EOF or failure returned %d", rc);
-    		}
-    		break; // EOF or Error
-    	}
-    	// all read; n_read == expected_len
-        rc = s_callback(HCT_READING, &buf, &expected_len);
-        ESP_LOGI(__func__, "callback returned %d", rc);
+    		if ( rc < 0 )
+    			break; // failure or want to stop connection
 
-        if ( rc < 0 )
-           	break; // failure or want to stop connection
+    		// continue with next loop
+    	} while(1);
 
-        // continue with next loop
-    } while(1);
+    	expected_len = 0;
+        s_callback(HCT_FINISH, &buf, &expected_len);
 
+    } else {
+    	expected_len = 0;
+    	s_callback(HCT_FAILED, &buf, &expected_len);
+    }
 
     esp_http_client_close(client);
     esp_http_client_cleanup(client);
@@ -164,8 +173,6 @@ static void do_https_get() {
     ESP_LOGI(__func__, "finished '%s'" , request_config.url);
     free((void*)request_config.url);
 
-    expected_len = 0;
-    s_callback(HCT_FINISH, &buf, &expected_len);
 
 }
 
@@ -175,17 +182,17 @@ static void http_main_task(void *pvParameters)
     do_https_get();
     ESP_LOGI(__func__, "*** do_https_get finished ****");
 
-    connection_active = false;
+    http_client_task_active = false;
     vTaskDelete(NULL);
     // no statements here, task deleted
 }
 
 esp_err_t https_get(char *url, https_get_callback callback) {
-	if ( connection_active ) {
+	if ( http_client_task_active ) {
 		ESP_LOGW(__func__, "there's an open connection url='%s'", url);
 		return ESP_FAIL;
 	}
-	connection_active = true;
+	http_client_task_active = true;
 
 	memset(&request_config, 0, sizeof(request_config));
     request_config.url = strdup(url);
@@ -199,6 +206,6 @@ esp_err_t https_get(char *url, https_get_callback callback) {
 
 }
 
-bool is_https_connection_active() {
-	return connection_active;
+bool is_http_client_task_active() {
+	return http_client_task_active;
 }

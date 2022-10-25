@@ -129,13 +129,14 @@ esp_err_t decode_json4config_root(char *content, char *errmsg, size_t sz_errmsg)
 void bmp_init();
 uint32_t get_bytes_per_pixel();
 uint32_t get_bytes_per_line();
+void clear_ux_bits();
 
 // from process_bmp.c
-//esp_err_t bmp_open_connection(char *url);
-t_result bmp_work(uint8_t *buf, size_t sz_buf);
+t_result bmp_work(uint8_t *buf, size_t sz_buf, double brightness);
 bool get_is_bmp_reading();
 void bmp_stop_processing();
 t_result bmp_open_url(char *id);
+void process_object_bmp(int32_t pos, int32_t len, double brightness);
 
 // from process_objects.c
 void process_object(T_EVENT_GROUP *evtgrp);

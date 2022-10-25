@@ -55,6 +55,8 @@ static uint32_t total_length = 0;
 
 static uint8_t *read_buffer1 = NULL;
 static uint8_t *read_buffer2 = NULL;
+static const TickType_t xTicksToWait = 30000 / portTICK_PERIOD_MS;
+
 
 // data amount
 static uint32_t read_buffer_length = 0;
@@ -279,8 +281,9 @@ int https_callback_bmp_processing(t_https_callback_todo to_do, uint8_t **buf, ui
 			bmp_read_phase = BRP_GOT_DATA_BUFFER1;
 
 			// wait for end of processing buffer1
+
 			// first boolan true: clear bits before function return, second boolean false: wait for one of the specified bits
-			uxBits = xEventGroupWaitBits(s_bmp_event_group_for_reader, BMP_BIT_BUFFER_PROCESSED | BMP_BIT_STOP_WORKING, pdTRUE, pdFALSE, portMAX_DELAY);
+			uxBits = xEventGroupWaitBits(s_bmp_event_group_for_reader, BMP_BIT_BUFFER_PROCESSED | BMP_BIT_STOP_WORKING, pdTRUE, pdFALSE, xTicksToWait);
 			if ( extended_log)
 				ESP_LOGI(__func__, "xEventGroupWaitBits_for_reader return 0x%02x", uxBits);
 			if ( uxBits & BMP_BIT_BUFFER_PROCESSED) {
@@ -292,9 +295,7 @@ int https_callback_bmp_processing(t_https_callback_todo to_do, uint8_t **buf, ui
 			}
 			if ( uxBits & BMP_BIT_STOP_WORKING ) {
 				// stop processing BMP Stream
-				ESP_LOGI(__func__,"stopped(1)");
-				//xEventGroupClearBits(s_bmp_event_group_for_worker, 0xFFFF);
-				//xEventGroupSetBits(s_bmp_event_group_for_worker, BMP_BIT_NO_MORE_DATA);
+				ESP_LOGI(__func__,"stop working(1)");
 				return -1;
 			}
 			ESP_LOGE(__func__,"unexpected uxBits 0x%04x",uxBits);
@@ -313,7 +314,7 @@ int https_callback_bmp_processing(t_https_callback_todo to_do, uint8_t **buf, ui
 
 			// wait for process of buffer 2
 			// true: clear bits before function return, false: wait for one of the specified bits
-			uxBits = xEventGroupWaitBits(s_bmp_event_group_for_reader, BMP_BIT_BUFFER_PROCESSED | BMP_BIT_STOP_WORKING, pdTRUE, pdFALSE, portMAX_DELAY);
+			uxBits = xEventGroupWaitBits(s_bmp_event_group_for_reader, BMP_BIT_BUFFER_PROCESSED | BMP_BIT_STOP_WORKING, pdTRUE, pdFALSE, xTicksToWait);
 			//xEventGroupClearBits(s_bmp_event_group_for_reader, 0xFFFF);
 			if ( extended_log)
 				ESP_LOGI(__func__, "xEventGroupWaitBits_for_reader return 0x%02x", uxBits);
@@ -325,9 +326,7 @@ int https_callback_bmp_processing(t_https_callback_todo to_do, uint8_t **buf, ui
 			}
 			if ( uxBits & BMP_BIT_STOP_WORKING ) {
 				// stop processing BMP Stream
-				ESP_LOGI(__func__,"stopped(2)");
-				//xEventGroupClearBits(s_bmp_event_group_for_worker, 0xFFFF);
-				//xEventGroupSetBits(s_bmp_event_group_for_worker, BMP_BIT_NO_MORE_DATA);
+				ESP_LOGI(__func__,"stop working(2)");
 				return -1;
 			}
 			ESP_LOGE(__func__,"unexpected uxBits 0x%04x",uxBits);
@@ -340,11 +339,16 @@ int https_callback_bmp_processing(t_https_callback_todo to_do, uint8_t **buf, ui
         xEventGroupClearBits(s_bmp_event_group_for_worker, 0xFFFF);
 		xEventGroupSetBits(s_bmp_event_group_for_worker, BMP_BIT_NO_MORE_DATA);
 
-		// true: clear bits before function return, false: wait for one of the specified bits
-        //uxBits = xEventGroupWaitBits(s_bmp_event_group_for_reader, BMP_BIT_FINISH_PROCESSED, pdTRUE, pdFALSE, portMAX_DELAY);
-
         free_buffers();
     	ESP_LOGI(__func__,"todo=%d(finish), buf_len=%u", to_do, *buf_len);
+
+	} else if ( to_do==HCT_FAILED ) {
+		ESP_LOGI(__func__,"failed");
+        xEventGroupClearBits(s_bmp_event_group_for_worker, 0xFFFF);
+		xEventGroupSetBits(s_bmp_event_group_for_worker, BMP_BIT_NO_MORE_DATA);
+
+        free_buffers();
+    	ESP_LOGI(__func__,"todo=%d(failed), buf_len=%u", to_do, *buf_len);
 
 	} else {
 		ESP_LOGE(__func__,"unknown todo %d", to_do);
@@ -366,8 +370,14 @@ void set_ux_quit_bits(EventBits_t uxQuitBits) {
 	xEventGroupClearBits(s_bmp_event_group_for_reader, 0xFFFF);
 	if ( extended_log)
 		ESP_LOGI(__func__, "xEventGroupSetBits_for_reader return 0x%02x", uxQuitBits);
-	xEventGroupSetBits(s_bmp_event_group_for_reader, uxQuitBits);
+	if (uxQuitBits)
+		xEventGroupSetBits(s_bmp_event_group_for_reader, uxQuitBits);
 
+}
+
+void clear_ux_bits() {
+	xEventGroupClearBits(s_bmp_event_group_for_reader, 0xFFFF);
+    xEventGroupClearBits(s_bmp_event_group_for_worker, 0xFFFF);
 }
 
 uint32_t get_read_length() {

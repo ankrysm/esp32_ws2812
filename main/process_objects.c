@@ -8,36 +8,6 @@
 #include "esp32_ws2812.h"
 
 //extern BITMAPINFOHEADER bmpInfoHeader;
-static uint8_t buf[3*500]; // 3 bits for max. 500 leds TODO with calloc
-static int32_t bytes_per_line = -1;
-
-static void process_object_bmp(int32_t pos, int32_t len) {
-	// special handling for bmp processing
-
-	if ( ! get_is_bmp_reading()){
-		ESP_LOGE(__func__, "bmp reading not active");
-		return;
-	}
-
-	t_result res = bmp_work(buf, sizeof(buf)); // bmp_read_data(pos, &rgb);
-	if ( res == RES_OK) {
-		if ( bytes_per_line < 0 )
-			bytes_per_line = get_bytes_per_line();
-		led_strip_memcpy(pos, buf, MIN(bytes_per_line, (3*len)));
-	} else if ( res == RES_FINISHED ) {
-		ESP_LOGI(__func__,"bmp_read_data: all lines read, connection closed");
-	} else {
-		ESP_LOGW(__func__, "unexpected result %d",res);
-		// GRB
-		uint8_t r,g,b;
-		r = 32; g=0; b=0;
-		for (int i=0; i<3*len;) {
-			// GRB
-			buf[i++] = g;  buf[i++] = r; buf[i++] = b;
-		}
-		led_strip_memcpy(pos, buf, 3*len);
-	}
-}
 
 
 /**
@@ -127,7 +97,7 @@ void process_object(T_EVENT_GROUP *evtgrp) {
 	for (T_DISPLAY_OBJECT_DATA *data = obj->data; data; data=data->nxt) {
 		if ( data->type == OBJT_BMP ) {
 			// special handling for bmp processing XXX
-			process_object_bmp(pos, data->len);
+			process_object_bmp(pos, data->len, f);
 			pos += evtgrp->delta_pos * data->len;
 			if ( pos < startpos || pos > endpos) {
 				ende = true;
@@ -202,7 +172,7 @@ void process_object(T_EVENT_GROUP *evtgrp) {
 				case OBJT_SPARKLE:
 					break;
 
-				case OBJT_BMP:
+				case OBJT_BMP: // should not occure here
 					break;
 
 				default:

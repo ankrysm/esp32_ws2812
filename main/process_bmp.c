@@ -7,20 +7,54 @@
 
 #include "esp32_ws2812.h"
 
-extern BITMAPINFOHEADER bmpInfoHeader;
+//extern BITMAPINFOHEADER bmpInfoHeader;
 
 //static uint32_t read_buffer_pos = 0; // current position in read_buffer
 static uint32_t read_buffer_len = 0; // data length in read_buffer
 static uint8_t *read_buffer = NULL;
 static uint32_t rd_mempos = 0;
 
+
 static volatile bool is_bmp_reading = false;
 
 static int bufno=0; // which buffer has data 1 or 2, depends on HAS_DATA-bit
 
+static uint8_t buf[3*500]; // 3 bits for max. 500 leds TODO with calloc
+static int32_t bytes_per_line = -1;
+
+void process_object_bmp(int32_t pos, int32_t len, double brightness) {
+	// special handling for bmp processing
+
+	if ( ! get_is_bmp_reading()){
+		ESP_LOGE(__func__, "bmp reading not active");
+		return;
+	}
+
+	t_result res = bmp_work(buf, sizeof(buf), brightness);
+
+	if ( res == RES_OK) {
+		if ( bytes_per_line < 0 )
+			bytes_per_line = get_bytes_per_line();
+		led_strip_memcpy(pos, buf, MIN(bytes_per_line, (3*len)));
+
+	} else if ( res == RES_FINISHED ) {
+		ESP_LOGI(__func__,"bmp_read_data: all lines read, connection closed");
+
+	} else {
+		ESP_LOGW(__func__, "unexpected result %d",res);
+		// GRB
+		uint8_t r,g,b;
+		r = 32; g=0; b=0;
+		for (int i=0; i<3*len;) {
+			// GRB
+			buf[i++] = g;  buf[i++] = r; buf[i++] = b;
+		}
+		led_strip_memcpy(pos, buf, 3*len);
+	}
+}
+
 
 static void bmp_data_reset() {
-//	read_buffer_pos = 0;
 	read_buffer_len = 0;
 	read_buffer = NULL;
 	rd_mempos = 0;
@@ -33,10 +67,11 @@ static void bmp_data_reset() {
  * the buffer buf in a GRB-Format
  *
  * maximum bytes are sz_buf
+ * brightness between 0 an 1.0
  *
  * returns bytes per line
  */
-static size_t bmp_show_data(uint8_t *buf, size_t sz_buf ) {
+static size_t bmp_show_data(uint8_t *buf, size_t sz_buf, double brightness ) {
 	// 24 bit data: B,G,R
 	// 32 bit data: B,G,R,x
 
@@ -52,7 +87,7 @@ static size_t bmp_show_data(uint8_t *buf, size_t sz_buf ) {
 
 	for ( int i=0; i < bytes_per_line; i++ ) {
 
-		bgr[bgr_idx++] = read_buffer[rd_mempos++];
+		bgr[bgr_idx++] = read_buffer[rd_mempos++] * brightness;
 		if ( bgr_idx < bytes_per_pixel)
 			continue;
 
@@ -94,7 +129,7 @@ static size_t bmp_show_data(uint8_t *buf, size_t sz_buf ) {
  *
  * if a buffer is processed, the http client task will be informed by setting a bit
  */
-t_result bmp_work(uint8_t *buf, size_t sz_buf) {
+t_result bmp_work(uint8_t *buf, size_t sz_buf, double brightness) {
 	memset(buf, 0, sz_buf);
 	if (!is_bmp_reading) {
 		ESP_LOGW(__func__, "is_bmp_reading not active");
@@ -132,7 +167,7 @@ t_result bmp_work(uint8_t *buf, size_t sz_buf) {
 
 	if ( read_buffer_len > 0 ) {
 		// has more data
-		bmp_show_data(buf, sz_buf);
+		bmp_show_data(buf, sz_buf, brightness);
 
 		// buffer processed ?
 		if ( rd_mempos < read_buffer_len) {
@@ -165,7 +200,7 @@ static esp_err_t bmp_open_connection(char *url) {
 		return ESP_FAIL;
 	}
 
-	if ( is_https_connection_active()) {
+	if ( is_http_client_task_active()) {
 		ESP_LOGE(__func__, "is_https_connection_active() should not be true here");
 		return ESP_FAIL;
 	}
@@ -176,6 +211,7 @@ static esp_err_t bmp_open_connection(char *url) {
 	esp_err_t res;
 
 	bmp_data_reset();
+	clear_ux_bits();
 
 	res = https_get(url, https_callback_bmp_processing);
 
@@ -188,19 +224,25 @@ t_result bmp_open_url(char *id) {
 		ESP_LOGE(__func__, "no object '%s' found", id ? id : "");
 		return RES_NOT_FOUND;
 	}
+
 	T_DISPLAY_OBJECT_DATA *data = obj->data;
 	if ( !data ) {
 		ESP_LOGE(__func__, "object '%s' has no data", id?id:"");
 		return RES_NO_VALUE;
 	}
+
 	if ( data->type != OBJT_BMP) {
 		ESP_LOGE(__func__, "object '%s' isn't a bmp object", id?id:"");
 		return RES_INVALID_DATA_TYPE;
 	}
+
+	bytes_per_line = -1;
+
 	if ( bmp_open_connection(data->para.url) != ESP_OK) {
 		ESP_LOGE(__func__,"bmp_open_connection FAILED, url='%s'", data->para.url);
 		return RES_FAILED;
 	}
+
 	ESP_LOGI(__func__,"bmp_open_connection success, url='%s'", data->para.url);
 	return RES_OK;
 }
@@ -208,16 +250,6 @@ t_result bmp_open_url(char *id) {
 void bmp_stop_processing() {
 	ESP_LOGI(__func__,"start");
 	set_ux_quit_bits(BMP_BIT_STOP_WORKING); // request for stop working
-	/*
-	EventBits_t uxbits = get_ux_bits(10000); // wait 10 secs
-	if ( uxbits & BMP_BIT_NO_MORE_DATA ) {
-		ESP_LOGI(__func__,"finished");
-	} else {
-		ESP_LOGW(__func__,"unexpected event bits 0x%x", uxbits);
-	}
-	set_ux_quit_bits(BMP_BIT_FINISH_PROCESSED); // quit no more data
-	is_bmp_reading=false;
-	*/
 }
 
 
