@@ -12,7 +12,7 @@
 		  },
 		 {  "id":"bmp2",
 			"list" :[
-			 	{"type":"bmp", "len":300, "url":"https://kobe-files.de/testbild_300_300.bmp"}
+			 	{"type":"bmp", "len":300, "url":"https://raw.githubusercontent.com/ankrysm/esp32_ws2812/main/data/testbild_300_300.bmp"}
 			 ]
 		  },
 		 {  "id":"bmp3",
@@ -29,7 +29,7 @@
 			 	 "id":"A10",
 		 		 "repeats":3,
 			 	 "init": [
-		     	 	{"type":"object","value":"bmp3"},
+		     	 	{"type":"object","value":"bmp2"},
 			 	 	{"type":"bmp_open"},
 			 	 	{"type":"brightness", "value":0.1},
 		     	 	{"type":"goto", "value":0},

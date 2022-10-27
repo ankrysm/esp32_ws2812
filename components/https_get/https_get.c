@@ -84,6 +84,9 @@ esp_err_t _http_event_handler(esp_http_client_event_t *evt){
 
 static void do_https_get() {
 
+	uint32_t expected_len = 0;
+    uint8_t *buf = NULL;
+
 	ESP_LOGI(__func__, "start '%s'" , request_config.url);
     esp_http_client_handle_t client = esp_http_client_init(&request_config);
     if ( !client ) {
@@ -92,8 +95,10 @@ static void do_https_get() {
     }
     esp_err_t err;
     if ((err = esp_http_client_open(client, 0)) != ESP_OK) {
-        ESP_LOGE(__func__, "Failed to open HTTP connection: %s", esp_err_to_name(err));
-        return;
+    	ESP_LOGE(__func__, "Failed to open HTTP connection: %s", esp_err_to_name(err));
+    	expected_len = 0;
+    	s_callback(HCT_FAILED, &buf, &expected_len);
+    	return;
     }
 
     int content_length =  esp_http_client_fetch_headers(client);
@@ -105,8 +110,6 @@ static void do_https_get() {
     bool chunked = esp_http_client_is_chunked_response(client);
     ESP_LOGI(__func__,"content chunked? '%s'", chunked?"yes":"no");
 
-    uint8_t *buf;
-    uint32_t expected_len = 0;
 
     if ( status_code == 200 ) {
     	s_callback(HCT_INIT, &buf, &expected_len); // init
