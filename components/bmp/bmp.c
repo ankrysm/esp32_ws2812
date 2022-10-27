@@ -163,7 +163,7 @@ int https_callback_bmp_processing(t_https_callback_todo to_do, uint8_t **buf, ui
 
 		case BRP_GOT_FILE_HEADER: // got file header
 			ESP_LOGI(__func__, "got file header: bfType='%c%c', bfSize=0x%08x, bfOffBits=0x%08x",
-					bmpFileHeader.bfType1,bmpFileHeader.bfType1,
+					bmpFileHeader.bfType1,bmpFileHeader.bfType2,
 					bmpFileHeader.bfSize, bmpFileHeader.bfOffBits);
 			ESP_LOG_BUFFER_HEXDUMP(__func__, &bmpFileHeader, sizeof(bmpFileHeader), ESP_LOG_INFO);
 
