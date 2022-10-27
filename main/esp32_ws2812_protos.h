@@ -13,8 +13,8 @@
 void global_data_init();
 
 // from process_events.c
-void reset_event( T_EVENT *evt);
-void reset_event_repeats(T_EVENT *evt);
+void reset_event_group( T_EVENT_GROUP *evt);
+void reset_event_repeats(T_EVENT_GROUP *evt);
 void process_scene(T_SCENE *scene, uint64_t scene_time, uint64_t timer_period);
 void reset_scene(T_SCENE *scene);
 
@@ -74,31 +74,34 @@ uint64_t get_event_timer_period();
 uint64_t get_scene_time();
 
 // from event_util.c
-void delete_event(T_EVENT *evt);
+void delete_event(T_EVENT_GROUP *evt);
 //esp_err_t event_list_free();
-esp_err_t event_list_add(T_SCENE *scene,T_EVENT *evt);
+esp_err_t event_list_add(T_SCENE *scene,T_EVENT_GROUP *evt);
 esp_err_t obtain_eventlist_lock();
 esp_err_t release_eventlist_lock();
 void init_eventlist_utils();
-T_EVENT *create_event(char *id);
-T_EVENT *find_event(char *id);
-T_EVT_TIME *find_timer_event4marker(T_EVT_TIME *tevt_list, char *marker);
-T_EVT_TIME *create_timing_event(T_EVENT *evt, uint32_t id);
-T_EVT_TIME *create_timing_event_init(T_EVENT *evt, uint32_t id);
-T_EVT_TIME *create_timing_event_final(T_EVENT *evt, uint32_t id);
+T_EVENT_GROUP *create_event(char *id);
+T_EVENT_GROUP *find_event(char *id);
+T_EVENT *find_event4marker(T_EVENT *tevt_list, char *marker);
+T_EVENT *create_event_work(T_EVENT_GROUP *evt, uint32_t id);
+T_EVENT *create_event_init(T_EVENT_GROUP *evt, uint32_t id);
+T_EVENT *create_event_final(T_EVENT_GROUP *evt, uint32_t id);
 T_SCENE *create_scene(char *id);
 void delete_scene(T_SCENE *obj);
 esp_err_t scene_list_add(T_SCENE *obj);
 esp_err_t scene_list_free();
+T_EVENT_CONFIG *find_event_config(char *name);
+bool print_event_config_r(int *pos, char *buf, size_t sz_buf);
+void event2text(T_EVENT *evt, char *buf, size_t sz_buf);
+char *eventype2text(event_type type);
 
-
-void delete_object(T_EVT_OBJECT *obj);
+void delete_object(T_DISPLAY_OBJECT *obj);
 esp_err_t delete_object_by_oid(char *oid);
 esp_err_t object_list_free();
-T_EVT_OBJECT *find_object4oid(char *oid);
-T_EVT_OBJECT *create_object(char *oid) ;
-T_EVT_OBJECT_DATA *create_object_data(T_EVT_OBJECT *obj, uint32_t id);
-esp_err_t object_list_add(T_EVT_OBJECT *obj);
+T_DISPLAY_OBJECT *find_object4oid(char *oid);
+T_DISPLAY_OBJECT *create_object(char *oid) ;
+T_DISPLAY_OBJECT_DATA *create_object_data(T_DISPLAY_OBJECT *obj, uint32_t id);
+esp_err_t object_list_add(T_DISPLAY_OBJECT *obj);
 
 // from wifi_vonfig.c
 void initialise_wifi();
@@ -122,6 +125,21 @@ esp_err_t load_autostart_file();
 // from create_config.c
 esp_err_t decode_json4config_root(char *content, char *errmsg, size_t sz_errmsg);
 
+// from bmp.c
+void bmp_init();
+uint32_t get_bytes_per_pixel();
+uint32_t get_bytes_per_line();
+void clear_ux_bits();
+
+// from process_bmp.c
+t_result bmp_work(uint8_t *buf, size_t sz_buf, double brightness);
+bool get_is_bmp_reading();
+void bmp_stop_processing();
+t_result bmp_open_url(char *id);
+void process_object_bmp(int32_t pos, int32_t len, double brightness);
+
+// from process_objects.c
+void process_object(T_EVENT_GROUP *evtgrp);
 
 // from create_demo
 void build_demo2(

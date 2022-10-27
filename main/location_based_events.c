@@ -70,7 +70,7 @@ esp_err_t decode_effect_smooth(
 /*
  * solid
  */
-static esp_err_t process_effect_solid(T_EVENT *evt) {
+static esp_err_t process_effect_solid(T_EVENT_GROUP *evt) {
 
 	T_LOC_EVENT *levt = &(evt->loc_event);
 	T_MOV_EVENT *mevt = &(evt->mov_event);
@@ -195,7 +195,7 @@ static void process_fade_exp(
 /*
  * smooth main
  */
-static esp_err_t process_effect_smooth(T_EVENT *evt) {
+static esp_err_t process_effect_smooth(T_EVENT_GROUP *evt) {
 
 	T_LOC_EVENT *levt = &(evt->loc_event);
 	T_MOV_EVENT *mevt = &(evt->mov_event);
@@ -247,7 +247,7 @@ static esp_err_t process_effect_smooth(T_EVENT *evt) {
 /******************************************************
  * process location based events, main entry
  ******************************************************/
-esp_err_t process_loc_event( T_EVENT *evt) {
+esp_err_t process_loc_event( T_EVENT_GROUP *evt) {
 	switch(evt->loc_event.type) {
 	case LOC_EVENT_SOLID:
 		return process_effect_solid(evt);

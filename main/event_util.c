@@ -7,9 +7,30 @@
 
 #include "esp32_ws2812.h"
 
+T_EVENT_CONFIG event_config_tab[] = {
+		{ET_WAIT, EVT_PARA_NUMERIC, "wait", "wait for n ms"},
+		{ET_WAIT_FIRST, EVT_PARA_NUMERIC, "wait_first", "wait for n ms at first init"},
+		{ET_PAINT, EVT_PARA_NUMERIC, "paint", "paint leds with the given parameter"},
+		{ET_DISTANCE, EVT_PARA_NUMERIC, "distance", "paint until object has moved n leds"},
+		{ET_SPEED, EVT_PARA_NUMERIC, "speed", "speed in leds per second"},
+		{ET_SPEEDUP, EVT_PARA_NUMERIC, "speedup", "speedup delta speed per display cycle"},
+		{ET_BOUNCE, EVT_PARA_NONE, "bounce", "reverse speed"},
+		{ET_REVERSE, EVT_PARA_NONE, "reverse", "reverse paint direction"},
+		{ET_GOTO_POS, EVT_PARA_NUMERIC, "goto", "go to led position"},
+		{ET_MARKER, EVT_PARA_STRING, "marker", "set marker"},
+		{ET_JUMP_MARKER, EVT_PARA_STRING, "jump_marker", "jump to marker"},
+		{ET_CLEAR,EVT_PARA_NONE, "clear", "blank the strip"},
+		{ET_SET_BRIGHTNESS, EVT_PARA_NUMERIC,"brightness", "set brightness"},
+		{ET_SET_BRIGHTNESS_DELTA, EVT_PARA_NUMERIC,"brightness_delta", "set brightness delta per display cycle"},
+		{ET_SET_OBJECT, EVT_PARA_STRING, "object","set objectid from object table"},
+		{ET_BMP_OPEN, EVT_PARA_NONE, "bmp_open", "open BMP stream, defined by 'bmp' object"},
+		{ET_BMP_READ, EVT_PARA_NUMERIC | EVT_PARA_OPTIONAL, "bmp_read","read BMP data line by line and display it, max n lines, -1 all lines (default)"},
+		{ET_BMP_CLOSE, EVT_PARA_NONE, "bmp_close", "close BMP stream"},
+		{ET_NONE, EVT_PARA_NONE, "", ""} // end of table
+};
 
 extern T_SCENE *s_scene_list;
-extern T_EVT_OBJECT *s_object_list;
+extern T_DISPLAY_OBJECT *s_object_list;
 
 // to lock access to event-List
 static  SemaphoreHandle_t xSemaphore = NULL;
@@ -38,33 +59,109 @@ void init_eventlist_utils() {
 }
 
 
-
-/**
- * find an event by id
- * (without lock)
- */
-/*
-T_EVENT *find_event(char *id) {
-	if (!s_event_list) {
-		return NULL; // nothing available
-	}
-
-	for( T_EVENT *e = s_event_list; e; e=e->nxt) {
-		if ( !strcasecmp(e->id, id)) {
-			return e; // found!
+T_EVENT_CONFIG *find_event_config(char *name) {
+	for (int i=0; event_config_tab[i].evt_type != ET_NONE; i++ ) {
+		if ( !strcasecmp(name, event_config_tab[i].name)) {
+			// matched
+			return &event_config_tab[i];
 		}
 	}
-	return NULL; // not found
+	return NULL;
 }
-*/
 
-T_EVT_TIME *find_timer_event4marker(T_EVT_TIME *tevt_list, char *marker) {
-	if (!tevt_list || !marker || !strlen(marker)) {
+/**
+ * print event config on position 'pos'
+ * returns true, when more data is available by a new call
+ */
+bool print_event_config_r(int *pos, char *buf, size_t sz_buf) {
+	if (event_config_tab[*pos].evt_type == ET_NONE) {
+		*pos = 0;
+		return false; // end of table
+	}
+	int evtcfg = event_config_tab[*pos].evt_para_type & 0x0F;
+	bool optional_para = event_config_tab[*pos].evt_para_type & EVT_PARA_OPTIONAL;
+	switch (evtcfg) {
+	case EVT_PARA_NONE:
+		snprintf(buf, sz_buf, "\"type\":\"%s\" - %s%s",
+				event_config_tab[*pos].name, event_config_tab[*pos].help,
+				(optional_para ? "(optional)":""));
+		break;
+	case EVT_PARA_NUMERIC:
+		snprintf(buf, sz_buf, "\"type\":\"%s\", \"value\":<numeric value>  - %s%s",
+				event_config_tab[*pos].name, event_config_tab[*pos].help,
+				(optional_para ? "(optional)":""));
+		break;
+	case EVT_PARA_STRING:
+		snprintf(buf, sz_buf, "\"type\":\"%s\", \"value\":\"<string value>\"  - %s%d",
+				event_config_tab[*pos].name, event_config_tab[*pos].help,
+				(optional_para ? "(optional)":""));
+		break;
+	}
+	(*pos)++;
+	return true;
+}
+
+char *eventype2text(event_type type) {
+	for (int i=0; event_config_tab[i].evt_type != ET_NONE; i++ ) {
+		if ( event_config_tab[i].evt_type == type) {
+			// matched
+			return event_config_tab[i].name;
+		}
+	}
+	return "????";
+}
+
+void event2text(T_EVENT *evt, char *buf, size_t sz_buf) {
+	switch(evt->type) {
+
+		// with numeric parameter
+	case ET_WAIT:
+	case ET_WAIT_FIRST:
+	case ET_PAINT:
+	case ET_SPEED:
+	case ET_SPEEDUP:
+	case ET_SET_BRIGHTNESS:
+	case ET_SET_BRIGHTNESS_DELTA:
+	case ET_GOTO_POS:
+	case ET_DISTANCE:
+	case ET_BMP_READ:
+		snprintf(buf, sz_buf,"id=%d, type=%d/%s, val=%.3f",
+			evt->id, evt->type, eventype2text(evt->type), evt->para.value);
+		break;
+
+		// with string parameter
+	case ET_MARKER:
+	case ET_JUMP_MARKER:
+	case ET_SET_OBJECT:
+		snprintf(buf, sz_buf,"id=%d, type=%d/%s, val='%s'",
+			evt->id, evt->type, eventype2text(evt->type), evt->para.svalue);
+		break;
+
+		// type only, without parameter
+	case ET_NONE:
+	case ET_BOUNCE:
+	case ET_REVERSE:
+	case ET_CLEAR:
+	case ET_BMP_OPEN:
+	case ET_BMP_CLOSE:
+		snprintf(buf, sz_buf,"id=%d, type=%d/%s",
+			evt->id, evt->type, eventype2text(evt->type));
+		break;
+
+	default:
+		snprintf(buf, sz_buf,"id=%d, type=%d/%s, unknown values",
+			evt->id, evt->type, eventype2text(evt->type));
+	}
+
+}
+
+T_EVENT *find_event4marker(T_EVENT *evt_list, char *marker) {
+	if (!evt_list || !marker || !strlen(marker)) {
 		return NULL; // nothing to find
 	}
 
-	for( T_EVT_TIME *e = tevt_list; e; e=e->nxt) {
-		if ( e->marker && strlen(e->marker) && !strcasecmp(e->marker, marker) ) {
+	for( T_EVENT *e = evt_list; e; e=e->nxt) {
+		if ( e->type == ET_MARKER && e->para.svalue && strlen(e->para.svalue) && !strcasecmp(e->para.svalue, marker) ) {
 			return e; // found!
 		}
 	}
@@ -82,62 +179,24 @@ void get_new_event_id(char *id, size_t sz_id) {
 
 }
 
-/*
-esp_err_t delete_event_by_id(char *id) {
-	if (obtain_eventlist_lock() != ESP_OK) {
-		ESP_LOGE(__func__, "couldn't get lock");
-		return ESP_FAIL;
-	}
-	bool found = false;
-	if ( s_event_list)  {
-		T_EVENT *prev = NULL;
-		for (T_EVENT *evt=s_event_list; evt; evt=evt->nxt) {
-			if ( !strcasecmp(evt->id, id) ) {
-				// found, delete it
-				if (prev == NULL ) {
-					s_event_list = evt->nxt;
-				} else {
-					prev->nxt = evt->nxt;
-				}
-				delete_event(evt);
-				found = true;
-				break;
-			}
-			prev = evt;
-		}
-	}
-
-	if (found)
-		ESP_LOGI(__func__,"event %s deleted", id);
-	else
-		ESP_LOGI(__func__,"event %s not found", id);
-
-	esp_err_t rc = release_eventlist_lock();
-	if ( rc == ESP_OK && !found )
-		rc = ESP_ERR_NOT_FOUND;
-
-	return rc;
-}
-*/
-
 /**
  * adds an event to the list
  */
-esp_err_t event_list_add(T_SCENE *scene, T_EVENT *evt) {
+esp_err_t event_list_add(T_SCENE *scene, T_EVENT_GROUP *evt) {
 	if (obtain_eventlist_lock() != ESP_OK) {
 		ESP_LOGE(__func__, "couldn't get lock");
 		return ESP_FAIL;
 	}
 
 	if ( evt)  {
-		if ( scene->events) {
+		if ( scene->event_groups) {
 			// add at the end of the list
-			T_EVENT *t;
-			for (t=scene->events; t->nxt; t=t->nxt){}
+			T_EVENT_GROUP *t;
+			for (t=scene->event_groups; t->nxt; t=t->nxt){}
 			t->nxt = evt;
 		} else {
 			// first entry
-			scene->events = evt;
+			scene->event_groups = evt;
 		}
 
 	} else {
@@ -147,10 +206,10 @@ esp_err_t event_list_add(T_SCENE *scene, T_EVENT *evt) {
 }
 
 // creates a new event body
-T_EVENT *create_event(char *id) {
-	T_EVENT *evt=calloc(1, sizeof(T_EVENT));
+T_EVENT_GROUP *create_event(char *id) {
+	T_EVENT_GROUP *evt=calloc(1, sizeof(T_EVENT_GROUP));
 	if ( !evt) {
-		ESP_LOGE(__func__,"couldn't allocate %d bytes for new event", sizeof(T_EVENT));
+		ESP_LOGE(__func__,"couldn't allocate %d bytes for new event", sizeof(T_EVENT_GROUP));
 		return NULL;
 	}
 	// some useful values:
@@ -160,20 +219,20 @@ T_EVENT *create_event(char *id) {
 }
 
 // creates a new timing event and adds it to the event body
-T_EVT_TIME *create_timing_event(T_EVENT *evt, uint32_t id) {
-	T_EVT_TIME *tevt=calloc(1,sizeof(T_EVT_TIME));
+T_EVENT *create_event_work(T_EVENT_GROUP *evt, uint32_t id) {
+	T_EVENT *tevt=calloc(1,sizeof(T_EVENT));
 	if ( !tevt) {
-		ESP_LOGE(__func__,"couldn't allocate %d bytes for new timing event", sizeof(T_EVT_TIME));
+		ESP_LOGE(__func__,"couldn't allocate %d bytes for new timing event", sizeof(T_EVENT));
 		return NULL;
 	}
 	// some useful values:
 	tevt->id=id;
 
-	if ( !evt->evt_time_list) {
-		evt->evt_time_list = tevt; // first in list
+	if ( !evt->evt_work_list) {
+		evt->evt_work_list = tevt; // first in list
 	} else {
-		T_EVT_TIME *t;
-		for (t = evt->evt_time_list; t->nxt; t=t->nxt ) {}
+		T_EVENT *t;
+		for (t = evt->evt_work_list; t->nxt; t=t->nxt ) {}
 		t->nxt = tevt; // added at the end of the list
 	}
 
@@ -181,20 +240,20 @@ T_EVT_TIME *create_timing_event(T_EVENT *evt, uint32_t id) {
 }
 
 // creates a new init timing event and adds it to the event body
-T_EVT_TIME *create_timing_event_init(T_EVENT *evt, uint32_t id) {
-	T_EVT_TIME *tevt=calloc(1,sizeof(T_EVT_TIME));
+T_EVENT *create_event_init(T_EVENT_GROUP *evt, uint32_t id) {
+	T_EVENT *tevt=calloc(1,sizeof(T_EVENT));
 	if ( !tevt) {
-		ESP_LOGE(__func__,"couldn't allocate %d bytes for new init timing event", sizeof(T_EVT_TIME));
+		ESP_LOGE(__func__,"couldn't allocate %d bytes for new init timing event", sizeof(T_EVENT));
 		return NULL;
 	}
 	// some useful values:
 	tevt->id=id;
 
-	if ( !evt->evt_time_init_list) {
-		evt->evt_time_init_list = tevt; // first in list
+	if ( !evt->evt_init_list) {
+		evt->evt_init_list = tevt; // first in list
 	} else {
-		T_EVT_TIME *t;
-		for (t = evt->evt_time_init_list; t->nxt; t=t->nxt ) {}
+		T_EVENT *t;
+		for (t = evt->evt_init_list; t->nxt; t=t->nxt ) {}
 		t->nxt = tevt; // added at the end of the list
 	}
 
@@ -202,20 +261,20 @@ T_EVT_TIME *create_timing_event_init(T_EVENT *evt, uint32_t id) {
 }
 
 // creates a new init timing event and adds it to the event body
-T_EVT_TIME *create_timing_event_final(T_EVENT *evt, uint32_t id) {
-	T_EVT_TIME *tevt=calloc(1,sizeof(T_EVT_TIME));
+T_EVENT *create_event_final(T_EVENT_GROUP *evt, uint32_t id) {
+	T_EVENT *tevt=calloc(1,sizeof(T_EVENT));
 	if ( !tevt) {
-		ESP_LOGE(__func__,"couldn't allocate %d bytes for new init timing event", sizeof(T_EVT_TIME));
+		ESP_LOGE(__func__,"couldn't allocate %d bytes for new init timing event", sizeof(T_EVENT));
 		return NULL;
 	}
 	// some useful values:
 	tevt->id=id;
 
-	if ( !evt->evt_time_final_list) {
-		evt->evt_time_final_list = tevt; // first in list
+	if ( !evt->evt_final_list) {
+		evt->evt_final_list = tevt; // first in list
 	} else {
-		T_EVT_TIME *t;
-		for (t = evt->evt_time_final_list; t->nxt; t=t->nxt ) {}
+		T_EVENT *t;
+		for (t = evt->evt_final_list; t->nxt; t=t->nxt ) {}
 		t->nxt = tevt; // added at the end of the list
 	}
 
@@ -224,51 +283,12 @@ T_EVT_TIME *create_timing_event_final(T_EVENT *evt, uint32_t id) {
 
 // ***********************************************************************
 
-/*
-esp_err_t delete_object_by_oid(char *oid) {
-	if (obtain_eventlist_lock() != ESP_OK) {
-		ESP_LOGE(__func__, "couldn't get lock");
-		return ESP_FAIL;
-	}
-
-	bool found = false;
-	if ( s_object_list)  {
-		T_EVT_OBJECT *prev = NULL;
-		for (T_EVT_OBJECT *obj=s_object_list; obj; obj=obj->nxt) {
-			if (!strcasecmp( obj->oid, oid) ) {
-				// found, delete it
-				if (prev == NULL ) {
-					s_object_list = obj->nxt;
-				} else {
-					prev->nxt = obj->nxt;
-				}
-				delete_object(obj);
-				found = true;
-				break;
-			}
-			prev = obj;
-		}
-	}
-
-	if (found)
-		ESP_LOGI(__func__,"object '%s' deleted", oid);
-	else
-		ESP_LOGI(__func__,"object '%s' not found", oid);
-
-	esp_err_t rc = release_eventlist_lock();
-	if ( rc == ESP_OK && !found )
-		rc = ESP_ERR_NOT_FOUND;
-
-	return rc;
-}
-*/
-
-T_EVT_OBJECT* find_object4oid(char *oid) {
+T_DISPLAY_OBJECT* find_object4oid(char *oid) {
 	if (!s_object_list) {
 		return NULL;
 	}
 
-	T_EVT_OBJECT *t;
+	T_DISPLAY_OBJECT *t;
 	for (t = s_object_list; t; t = t->nxt) {
 		if (!strcasecmp(t->oid, oid)) {
 			return t;
@@ -279,13 +299,13 @@ T_EVT_OBJECT* find_object4oid(char *oid) {
 
 
 // creates a new what to do and adds it to the event body
-T_EVT_OBJECT *create_object(char *oid) {
+T_DISPLAY_OBJECT *create_object(char *oid) {
 	if ( oid == NULL || strlen(oid) == 0)
 		return NULL;
 
-	T_EVT_OBJECT *obj=calloc(1, sizeof(T_EVT_OBJECT));
+	T_DISPLAY_OBJECT *obj=calloc(1, sizeof(T_DISPLAY_OBJECT));
 	if ( !obj) {
-		ESP_LOGE(__func__,"couldn't allocate %d bytes for new 'object't", sizeof(T_EVT_OBJECT));
+		ESP_LOGE(__func__,"couldn't allocate %d bytes for new 'object't", sizeof(T_DISPLAY_OBJECT));
 		return NULL;
 	}
 	// some useful values:
@@ -294,7 +314,7 @@ T_EVT_OBJECT *create_object(char *oid) {
 	return obj;
 }
 
-esp_err_t object_list_add(T_EVT_OBJECT *obj) {
+esp_err_t object_list_add(T_DISPLAY_OBJECT *obj) {
 	if (obtain_eventlist_lock() != ESP_OK) {
 		ESP_LOGE(__func__, "couldn't get lock");
 		return ESP_FAIL;
@@ -303,7 +323,7 @@ esp_err_t object_list_add(T_EVT_OBJECT *obj) {
 	if ( obj)  {
 		if ( s_object_list) {
 			// add at the end of the list
-			T_EVT_OBJECT *t;
+			T_DISPLAY_OBJECT *t;
 			for (t=s_object_list; t->nxt; t=t->nxt){}
 			t->nxt = obj;
 		} else {
@@ -319,13 +339,13 @@ esp_err_t object_list_add(T_EVT_OBJECT *obj) {
 
 
 // creates a new what to do and adds it to the event body
-T_EVT_OBJECT_DATA *create_object_data(T_EVT_OBJECT *obj, uint32_t id) {
+T_DISPLAY_OBJECT_DATA *create_object_data(T_DISPLAY_OBJECT *obj, uint32_t id) {
 	if ( obj == NULL )
 		return NULL;
 
-	T_EVT_OBJECT_DATA *objdata=calloc(1, sizeof(T_EVT_OBJECT_DATA));
+	T_DISPLAY_OBJECT_DATA *objdata=calloc(1, sizeof(T_DISPLAY_OBJECT_DATA));
 	if ( !objdata) {
-		ESP_LOGE(__func__,"couldn't allocate %d bytes for new 'object'", sizeof(T_EVT_OBJECT_DATA));
+		ESP_LOGE(__func__,"couldn't allocate %d bytes for new 'object'", sizeof(T_DISPLAY_OBJECT_DATA));
 		return NULL;
 	}
 	// some useful values:
@@ -334,7 +354,7 @@ T_EVT_OBJECT_DATA *create_object_data(T_EVT_OBJECT *obj, uint32_t id) {
 	if ( !obj->data) {
 		obj->data = objdata;
 	} else {
-		T_EVT_OBJECT_DATA *t;
+		T_DISPLAY_OBJECT_DATA *t;
 		for(t=obj->data; t->nxt; t=t->nxt){}
 		t->nxt = objdata;
 	}
@@ -388,14 +408,19 @@ esp_err_t scene_list_add(T_SCENE *obj) {
 // #################### Free data structures ########################################
 
 
-void delete_object(T_EVT_OBJECT *obj) {
+void delete_object(T_DISPLAY_OBJECT *obj) {
 	if (!obj)
 		return;
 
 	if ( obj->data) {
-		T_EVT_OBJECT_DATA *t, *obj_data = obj->data;
+		T_DISPLAY_OBJECT_DATA *t, *obj_data = obj->data;
 		while(obj_data) {
 			t = obj_data->nxt;
+			if ( obj_data->type == OBJT_BMP ) {
+				if (obj_data->para.url)
+					free(obj_data->para.url);
+			}
+
 			free(obj_data);
 			obj_data=t;
 		}
@@ -410,7 +435,7 @@ esp_err_t object_list_free() {
 	}
 
 	if (s_object_list) {
-		T_EVT_OBJECT *nxt;
+		T_DISPLAY_OBJECT *nxt;
 		while(s_object_list) {
 			nxt = s_object_list->nxt;
 			delete_object(s_object_list);
@@ -422,9 +447,9 @@ esp_err_t object_list_free() {
 }
 
 
-void delete_event_list(T_EVT_TIME *list) {
+void delete_event_list(T_EVENT *list) {
 	if (list) {
-		T_EVT_TIME *t, *w = list;
+		T_EVENT *t, *w = list;
 		while(w) {
 			t = w->nxt;
 			free(w);
@@ -437,43 +462,32 @@ void delete_event_list(T_EVT_TIME *list) {
 /**
  * free an event
  */
-void delete_event(T_EVENT *evt) {
+void delete_event(T_EVENT_GROUP *evt) {
 	if (!evt)
 		return;
 
-	delete_event_list(evt->evt_time_init_list);
-	delete_event_list(evt->evt_time_list);
-	delete_event_list(evt->evt_time_final_list);
+	delete_event_list(evt->evt_init_list);
+	delete_event_list(evt->evt_work_list);
+	delete_event_list(evt->evt_final_list);
 
-	/*
-	if (evt->evt_where_list) {
-		T_EVT_WHERE *t, *w = evt->evt_where_list;
-		while(w) {
-			t = w->nxt;
-			free(w);
-			w=t;
-		}
-	}
-	*/
 	free(evt);
-
 }
 
 
 // delete a scene, caller must free obj itselves
-void delete_scene(T_SCENE *obj) {
-	if (!obj)
+void delete_scene(T_SCENE *scene) {
+	if (!scene)
 		return;
 
-	if ( obj->events) {
-		T_EVENT *t, *d = obj->events;
+	if ( scene->event_groups) {
+		T_EVENT_GROUP *t, *d = scene->event_groups;
 		while(d) {
 			t = d->nxt;
 			delete_event(d);
 			d=t;
 		}
 	}
-	free(obj);
+	free(scene);
 }
 
 esp_err_t scene_list_free() {
@@ -499,4 +513,5 @@ esp_err_t scene_list_free() {
 
 
 // ******************************************************************************
+
 
