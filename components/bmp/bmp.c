@@ -177,7 +177,7 @@ int https_callback_bmp_processing(t_https_callback_todo to_do, uint8_t **buf, ui
 
 			*buf_len = buf_len_expected = sizeof(bmpInfoHeader);
 			*buf = (uint8_t *) &bmpInfoHeader;
-			ESP_LOGI(__func__,"todo=%d, phase=%d(%s), buf_len=%u", to_do, bmp_read_phase, BRP2TXT(bmp_read_phase), *buf_len);
+			//ESP_LOGI(__func__,"todo=%d, phase=%d(%s), buf_len=%u", to_do, bmp_read_phase, BRP2TXT(bmp_read_phase), *buf_len);
 			return 1;
 
 		case BRP_GOT_INFO_HEADER:
@@ -227,7 +227,7 @@ int https_callback_bmp_processing(t_https_callback_todo to_do, uint8_t **buf, ui
 				*buf_len= buf_len_expected = skip_data_cnt;
 				*buf=buffer;
 				bmp_read_phase = BRP_GOT_SKIPPED_DATA;
-				ESP_LOGI(__func__,"todo=%d, phase=%d(%s), buf_len=%u", to_do, bmp_read_phase, BRP2TXT(bmp_read_phase), *buf_len);
+				//ESP_LOGI(__func__,"todo=%d, phase=%d(%s), buf_len=%u", to_do, bmp_read_phase, BRP2TXT(bmp_read_phase), *buf_len);
 				return 1;
 			}
 
@@ -235,7 +235,7 @@ int https_callback_bmp_processing(t_https_callback_todo to_do, uint8_t **buf, ui
 			*buf_len = buf_len_expected = sz_read_buffer;
 			*buf = read_buffer1;
 			bmp_read_phase = BRP_GOT_FIRST_DATA_BUFFER1;
-			ESP_LOGI(__func__,"todo=%d, phase=%d(%s), buf_len=%u", to_do, bmp_read_phase, BRP2TXT(bmp_read_phase), *buf_len);
+			//ESP_LOGI(__func__,"todo=%d, phase=%d(%s), buf_len=%u", to_do, bmp_read_phase, BRP2TXT(bmp_read_phase), *buf_len);
 			return 1;
 
 		case BRP_GOT_SKIPPED_DATA:
@@ -248,7 +248,7 @@ int https_callback_bmp_processing(t_https_callback_todo to_do, uint8_t **buf, ui
 			*buf_len = buf_len_expected = sz_read_buffer;
 			*buf = read_buffer1;
 			bmp_read_phase = BRP_GOT_FIRST_DATA_BUFFER1;
-			ESP_LOGI(__func__,"todo=%d, phase=%d(%s), buf_len=%u", to_do, bmp_read_phase, BRP2TXT(bmp_read_phase), *buf_len);
+			//ESP_LOGI(__func__,"todo=%d, phase=%d(%s), buf_len=%u", to_do, bmp_read_phase, BRP2TXT(bmp_read_phase), *buf_len);
 			return 1;
 
 		case BRP_GOT_FIRST_DATA_BUFFER1:
@@ -265,7 +265,7 @@ int https_callback_bmp_processing(t_https_callback_todo to_do, uint8_t **buf, ui
 			bmp_read_phase = BRP_GOT_DATA_BUFFER2;
 			xEventGroupClearBits(s_bmp_event_group_for_worker, 0xFFFF);
 			xEventGroupSetBits(s_bmp_event_group_for_worker, BMP_BIT_BUFFER1_HAS_DATA);
-			ESP_LOGI(__func__,"todo=%d, phase=%d(%s), buf_len=%u", to_do, bmp_read_phase, BRP2TXT(bmp_read_phase), *buf_len);
+			//ESP_LOGI(__func__,"todo=%d, phase=%d(%s), buf_len=%u", to_do, bmp_read_phase, BRP2TXT(bmp_read_phase), *buf_len);
 			return 1;
 
 		case BRP_GOT_DATA_BUFFER2:
@@ -290,7 +290,7 @@ int https_callback_bmp_processing(t_https_callback_todo to_do, uint8_t **buf, ui
 				// buffer 1 processed, continue with buffer 2
 				xEventGroupClearBits(s_bmp_event_group_for_worker, 0xFFFF);
 				xEventGroupSetBits(s_bmp_event_group_for_worker, BMP_BIT_BUFFER2_HAS_DATA);
-				ESP_LOGI(__func__,"todo=%d, phase=%d(%s), buf_len=%u", to_do, bmp_read_phase, BRP2TXT(bmp_read_phase), *buf_len);
+				//ESP_LOGI(__func__,"todo=%d, phase=%d(%s), buf_len=%u", to_do, bmp_read_phase, BRP2TXT(bmp_read_phase), *buf_len);
 				return 1;
 			}
 			if ( uxBits & BMP_BIT_STOP_WORKING ) {
@@ -321,7 +321,7 @@ int https_callback_bmp_processing(t_https_callback_todo to_do, uint8_t **buf, ui
 			if ( uxBits & BMP_BIT_BUFFER_PROCESSED) {
 				xEventGroupClearBits(s_bmp_event_group_for_worker, 0xFFFF);
 				xEventGroupSetBits(s_bmp_event_group_for_worker, BMP_BIT_BUFFER1_HAS_DATA);
-				ESP_LOGI(__func__,"todo=%d, phase=%d(%s), buf_len=%u", to_do, bmp_read_phase, BRP2TXT(bmp_read_phase), *buf_len);
+				//ESP_LOGI(__func__,"todo=%d, phase=%d(%s), buf_len=%u", to_do, bmp_read_phase, BRP2TXT(bmp_read_phase), *buf_len);
 				return 1;
 			}
 			if ( uxBits & BMP_BIT_STOP_WORKING ) {
@@ -340,7 +340,7 @@ int https_callback_bmp_processing(t_https_callback_todo to_do, uint8_t **buf, ui
 		xEventGroupSetBits(s_bmp_event_group_for_worker, BMP_BIT_NO_MORE_DATA);
 
         free_buffers();
-    	ESP_LOGI(__func__,"todo=%d(finish), buf_len=%u", to_do, *buf_len);
+    	//ESP_LOGI(__func__,"todo=%d(finish), buf_len=%u", to_do, *buf_len);
 
 	} else if ( to_do==HCT_FAILED ) {
 		ESP_LOGI(__func__,"failed");
@@ -348,7 +348,7 @@ int https_callback_bmp_processing(t_https_callback_todo to_do, uint8_t **buf, ui
 		xEventGroupSetBits(s_bmp_event_group_for_worker, BMP_BIT_NO_MORE_DATA);
 
         free_buffers();
-    	ESP_LOGI(__func__,"todo=%d(failed), buf_len=%u", to_do, *buf_len);
+    	//ESP_LOGI(__func__,"todo=%d(failed), buf_len=%u", to_do, *buf_len);
 
 	} else {
 		ESP_LOGE(__func__,"unknown todo %d", to_do);

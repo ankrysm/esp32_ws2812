@@ -162,7 +162,7 @@ t_result bmp_work(uint8_t *buf, size_t sz_buf, double brightness) {
 		rd_mempos = 0;
 		read_buffer_len = get_read_length();
 		read_buffer = get_read_buffer(bufno);
-		ESP_LOGI(__func__, "buffer %d has %d bytes", bufno, read_buffer_len);
+		//ESP_LOGI(__func__, "buffer %d has %d bytes", bufno, read_buffer_len);
 	}
 
 	if ( read_buffer_len > 0 ) {

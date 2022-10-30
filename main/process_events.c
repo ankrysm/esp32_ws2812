@@ -438,7 +438,7 @@ void process_event_group_main(T_EVENT_GROUP *evtgrp, uint64_t scene_time, uint64
 
 void process_scene(T_SCENE *scene, uint64_t scene_time, uint64_t timer_period) {
 
-	ESP_LOGI(__func__,"start t=%llu, tp=%llu", scene_time, timer_period);
+//	ESP_LOGI(__func__,"start t=%llu, tp=%llu", scene_time, timer_period);
 	T_EVENT_GROUP *event_groups = scene->event_groups;
 
 	if ( !event_groups ) {
