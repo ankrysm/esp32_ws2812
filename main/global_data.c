@@ -22,3 +22,72 @@ void global_data_init() {
 	memset(last_loaded_file, 0, sizeof(last_loaded_file));
 }
 
+T_HTTP_PROCCESSING_TYPE http_processing[] = {
+		{"/r",         0,                          HP_RUN,         "run"},
+		{"/s",         0,                          HP_STOP,        "stop"},
+		{"/p",         0,                          HP_PAUSE,       "pause"},
+		{"/b",         0,                          HP_BLANK,       "blank strip"},
+		{"/i",         0,                          HP_STATUS,      "info"},
+		{"/cl",        0,                          HP_CLEAR,       "clear event list"},
+		{"/li",        0,                          HP_LIST,        "list events"},
+		{"/lo",        HPF_POST,                   HP_LOAD,        "load events, replaces data in memory"},
+		{"/f/list",    0,                          HP_FILE_LIST,   "list stored files"},
+		{"/f/store/",  HPF_PATH_FROM_URL|HPF_POST, HP_FILE_STORE,  "store JSON event lists into flash memory as <fname>"},
+		{"/f/get/",    HPF_PATH_FROM_URL,          HP_FILE_GET,    "get content of stored file \"fname\""},
+		{"/f/load/",   HPF_PATH_FROM_URL,          HP_FILE_LOAD,   "load JSON event list stored in \"fname\" into memory"},
+		{"/f/delete/", HPF_PATH_FROM_URL,          HP_FILE_DELETE, "delete file \"fname\""},
+		{"/cfg/get",   0,                          HP_CONFIG_GET,  "show config"},
+		{"/cfg/set",   HPF_POST,                   HP_CONFIG_SET,  "set config"},
+		{"/cfg/restart", 0,                        HP_RESET,       "restart the controller"},
+		{"/cfg/tabula_rasa", 0,                    HP_CFG_RESET,   "reset all data to default"},
+		{"/help",      0,                          HP_HELP,        "API help"},
+		{"",           0,                          HP_END_OF_LIST, ""}
+};
+
+T_EVENT_CONFIG event_config_tab[] = {
+		{ET_WAIT, EVT_PARA_NUMERIC, "wait", "wait for n ms"},
+		{ET_WAIT_FIRST, EVT_PARA_NUMERIC, "wait_first", "wait for n ms at first init"},
+		{ET_PAINT, EVT_PARA_NUMERIC, "paint", "paint leds with the given parameter"},
+		{ET_DISTANCE, EVT_PARA_NUMERIC, "distance", "paint until object has moved n leds"},
+		{ET_SPEED, EVT_PARA_NUMERIC, "speed", "speed in leds per second"},
+		{ET_SPEEDUP, EVT_PARA_NUMERIC, "speedup", "speedup delta speed per display cycle"},
+		{ET_BOUNCE, EVT_PARA_NONE, "bounce", "reverse speed"},
+		{ET_REVERSE, EVT_PARA_NONE, "reverse", "reverse paint direction"},
+		{ET_GOTO_POS, EVT_PARA_NUMERIC, "goto", "go to led position"},
+		{ET_MARKER, EVT_PARA_STRING, "marker", "set marker"},
+		{ET_JUMP_MARKER, EVT_PARA_STRING, "jump_marker", "jump to marker"},
+		{ET_CLEAR,EVT_PARA_NONE, "clear", "blank the strip"},
+		{ET_SET_BRIGHTNESS, EVT_PARA_NUMERIC,"brightness", "set brightness"},
+		{ET_SET_BRIGHTNESS_DELTA, EVT_PARA_NUMERIC,"brightness_delta", "set brightness delta per display cycle"},
+		{ET_SET_OBJECT, EVT_PARA_STRING, "object","set objectid from object table"},
+		{ET_BMP_OPEN, EVT_PARA_NONE, "bmp_open", "open BMP stream, defined by 'bmp' object"},
+		{ET_BMP_READ, EVT_PARA_NUMERIC | EVT_PARA_OPTIONAL, "bmp_read","read BMP data line by line and display it, max n lines, -1 all lines (default)"},
+		{ET_BMP_CLOSE, EVT_PARA_NONE, "bmp_close", "close BMP stream"},
+		{ET_NONE, EVT_PARA_NONE, "", ""} // end of table
+};
+
+T_OBJECT_ATTR_CONFIG object_attr_config_tab[] = {
+		{OBJATTR_TYPE, "type", "type of an object, mandatory"},
+		{OBJATTR_LEN, "len", "numerical attribute, number of leds for show the object, -1 : whole strip, mandatory"},
+		{OBJATTR_URL, "url", "url to get data from a web site"},
+		{OBJATTR_COLOR,"color", "color as a name"},
+		{OBJATTR_HSV, "hsv", "color as hsv values, format: \"h,s,v\""},
+		{OBJATTR_RGB, "rgb", "color as rgb values, format: \"r,g,b\""},
+		{OBJATTR_COLOR_FROM,"color_from", "start color transition, color name"},
+		{OBJATTR_HSV_FROM,"hsv_from", "start of color transition, color as \"h,s,v\""},
+		{OBJATTR_RGB_FROM,"rgb_from", "start of color transition, color as \"r,g,b\""},
+		{OBJATTR_COLOR_TO,"color_to", "end of color transition, color name"},
+		{OBJATTR_HSV_TO,"hsv_to", "end of color transition, color as \"h,s,v\""},
+		{OBJATTR_RGB_TO,"rgb_to", "end of color transition, color as \"r,g,b\""},
+		{OBJATTR_EOT,"",""}
+};
+
+T_OBJECT_CONFIG object_config_tab[] = {
+		{OBJT_CLEAR, "clear", 0,0, "clear all pixels in range"},
+		{OBJT_COLOR, "color", OBJATTR_GROUP_COLOR,0,"constant color in range"},
+		{OBJT_COLOR_TRANSITION, "color_transition", OBJATTR_GROUP_COLOR_FROM, OBJATTR_GROUP_COLOR_TO,"color transition start with ..from and ends with ...to over a led range"},
+		{OBJT_RAINBOW,"rainbow", 0,0, "show rainbow colors in range"},
+		{OBJT_BMP, "bmp", OBJATTR_URL,0,"bitmap file from a web site" },
+		{OBJT_EOT,"", 0, 0, ""}
+};
+

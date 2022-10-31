@@ -173,16 +173,62 @@ static esp_err_t decode_json4event_scene_events_events(cJSON *element, T_EVENT_G
 
 }
 
+
+static t_result decode_object_attr_string(cJSON *element, object_attr_type attr_type, char *sval, size_t sz_sval, char *errmsg, size_t sz_errmsg) {
+	memset(sval, 0, sz_sval);
+	memset(errmsg, 0, sz_errmsg);
+	t_result res = RES_OK;
+
+	char lerrmsg[64];
+	T_OBJECT_ATTR_CONFIG *obj_attr_cfg = object_attr4type_id(attr_type);
+	if ( !obj_attr_cfg) {
+		ESP_LOGE(__func__, "object attribute 0x%08x not found", attr_type);
+		snprintf(errmsg, sz_errmsg,"internal error in %s", __func__);
+		return RES_FAILED;
+	}
+
+	if ((res = evt_get_string(element, obj_attr_cfg->name, sval, sz_sval, lerrmsg, sizeof(lerrmsg))) != RES_OK) {
+		snprintf(errmsg, sz_errmsg,"attribute %s: could not decocde data: '%s'", obj_attr_cfg->name, lerrmsg);
+	}
+
+	return res;
+}
+
+static t_result decode_object_attr_numeric(cJSON *element, object_attr_type attr_type, double *val, char *errmsg, size_t sz_errmsg) {
+	memset(errmsg, 0, sz_errmsg);
+	t_result res = RES_OK;
+
+	char lerrmsg[64];
+	T_OBJECT_ATTR_CONFIG *obj_attr_cfg = object_attr4type_id(attr_type);
+	if ( !obj_attr_cfg) {
+		ESP_LOGE(__func__, "object attribute 0x%08x not found", attr_type);
+		snprintf(errmsg, sz_errmsg,"internal error in %s", __func__);
+		return RES_FAILED;
+	}
+
+	if ( (res = evt_get_number(element, obj_attr_cfg->name, val, lerrmsg, sizeof(lerrmsg))) != RES_OK) {
+		snprintf(errmsg, sz_errmsg,"attribute %s: could not decocde data: '%s'", obj_attr_cfg->name, lerrmsg);
+	}
+
+	return res;
+}
+
+
 static esp_err_t decode_json4event_object_data(cJSON *element, T_DISPLAY_OBJECT *obj, int id, char *errmsg, size_t sz_errmsg) {
 	esp_err_t rc = ESP_FAIL;
 
 	T_DISPLAY_OBJECT_DATA *object_data;
 
-	char *attr;
+	//char *attr;
 	char sval[256];
 	double val;
 	t_result lrc;
 	T_COLOR_HSV hsv = {.h=0, .s=0, .v=0};
+
+	//T_OBJECT_ATTR_CONFIG obj_attr_cfg =NULL;
+	//object_attr_type attr_type=0;
+
+	//T_OBJECT_CONFIG *obj_cfg=NULL;
 	char lerrmsg[64];
 	do {
 		if ( !(object_data = create_object_data(obj, id))) {
@@ -190,37 +236,38 @@ static esp_err_t decode_json4event_object_data(cJSON *element, T_DISPLAY_OBJECT 
 			break;
 		}
 
-		attr="type";
-		if (evt_get_string(element, attr, sval, sizeof(sval), lerrmsg, sizeof(lerrmsg)) != RES_OK) {
-			snprintf(errmsg, sz_errmsg,"id=%s, id=%d: could not decocde data: '%s'", obj->oid, id, lerrmsg);
+		if ( (lrc = decode_object_attr_string(element, OBJATTR_TYPE, sval, sizeof(sval), lerrmsg, sizeof(lerrmsg))) != RES_OK) {
+			snprintf(errmsg, sz_errmsg,"oid=%s, id=%d: error decoding attribute: %s", obj->oid, id, lerrmsg);
 			break;
 		}
-		object_data->type = TEXT2OBJT(sval);
-		if ( object_data->type == OBJT_UNKNOWN) {
-			snprintf(errmsg, sz_errmsg,"oid=%s, id=%d: object type '%s' unknown", obj->oid, id, sval);
+		T_OBJECT_CONFIG *obj_cfg = object4type_name(sval);
+		if ( !obj_cfg) {
+			snprintf(errmsg, sz_errmsg,"object type '%s' unknown", sval);
 			break;
 		}
-		ESP_LOGI(__func__, "oid=%s, id=%d: %s=%d(%s)", obj->oid, id, attr, object_data->type, OBJT2TEXT(object_data->type));
 
-		attr="len";
-		lrc = evt_get_number(element, attr, &val, lerrmsg, sizeof(lerrmsg));
+		object_data->type = obj_cfg->type;
+
+		ESP_LOGI(__func__, "oid=%s, id=%d: %s=%d(%s)", obj->oid, id, object_attrtype2text(OBJATTR_TYPE), object_data->type, object_type2text(object_data->type));
+
+
+		lrc = decode_object_attr_numeric(element, OBJATTR_LEN, &val, lerrmsg, sizeof(lerrmsg));
 		if (lrc== RES_OK) {
 			object_data->len = val;
-			ESP_LOGI(__func__, "oid=%s, id=%d: %s=%d", obj->oid, id, attr, object_data->len);
+			ESP_LOGI(__func__, "oid=%s, id=%d: %s=%d", obj->oid, id, object_attrtype2text(OBJATTR_LEN), object_data->len);
 		} else if ( lrc != RES_NOT_FOUND) {
-			snprintf(errmsg, sz_errmsg,"id=%s, id=%d: could not decode data '%s': %s", obj->oid, id, attr, lerrmsg);
+			snprintf(errmsg, sz_errmsg,"id=%s, id=%d: could not decode data '%s': %s", obj->oid, id, object_attrtype2text(OBJATTR_LEN), lerrmsg);
 			break;
 		}
 
-		// *** need colors ?
+		// *** additional attributes depends on object type
 		if (object_data->type == OBJT_RAINBOW) {
-			// no color needed
+			// no attributes needed
 
 		} else if (object_data->type == OBJT_BMP) {
-			// no color needed, but url
-			attr="url";
-			if (evt_get_string(element, attr, sval, sizeof(sval), lerrmsg, sizeof(lerrmsg)) != RES_OK) {
-				snprintf(errmsg, sz_errmsg,"id=%s, id=%d: could not decode object_data: '%s'", obj->oid, id, lerrmsg);
+			//url needed
+			if ( (lrc = decode_object_attr_string(element, OBJATTR_URL, sval, sizeof(sval), lerrmsg, sizeof(lerrmsg))) != RES_OK) {
+				snprintf(errmsg, sz_errmsg,"oid=%s, id=%d: error decoding attribute: %s", obj->oid, id, lerrmsg);
 				break;
 			}
 			object_data->para.url = strdup(sval);
@@ -228,7 +275,7 @@ static esp_err_t decode_json4event_object_data(cJSON *element, T_DISPLAY_OBJECT 
 
 		} else if ( object_data->type == OBJT_COLOR_TRANSITION) {
 			// a "color from" needed
-			lrc = decode_json_getcolor(element, "color_from", "hsv_from", "rgb_from", &hsv, lerrmsg, sizeof(lerrmsg));
+			lrc = decode_json_getcolor(element, OBJATTR_COLOR_FROM, OBJATTR_HSV_FROM, OBJATTR_RGB_FROM, &hsv, lerrmsg, sizeof(lerrmsg));
 			if ( lrc == RES_OK ) {
 				object_data->para.tr.hsv_from.h = hsv.h;
 				object_data->para.tr.hsv_from.s = hsv.s;
@@ -241,13 +288,13 @@ static esp_err_t decode_json4event_object_data(cJSON *element, T_DISPLAY_OBJECT 
 				break;
 
 			} else {
-				snprintf(errmsg, sz_errmsg,"id=%s, id=%d: could not decode object_data '%s': %s", obj->oid, id, attr, lerrmsg);
+				snprintf(errmsg, sz_errmsg,"id=%s, id=%d: could not decode object_data : %s", obj->oid, id, lerrmsg);
 				ESP_LOGE(__func__, "oid=%s, id=%d: Error: %s",obj->oid, id, errmsg);
 				break; // failed
 			}
 
 			// a "color to" needed
-			lrc = decode_json_getcolor(element, "color_to", "hsv_to", "rgb_to", &hsv, lerrmsg, sizeof(lerrmsg));
+			lrc = decode_json_getcolor(element, OBJATTR_COLOR_TO, OBJATTR_HSV_TO, OBJATTR_RGB_TO, &hsv, lerrmsg, sizeof(lerrmsg));
 			if ( lrc == RES_OK ) {
 				object_data->para.tr.hsv_to.h = hsv.h;
 				object_data->para.tr.hsv_to.s = hsv.s;
@@ -259,14 +306,14 @@ static esp_err_t decode_json4event_object_data(cJSON *element, T_DISPLAY_OBJECT 
 				ESP_LOGI(__func__, "%s",errmsg);
 				break;
 			} else {
-				snprintf(errmsg, sz_errmsg,"id=%s, id=%d: could not decode object_data '%s': %s", obj->oid, id, attr, lerrmsg);
+				snprintf(errmsg, sz_errmsg,"id=%s, id=%d: could not decode object_data: %s", obj->oid, id, lerrmsg);
 				ESP_LOGE(__func__, "oid=%s, id=%d: Error: %s", obj->oid, id, lerrmsg);
 				break; // failed
 			}
 
 		} else {
 			// default: a color needed
-			lrc = decode_json_getcolor(element, "color", "hsv", "rgb", &hsv, lerrmsg, sizeof(lerrmsg));
+			lrc = decode_json_getcolor(element,OBJATTR_COLOR, OBJATTR_HSV, OBJATTR_RGB, &hsv, lerrmsg, sizeof(lerrmsg));
 			if ( lrc == RES_OK ) {
 				object_data->para.hsv.h = hsv.h;
 				object_data->para.hsv.s = hsv.s;
@@ -279,13 +326,13 @@ static esp_err_t decode_json4event_object_data(cJSON *element, T_DISPLAY_OBJECT 
 				break;
 
 			} else {
-				snprintf(errmsg, sz_errmsg,"id=%s, id=%d: could not decode object_data '%s': %s", obj->oid, id, attr, lerrmsg);
+				snprintf(errmsg, sz_errmsg,"id=%s, id=%d: could not decode object_data: %s", obj->oid, id, lerrmsg);
 				ESP_LOGE(__func__, "oid=%s, id=%d: Error: %s", obj->oid, id, errmsg);
 				break; // failed
 			}
 		}
 
-		/// end of color parameter
+		/// end of additional  parameter
 
 		rc = ESP_OK;
 	} while(0);

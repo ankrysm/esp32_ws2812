@@ -30,6 +30,7 @@
 #include "common_util.h"
 #include "led_strip.h"
 
+#include "esp32_ws2812_types.h"
 #include "esp32_ws2812_protos.h"
 
 #endif /* MAIN_ESP32_WS2812_H_ */

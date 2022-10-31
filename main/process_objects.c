@@ -7,9 +7,6 @@
 
 #include "esp32_ws2812.h"
 
-//extern BITMAPINFOHEADER bmpInfoHeader;
-
-
 /**
  * paint objects
  */

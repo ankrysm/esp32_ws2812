@@ -28,71 +28,18 @@ typedef struct rest_server_context {
 static httpd_handle_t server = NULL;
 
 
-typedef enum {
-	HP_STATUS,
-	HP_LIST,
-	HP_FILE_LIST,
-	HP_FILE_STORE,
-	HP_FILE_GET,
-	HP_FILE_LOAD,
-	HP_FILE_DELETE,
-	HP_CLEAR,
-	HP_RUN,
-	HP_STOP,
-	HP_PAUSE,
-	HP_BLANK,
-	HP_CONFIG_GET,
-	HP_CONFIG_SET,
-	HP_RESET,
-	HP_CFG_RESET,
-	HP_HELP,
-	HP_LOAD,
-	// End of list
-	HP_END_OF_LIST
-} t_http_processing;
 
-typedef enum {
-	HPF_PATH_FROM_URL = 0x0001,
-	HPF_POST          = 0x0002
-} t_http_processing_flag;
+// from global_data.c
+extern T_HTTP_PROCCESSING_TYPE http_processing[];
 
-typedef struct {
-	char  *path;
-	int  flags;
-	t_http_processing todo;
-	char *help;
-} T_HTTP_PROCCESSING_TYPE;
-
-static T_HTTP_PROCCESSING_TYPE http_processing[] = {
-		{"/r",         0,                          HP_RUN,         "run"},
-		{"/s",         0,                          HP_STOP,        "stop"},
-		{"/p",         0,                          HP_PAUSE,       "pause"},
-		{"/b",         0,                          HP_BLANK,       "blank strip"},
-		{"/i",         0,                          HP_STATUS,      "info"},
-		{"/cl",        0,                          HP_CLEAR,       "clear event list"},
-		{"/li",        0,                          HP_LIST,        "list events"},
-		{"/lo",        HPF_POST,                   HP_LOAD,        "load events, replaces data in memory"},
-		{"/f/list",    0,                          HP_FILE_LIST,   "list stored files"},
-		{"/f/store/",  HPF_PATH_FROM_URL|HPF_POST, HP_FILE_STORE,  "store JSON event lists into flash memory as <fname>"},
-		{"/f/get/",    HPF_PATH_FROM_URL,          HP_FILE_GET,    "get content of stored file <fname>"},
-		{"/f/load/",   HPF_PATH_FROM_URL,          HP_FILE_LOAD,   "load JSON event list stored in <fname> into memory"},
-		{"/f/delete/", HPF_PATH_FROM_URL,          HP_FILE_DELETE, "delete file <fname>"},
-		{"/cfg/get",   0,                          HP_CONFIG_GET,  "show config"},
-		{"/cfg/set",   HPF_POST,                   HP_CONFIG_SET,  "set config"},
-		{"/cfg/restart", 0,                        HP_RESET,       "restart the controller"},
-		{"/cfg/tabula_rasa", 0,                    HP_CFG_RESET,   "reset all data to default"},
-		{"/",          0,                          HP_HELP,        "API help"},
-		{"",           0,                          HP_END_OF_LIST, ""}
-};
-
-static void httpd_resp_send_chunk_l(httpd_req_t *req, char *resp_str) {
-	httpd_resp_send_chunk(req, resp_str, HTTPD_RESP_USE_STRLEN);
-}
+//static void httpd_resp_sendstr_chunk(httpd_req_t *req, char *resp_str) {
+//	httpd_resp_send_chunk(req, resp_str, HTTPD_RESP_USE_STRLEN);
+//}
 
 static void http_help(httpd_req_t *req) {
 	char resp_str[255];
 	snprintf(resp_str, sizeof(resp_str), "path - description\n");
-	httpd_resp_send_chunk_l(req, resp_str);
+	httpd_resp_sendstr_chunk(req, resp_str);
 
 	for  (int i=0; http_processing[i].todo != HP_END_OF_LIST; i++) {
 		snprintf(resp_str, sizeof(resp_str),"'%s%s' - %s%s\n",
@@ -101,14 +48,17 @@ static void http_help(httpd_req_t *req) {
 				http_processing[i].help,
 				(http_processing[i].flags & HPF_POST ? ", requires POST data" : "")
 		);
-		httpd_resp_send_chunk_l(req, resp_str);
+		httpd_resp_sendstr_chunk(req, resp_str);
 	}
+
+	/*
 	int pos =0;
-	httpd_resp_send_chunk_l(req, "event syntax:\n");
+	httpd_resp_sendstr_chunk(req, "event syntax:\n");
 	while (print_event_config_r(&pos, resp_str, sizeof(resp_str))) {
-		httpd_resp_send_chunk_l(req, resp_str);
-		httpd_resp_send_chunk_l(req, "\n");
+		httpd_resp_sendstr_chunk(req, resp_str);
+		httpd_resp_sendstr_chunk(req, "\n");
 	}
+	*/
 }
 
 static void add_system_informations(cJSON *root) {
@@ -172,35 +122,35 @@ static void get_handler_list(httpd_req_t *req) {
 	extern T_SCENE *s_scene_list;
 	if (obtain_eventlist_lock() != ESP_OK) {
 		snprintf(buf, sz_buf, "%s couldn't get lock on eventlist\n", __func__);
-		httpd_resp_send_chunk_l(req, buf);
+		httpd_resp_sendstr_chunk(req, buf);
 		return;
 	}
 
 	if ( !s_object_list) {
 		snprintf(buf, sz_buf, "\nno objectst");
-		httpd_resp_send_chunk_l(req, buf);
+		httpd_resp_sendstr_chunk(req, buf);
 	} else {
 		for (T_DISPLAY_OBJECT *obj=s_object_list; obj; obj=obj->nxt) {
 			snprintf(buf, sz_buf, "\n   object '%s'", obj->oid);
-			httpd_resp_send_chunk_l(req, buf);
+			httpd_resp_sendstr_chunk(req, buf);
 			if (obj->data) {
 				for(T_DISPLAY_OBJECT_DATA *data = obj->data; data; data=data->nxt) {
 					if ( data->type == OBJT_BMP) {
 						snprintf(buf, sz_buf,"\n    id=%d, type=%d/%s, len=%d, url=%s",
-								data->id, data->type, OBJT2TEXT(data->type), data->len,
+								data->id, data->type, object_type2text(data->type), data->len,
 								data->para.url
 						);
 					} else {
 						snprintf(buf, sz_buf,"\n    id=%d, type=%d/%s, len=%d",
-								data->id, data->type, OBJT2TEXT(data->type), data->len
+								data->id, data->type, object_type2text(data->type), data->len
 						);
 					}
-					httpd_resp_send_chunk_l(req, buf);
+					httpd_resp_sendstr_chunk(req, buf);
 
 				}
 			} else {
 				snprintf(buf, sz_buf, "\n   no data list in object");
-				httpd_resp_send_chunk_l(req, buf);
+				httpd_resp_sendstr_chunk(req, buf);
 			}
 
 		}
@@ -209,70 +159,70 @@ static void get_handler_list(httpd_req_t *req) {
 
 	if ( !s_scene_list) {
 		snprintf(buf, sz_buf, "\nno scenes");
-		httpd_resp_send_chunk_l(req, buf);
+		httpd_resp_sendstr_chunk(req, buf);
 
 	} else {
 		for (T_SCENE *scene = s_scene_list; scene; scene=scene->nxt) {
 			if ( !scene->event_groups) {
 				snprintf(buf, sz_buf, "\nno events");
-				httpd_resp_send_chunk_l(req, buf);
+				httpd_resp_sendstr_chunk(req, buf);
 			} else {
 				for ( T_EVENT_GROUP *evtgrp= scene->event_groups; evtgrp; evtgrp = evtgrp->nxt) {
 					snprintf(buf, sz_buf, "\nEvent id='%s', repeats=%u:", evtgrp->id, evtgrp->t_repeats);
-					httpd_resp_send_chunk_l(req, buf);
+					httpd_resp_sendstr_chunk(req, buf);
 
 					// INIT events
 					if (evtgrp->evt_init_list) {
 						snprintf(buf, sz_buf,"\n  INIT events:");
-						httpd_resp_send_chunk_l(req, buf);
+						httpd_resp_sendstr_chunk(req, buf);
 
 						for (T_EVENT *evt = evtgrp->evt_init_list; evt; evt=evt->nxt) {
-							httpd_resp_send_chunk_l(req,"\n  ");
+							httpd_resp_sendstr_chunk(req,"\n  ");
 							event2text(evt, buf, sizeof(buf));
-							httpd_resp_send_chunk_l(req, buf);
+							httpd_resp_sendstr_chunk(req, buf);
 
 						}
 					} else {
 						snprintf(buf, sz_buf,"\n  no INIT events.");
-						httpd_resp_send_chunk_l(req, buf);
+						httpd_resp_sendstr_chunk(req, buf);
 					}
 
 					// WORK events
 					if (evtgrp->evt_work_list) {
 						snprintf(buf, sz_buf,"\n  WORK events:");
-						httpd_resp_send_chunk_l(req, buf);
+						httpd_resp_sendstr_chunk(req, buf);
 
 						for (T_EVENT *evt = evtgrp->evt_work_list; evt; evt=evt->nxt) {
-							httpd_resp_send_chunk_l(req,"\n  ");
+							httpd_resp_sendstr_chunk(req,"\n  ");
 							event2text(evt, buf, sizeof(buf));
-							httpd_resp_send_chunk_l(req, buf);
+							httpd_resp_sendstr_chunk(req, buf);
 
 						}
 					} else {
 						snprintf(buf, sz_buf,"\n  no WORK events.");
-						httpd_resp_send_chunk_l(req, buf);
+						httpd_resp_sendstr_chunk(req, buf);
 					}
 
 					// FINAL events
 					if (evtgrp->evt_final_list) {
 						snprintf(buf, sz_buf,"\n  FINAL events:");
-						httpd_resp_send_chunk_l(req, buf);
+						httpd_resp_sendstr_chunk(req, buf);
 
 						for (T_EVENT *evt = evtgrp->evt_final_list; evt; evt=evt->nxt) {
-							httpd_resp_send_chunk_l(req,"\n  ");
+							httpd_resp_sendstr_chunk(req,"\n  ");
 							event2text(evt, buf, sizeof(buf));
-							httpd_resp_send_chunk_l(req, buf);
+							httpd_resp_sendstr_chunk(req, buf);
 
 						}
 					} else {
 						snprintf(buf, sz_buf,"\n  no FINAL events.");
-						httpd_resp_send_chunk_l(req, buf);
+						httpd_resp_sendstr_chunk(req, buf);
 					}
 				}
 			}
 		}
 	}
-	httpd_resp_send_chunk_l(req, "\n");
+	httpd_resp_sendstr_chunk(req, "\n");
 
 	release_eventlist_lock();
 }
@@ -312,7 +262,7 @@ static esp_err_t get_handler_file_list(httpd_req_t *req) {
             return ESP_FAIL;
         }
         snprintf(msg, sizeof(msg), "%s '%s' (%ld bytes)\n", entrytype, entry->d_name, entry_stat.st_size);
-        httpd_resp_send_chunk_l(req, msg);
+        httpd_resp_sendstr_chunk(req, msg);
         ESP_LOGI(__func__, "%s", msg);
     }
     closedir(dir);
@@ -338,9 +288,9 @@ static void response_with_status(httpd_req_t *req, char *msg, run_status_type st
     char *resp = cJSON_PrintUnformatted(root);
     ESP_LOGI(__func__,"RESP=%s", resp?resp:"nix");
 
-    httpd_resp_send_chunk_l(req, "STATUS=");
-	httpd_resp_send_chunk_l(req, resp);
-	httpd_resp_send_chunk_l(req, "\n"); // response more readable
+    httpd_resp_sendstr_chunk(req, "STATUS=");
+	httpd_resp_sendstr_chunk(req, resp);
+	httpd_resp_sendstr_chunk(req, "\n"); // response more readable
 
     free((void *)resp);
     cJSON_Delete(root);
@@ -405,7 +355,7 @@ static void get_handler_restart(httpd_req_t *req) {
 	char resp_str[64];
 
 	snprintf(resp_str, sizeof(resp_str),"Restart initiated\n");
-	httpd_resp_send_chunk_l(req, resp_str);
+	httpd_resp_sendstr_chunk(req, resp_str);
 
 	httpd_resp_send_chunk(req, NULL, 0);
 
@@ -424,7 +374,7 @@ static void get_handler_reset(httpd_req_t *req) {
 
 	char resp_str[64];
 	snprintf(resp_str, sizeof(resp_str),"RESET done\n");
-	httpd_resp_send_chunk_l(req, resp_str);
+	httpd_resp_sendstr_chunk(req, resp_str);
 
 	get_handler_restart(req);
 }
@@ -451,8 +401,8 @@ static void get_handler_config(httpd_req_t *req, char *msg) {
 
     char *resp = cJSON_PrintUnformatted(root);
     ESP_LOGI(__func__,"resp=%s", resp?resp:"nix");
-	httpd_resp_send_chunk_l(req, resp);
-	httpd_resp_send_chunk_l(req, "\n");
+	httpd_resp_sendstr_chunk(req, resp);
+	httpd_resp_sendstr_chunk(req, "\n");
 
     free((void *)resp);
     cJSON_Delete(root);
@@ -548,7 +498,7 @@ static esp_err_t get_handler_file_load(httpd_req_t *req, char *fname, size_t sz_
 
 	// successful
 	snprintfapp(msg,sizeof(msg), ", content loaded from %s",fname);
-	httpd_resp_send_chunk_l(req, msg);
+	httpd_resp_sendstr_chunk(req, msg);
 	return ESP_OK;
 }
 
@@ -756,14 +706,22 @@ static esp_err_t get_handler_main(httpd_req_t *req)
 	ESP_LOGI(__func__,"uri='%s', path='%s'", req->uri, path);
 
 	char resp_str[64];
+	esp_err_t res = ESP_OK;
 
 	T_HTTP_PROCCESSING_TYPE *pt = get_http_processing(path);
 	if (!pt ) {
+		// try web site
+		res = get_handler_html(req);
+		if ( res == ESP_OK) {
+			return res;
+		}
+
         snprintf(resp_str,sizeof(resp_str),"nothing found");
         ESP_LOGE(__func__, "%s", resp_str);
 		snprintfapp(resp_str, sizeof(resp_str), "\n");
         httpd_resp_send_err(req, HTTPD_404_NOT_FOUND, resp_str);
         return ESP_FAIL;
+
 	}
 
 	if (pt->flags & HPF_POST) {
@@ -788,7 +746,6 @@ static esp_err_t get_handler_main(httpd_req_t *req)
         return ESP_FAIL;
 	}
 
-	esp_err_t res = ESP_OK;
 
 	switch(pt->todo) {
 

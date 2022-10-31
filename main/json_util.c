@@ -271,20 +271,39 @@ t_result decode_json_getcolor_as_rgb(cJSON *element, char *attr, T_COLOR_HSV *hs
 /**
  * tries different methods to get a color
  */
-t_result decode_json_getcolor(cJSON *element, char *attr4colorname, char *attr4hsv, char *attr4rgb, T_COLOR_HSV *hsv, char *errmsg, size_t sz_errmsg) {
+t_result decode_json_getcolor(cJSON *element, object_attr_type attr4colorname, object_attr_type attr4hsv, object_attr_type attr4rgb, T_COLOR_HSV *hsv, char *errmsg, size_t sz_errmsg) {
 	t_result rc;
 	memset(errmsg, 0, sz_errmsg);
 
-	rc = decode_json_getcolor_by_name(element, attr4colorname, hsv, errmsg, sz_errmsg);
-	if (rc != ESP_ERR_NOT_FOUND)
-		return rc;
+	T_OBJECT_ATTR_CONFIG *attr_cfg1, *attr_cfg2, *attr_cfg3;
+	attr_cfg1 = object_attr4type_id(attr4colorname);
+	attr_cfg2 = object_attr4type_id(attr4hsv);
+	attr_cfg3 = object_attr4type_id(attr4rgb);
 
-	rc = decode_json_getcolor_as_hsv(element, attr4hsv, hsv, errmsg, sz_errmsg);
-	if (rc != ESP_ERR_NOT_FOUND)
-		return rc;
+	if ( attr_cfg1 ) {
+		rc = decode_json_getcolor_by_name(element, attr_cfg1->name, hsv, errmsg, sz_errmsg);
+		if (rc != ESP_ERR_NOT_FOUND)
+			return rc;
+	} else {
+		ESP_LOGW(__func__, "attr4colorname=%d not valid",attr4colorname);
+	}
 
-	rc = decode_json_getcolor_as_rgb(element, attr4rgb, hsv, errmsg, sz_errmsg);
+	if ( attr_cfg2) {
+		rc = decode_json_getcolor_as_hsv(element,  attr_cfg2->name, hsv, errmsg, sz_errmsg);
+		if (rc != ESP_ERR_NOT_FOUND)
+			return rc;
+	} else {
+		ESP_LOGW(__func__, "attr4colorname=%d not valid",attr4hsv);
+	}
 
+	if ( attr_cfg3) {
+		rc = decode_json_getcolor_as_rgb(element,  attr_cfg3->name, hsv, errmsg, sz_errmsg);
+		if (rc != ESP_ERR_NOT_FOUND)
+			return rc;
+	} else {
+		ESP_LOGW(__func__, "attr4colorname=%d not valid",attr4rgb);
+		rc = RES_FAILED;
+	}
 	return rc;
 }
 

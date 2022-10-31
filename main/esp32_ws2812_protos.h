@@ -26,8 +26,10 @@ t_result evt_get_list(cJSON *element, char *attr, cJSON **found, int *array_size
 t_result decode_json_getcolor_by_name(cJSON *element, char *attr, T_COLOR_HSV *hsv, char *errmsg, size_t sz_errmsg);
 t_result decode_json_getcolor_as_hsv(cJSON *element, char *attr, T_COLOR_HSV *hsv, char *errmsg, size_t sz_errmsg);
 t_result decode_json_getcolor_as_rgb(cJSON *element, char *attr, T_COLOR_HSV *hsv, char *errmsg, size_t sz_errmsg);
-t_result decode_json_getcolor(cJSON *element, char *attr4colorname, char *attr4hsv, char *attr4rgb, T_COLOR_HSV *hsv, char *errmsg, size_t sz_errmsg);
+//t_result decode_json_getcolor(cJSON *element, char *attr4colorname, char *attr4hsv, char *attr4rgb, T_COLOR_HSV *hsv, char *errmsg, size_t sz_errmsg);
 void cJSON_addBoolean(cJSON *element, char *attribute_name, bool flag);
+t_result decode_json_getcolor(cJSON *element, object_attr_type attr4colorname, object_attr_type attr4hsv, object_attr_type attr4rgb, T_COLOR_HSV *hsv, char *errmsg, size_t sz_errmsg);
+char *object_type2text(object_type type);
 
 
 // from config.c
@@ -91,9 +93,15 @@ void delete_scene(T_SCENE *obj);
 esp_err_t scene_list_add(T_SCENE *obj);
 esp_err_t scene_list_free();
 T_EVENT_CONFIG *find_event_config(char *name);
-bool print_event_config_r(int *pos, char *buf, size_t sz_buf);
+//bool print_event_config_r(int *pos, char *buf, size_t sz_buf);
 void event2text(T_EVENT *evt, char *buf, size_t sz_buf);
 char *eventype2text(event_type type);
+T_OBJECT_ATTR_CONFIG *object_attr4type_id(int id);
+T_OBJECT_ATTR_CONFIG *object_attr4type_name(char *name);
+void object_attr_group2text(object_attr_type attr_group, char *text, size_t sz_text);
+T_OBJECT_CONFIG *object4type_name(char *name);
+char *object_attrtype2text(int id);
+
 
 void delete_object(T_DISPLAY_OBJECT *obj);
 esp_err_t delete_object_by_oid(char *oid);
@@ -140,6 +148,9 @@ void process_object_bmp(int32_t pos, int32_t len, double brightness);
 
 // from process_objects.c
 void process_object(T_EVENT_GROUP *evtgrp);
+
+// from webserver.c
+esp_err_t get_handler_html(httpd_req_t *req);
 
 // from create_demo
 void build_demo2(

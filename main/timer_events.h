@@ -9,6 +9,7 @@
 #define MAIN_TIMER_EVENTS_H_
 
 #include "color.h"
+#include "esp32_ws2812_types.h"
 
 #define LEN_EVT_MARKER 8+1
 #define LEN_EVT_OID 16
@@ -54,17 +55,7 @@ typedef enum {
 	EVT_STS_FINISHED  // event_finished
 } event_status_type;
 
-typedef enum {
-	OBJT_NOTHING,
-	OBJT_CLEAR, // switch of all leds
-	OBJT_COLOR,
-	OBJT_COLOR_TRANSITION,
-	OBJT_RAINBOW,
-	OBJT_SPARKLE,
-	OBJT_BMP, // handle bitmap file
-	OBJT_UNKNOWN
-} object_type;
-
+/*
 #define TEXT2OBJT(c) ( \
 	!strcasecmp(c,"clear") ? OBJT_CLEAR : \
 	!strcasecmp(c,"color") ? OBJT_COLOR : \
@@ -82,47 +73,7 @@ typedef enum {
 	c==OBJT_SPARKLE ? "sparkle" : \
 	c==OBJT_BMP ? "bmp" : "unknown" \
 )
-
-
-typedef enum  {
-	EVT_PARA_NONE     = 0x00,
-	EVT_PARA_NUMERIC  = 0x01,
-	EVT_PARA_STRING   = 0x02,
-	EVT_PARA_OPTIONAL = 0x80  // additional to EVT_PARA...
-} event_parameter_type;
-
-// I - init - no timing
-// W - at work with timing parameters, s-start, r-running, e-end
-// F - finally (all repeats done) - no timing
-typedef enum {
-	ET_NONE,                 // - - - (-) nothing to do
-	ET_WAIT,                 // I W - (numeric) wait n ms
-	ET_WAIT_FIRST,           // I - - (numeric) wait n ms only during first init
-	ET_PAINT,                // - W - (numeric) paint pixel with the given parameter
-	ET_DISTANCE,             // - W - (numeric) paint until has moved n leds
-	ET_SPEED,                // I W - (numeric) set speed
-	ET_SPEEDUP,              // I W - (numeric) set acceleration
-	ET_BOUNCE,               // - W - (-) change direction speed=-speed
-	ET_REVERSE,              // - W - (-) change delta_pos to -delta_pos
-	ET_GOTO_POS,             // I W - (numeric) goto to position
-	ET_MARKER,               // - W - destination marker
-	ET_JUMP_MARKER,          // - W - jump to event with the marker
-	ET_CLEAR,                // I W F clear pixels
-	ET_SET_BRIGHTNESS,       // I W -
-	ET_SET_BRIGHTNESS_DELTA, // I W -
-	ET_SET_OBJECT,           // I W - oid for object
-	ET_BMP_OPEN,             // I W - open internet connection for bmp file
-	ET_BMP_READ,             // - W - (numeric) read n lines from bmp data (-1 = until bmp ends)
-	ET_BMP_CLOSE,            // - W F close connection for bmp
-	ET_UNKNOWN
-} event_type;
-
-typedef struct {
-	event_type evt_type;
-	event_parameter_type evt_para_type;
-	char *name;
-	char *help;
-} T_EVENT_CONFIG;
+*/
 
 //************* object and event definitions **************
 

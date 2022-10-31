@@ -7,30 +7,13 @@
 
 #include "esp32_ws2812.h"
 
-T_EVENT_CONFIG event_config_tab[] = {
-		{ET_WAIT, EVT_PARA_NUMERIC, "wait", "wait for n ms"},
-		{ET_WAIT_FIRST, EVT_PARA_NUMERIC, "wait_first", "wait for n ms at first init"},
-		{ET_PAINT, EVT_PARA_NUMERIC, "paint", "paint leds with the given parameter"},
-		{ET_DISTANCE, EVT_PARA_NUMERIC, "distance", "paint until object has moved n leds"},
-		{ET_SPEED, EVT_PARA_NUMERIC, "speed", "speed in leds per second"},
-		{ET_SPEEDUP, EVT_PARA_NUMERIC, "speedup", "speedup delta speed per display cycle"},
-		{ET_BOUNCE, EVT_PARA_NONE, "bounce", "reverse speed"},
-		{ET_REVERSE, EVT_PARA_NONE, "reverse", "reverse paint direction"},
-		{ET_GOTO_POS, EVT_PARA_NUMERIC, "goto", "go to led position"},
-		{ET_MARKER, EVT_PARA_STRING, "marker", "set marker"},
-		{ET_JUMP_MARKER, EVT_PARA_STRING, "jump_marker", "jump to marker"},
-		{ET_CLEAR,EVT_PARA_NONE, "clear", "blank the strip"},
-		{ET_SET_BRIGHTNESS, EVT_PARA_NUMERIC,"brightness", "set brightness"},
-		{ET_SET_BRIGHTNESS_DELTA, EVT_PARA_NUMERIC,"brightness_delta", "set brightness delta per display cycle"},
-		{ET_SET_OBJECT, EVT_PARA_STRING, "object","set objectid from object table"},
-		{ET_BMP_OPEN, EVT_PARA_NONE, "bmp_open", "open BMP stream, defined by 'bmp' object"},
-		{ET_BMP_READ, EVT_PARA_NUMERIC | EVT_PARA_OPTIONAL, "bmp_read","read BMP data line by line and display it, max n lines, -1 all lines (default)"},
-		{ET_BMP_CLOSE, EVT_PARA_NONE, "bmp_close", "close BMP stream"},
-		{ET_NONE, EVT_PARA_NONE, "", ""} // end of table
-};
+// from global_data.c
+extern T_EVENT_CONFIG event_config_tab[];
 
 extern T_SCENE *s_scene_list;
 extern T_DISPLAY_OBJECT *s_object_list;
+extern T_OBJECT_ATTR_CONFIG object_attr_config_tab[];
+extern T_OBJECT_CONFIG object_config_tab[];
 
 // to lock access to event-List
 static  SemaphoreHandle_t xSemaphore = NULL;
@@ -72,7 +55,7 @@ T_EVENT_CONFIG *find_event_config(char *name) {
 /**
  * print event config on position 'pos'
  * returns true, when more data is available by a new call
- */
+ * /
 bool print_event_config_r(int *pos, char *buf, size_t sz_buf) {
 	if (event_config_tab[*pos].evt_type == ET_NONE) {
 		*pos = 0;
@@ -100,6 +83,9 @@ bool print_event_config_r(int *pos, char *buf, size_t sz_buf) {
 	(*pos)++;
 	return true;
 }
+*/
+
+
 
 char *eventype2text(event_type type) {
 	for (int i=0; event_config_tab[i].evt_type != ET_NONE; i++ ) {
@@ -515,3 +501,74 @@ esp_err_t scene_list_free() {
 // ******************************************************************************
 
 
+T_OBJECT_ATTR_CONFIG *object_attr4type_id(int id) {
+
+	for  (int i=0; object_attr_config_tab[i].type != OBJATTR_EOT; i++) {
+		if ( object_attr_config_tab[i].type == id)
+			return &(object_attr_config_tab[i]);
+	}
+
+	return NULL;
+}
+
+
+char *object_attrtype2text(int id) {
+
+	for  (int i=0; object_attr_config_tab[i].type != OBJATTR_EOT; i++) {
+		if ( object_attr_config_tab[i].type == id)
+			return object_attr_config_tab[i].name;
+	}
+
+	return "???";
+}
+
+T_OBJECT_ATTR_CONFIG *object_attr4type_name(char *name) {
+
+	for  (int i=0; object_attr_config_tab[i].type != OBJATTR_EOT; i++) {
+		if ( !strcmp(object_attr_config_tab[i].name, name))
+			return &(object_attr_config_tab[i]);
+	}
+
+	return NULL;
+}
+
+void object_attr_group2text(object_attr_type attr_group, char *text, size_t sz_text) {
+	if (attr_group == 0) {
+		strlcpy(text ,"--", sz_text);
+		return;
+	}
+	memset(text, 0, sz_text);
+	for (int i=1; i< OBJATTR_EOT; i=i<<1) {
+		if ( attr_group & i) {
+			T_OBJECT_ATTR_CONFIG *attr_config = object_attr4type_id(i);
+			if ( !attr_config ) {
+				ESP_LOGE(__func__, "group attr 0x%08x unknown", i);
+			} else {
+				if ( strlen(text))
+					strlcat(text,",", sz_text);
+				strlcat(text, attr_config->name, sz_text);
+			}
+		}
+	}
+}
+
+// ******************************************************************************
+T_OBJECT_CONFIG *object4type_name(char *name) {
+
+	for  (int i=0; object_config_tab[i].type != OBJT_EOT; i++) {
+		if ( !strcmp(object_config_tab[i].name, name))
+			return &(object_config_tab[i]);
+	}
+
+	return NULL;
+}
+
+char *object_type2text(object_type type) {
+	for  (int i=0; object_config_tab[i].type != OBJT_EOT; i++) {
+		if ( object_config_tab[i].type == type)
+			return object_config_tab[i].name;
+	}
+
+	return "???";
+
+}
