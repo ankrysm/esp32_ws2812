@@ -32,7 +32,7 @@ T_HTTP_PROCCESSING_TYPE http_processing[] = {
 		{"/li",        0,                          HP_LIST,        "list events"},
 		{"/lo",        HPF_POST,                   HP_LOAD,        "load events, replaces data in memory"},
 		{"/f/list",    0,                          HP_FILE_LIST,   "list stored files"},
-		{"/f/store/",  HPF_PATH_FROM_URL|HPF_POST, HP_FILE_STORE,  "store JSON event lists into flash memory as <fname>"},
+		{"/f/store/",  HPF_PATH_FROM_URL|HPF_POST, HP_FILE_STORE,  "store JSON event lists into flash memory as \"fname\""},
 		{"/f/get/",    HPF_PATH_FROM_URL,          HP_FILE_GET,    "get content of stored file \"fname\""},
 		{"/f/load/",   HPF_PATH_FROM_URL,          HP_FILE_LOAD,   "load JSON event list stored in \"fname\" into memory"},
 		{"/f/delete/", HPF_PATH_FROM_URL,          HP_FILE_DELETE, "delete file \"fname\""},
@@ -45,25 +45,25 @@ T_HTTP_PROCCESSING_TYPE http_processing[] = {
 };
 
 T_EVENT_CONFIG event_config_tab[] = {
-		{ET_WAIT, EVT_PARA_NUMERIC, "wait", "wait for n ms"},
-		{ET_WAIT_FIRST, EVT_PARA_NUMERIC, "wait_first", "wait for n ms at first init"},
-		{ET_PAINT, EVT_PARA_NUMERIC, "paint", "paint leds with the given parameter"},
-		{ET_DISTANCE, EVT_PARA_NUMERIC, "distance", "paint until object has moved n leds"},
-		{ET_SPEED, EVT_PARA_NUMERIC, "speed", "speed in leds per second"},
-		{ET_SPEEDUP, EVT_PARA_NUMERIC, "speedup", "speedup delta speed per display cycle"},
-		{ET_BOUNCE, EVT_PARA_NONE, "bounce", "reverse speed"},
-		{ET_REVERSE, EVT_PARA_NONE, "reverse", "reverse paint direction"},
-		{ET_GOTO_POS, EVT_PARA_NUMERIC, "goto", "go to led position"},
-		{ET_MARKER, EVT_PARA_STRING, "marker", "set marker"},
-		{ET_JUMP_MARKER, EVT_PARA_STRING, "jump_marker", "jump to marker"},
-		{ET_CLEAR,EVT_PARA_NONE, "clear", "blank the strip"},
-		{ET_SET_BRIGHTNESS, EVT_PARA_NUMERIC,"brightness", "set brightness"},
-		{ET_SET_BRIGHTNESS_DELTA, EVT_PARA_NUMERIC,"brightness_delta", "set brightness delta per display cycle"},
-		{ET_SET_OBJECT, EVT_PARA_STRING, "object","set objectid from object table"},
-		{ET_BMP_OPEN, EVT_PARA_NONE, "bmp_open", "open BMP stream, defined by 'bmp' object"},
-		{ET_BMP_READ, EVT_PARA_NUMERIC | EVT_PARA_OPTIONAL, "bmp_read","read BMP data line by line and display it, max n lines, -1 all lines (default)"},
-		{ET_BMP_CLOSE, EVT_PARA_NONE, "bmp_close", "close BMP stream"},
-		{ET_NONE, EVT_PARA_NONE, "", ""} // end of table
+		{ET_WAIT, EVT_PARA_NUMERIC, "wait", "wait for n ms", "waiting time in ms"},
+		{ET_WAIT_FIRST, EVT_PARA_NUMERIC, "wait_first", "wait for n ms at first init", "waiting time in ms"},
+		{ET_PAINT, EVT_PARA_NUMERIC, "paint", "paint leds with the given parameter", "execution time in ms"},
+		{ET_DISTANCE, EVT_PARA_NUMERIC, "distance", "paint until object has moved n leds", "number of leds"},
+		{ET_SPEED, EVT_PARA_NUMERIC, "speed", "move with given speed", "speed in leds per second"},
+		{ET_SPEEDUP, EVT_PARA_NUMERIC, "speedup", "change speed", "delta speed per display cycle"},
+		{ET_BOUNCE, EVT_PARA_NONE, "bounce", "reverse speed", ""},
+		{ET_REVERSE, EVT_PARA_NONE, "reverse", "reverse paint direction", ""},
+		{ET_GOTO_POS, EVT_PARA_NUMERIC, "goto", "go to led position","new position"},
+		{ET_MARKER, EVT_PARA_STRING, "marker", "set marker","name of the marker"},
+		{ET_JUMP_MARKER, EVT_PARA_STRING, "jump_marker", "jump to marker","destination marker"},
+		{ET_CLEAR,EVT_PARA_NONE, "clear", "blank the strip",""},
+		{ET_SET_BRIGHTNESS, EVT_PARA_NUMERIC,"brightness", "set brightness","brightness factor 0.0 .. 1.0"},
+		{ET_SET_BRIGHTNESS_DELTA, EVT_PARA_NUMERIC,"brightness_delta", "change brightness", "brightness delta per display cycle"},
+		{ET_SET_OBJECT, EVT_PARA_STRING, "object","set object to display from object table","object id"},
+		{ET_BMP_OPEN, EVT_PARA_NONE, "bmp_open", "open BMP stream, defined by 'bmp' object",""},
+		{ET_BMP_READ, EVT_PARA_NUMERIC | EVT_PARA_OPTIONAL, "bmp_read","read BMP data line by line and display it", "number of lines, -1 all lines (default)"},
+		{ET_BMP_CLOSE, EVT_PARA_NONE, "bmp_close", "close BMP stream",""},
+		{ET_NONE, EVT_PARA_NONE, "", "",""} // end of table
 };
 
 T_OBJECT_ATTR_CONFIG object_attr_config_tab[] = {

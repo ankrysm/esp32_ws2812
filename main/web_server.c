@@ -190,20 +190,22 @@ esp_err_t get_handler_help_html(httpd_req_t *req) {
 	    	bool optional_para = event_config_tab[i].evt_para_type & EVT_PARA_OPTIONAL;
 	    	switch (evtcfg) {
 	    	case EVT_PARA_NONE:
-	    		snprintf(txt, sizeof(txt), "<tr><td>{\"type\":\"%s\"}</td><td>%s%s</td></tr>",
+	    		snprintf(txt, sizeof(txt), "<tr><td>{\"type\":\"%s\"}</td><td>%s%s</td></tr>\n",
 	    				event_config_tab[i].name,
 						event_config_tab[i].help,
 	    				(optional_para ? "(optional)":""));
 	    		break;
 	    	case EVT_PARA_NUMERIC:
-	    		snprintf(txt, sizeof(txt), "<tr><td>{\"type\":\"%s\", \"value\":&lt;numeric value&gt;}</td><td>%s%s</td></tr>",
+	    		snprintf(txt, sizeof(txt), "<tr><td>{\"type\":\"%s\", \"value\":&lt;%s&gt;}</td><td>%s%s</td></tr>\n",
 	    				event_config_tab[i].name,
+						event_config_tab[i].parahelp,
 						event_config_tab[i].help,
 	    				(optional_para ? "(optional)":""));
 	    		break;
 	    	case EVT_PARA_STRING:
-	    		snprintf(txt, sizeof(txt), "<tr><td>{\"type\":\"%s\", \"value\":\"&lt;string value&gt;\" }</td><td>%s%s</td></tr>",
+	    		snprintf(txt, sizeof(txt), "<tr><td>{\"type\":\"%s\", \"value\":\"&lt;%s&gt;\" }</td><td>%s%s</td></tr>\n",
 	    				event_config_tab[i].name,
+						event_config_tab[i].parahelp,
 						event_config_tab[i].help,
 	    				(optional_para ? "(optional)":""));
 	    		break;

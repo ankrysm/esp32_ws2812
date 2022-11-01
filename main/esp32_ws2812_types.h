@@ -135,6 +135,7 @@ typedef struct {
 	event_parameter_type evt_para_type;
 	char *name;
 	char *help;
+	char *parahelp;
 } T_EVENT_CONFIG;
 
 
