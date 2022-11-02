@@ -141,6 +141,9 @@ esp_err_t get_handler_help_html(httpd_req_t *req) {
 	    // HTML content
 	    httpd_resp_sendstr_chunk(req,"<h2>Help</h2>" );
 
+	    /// **** common descriptions *****
+	    httpd_resp_sendstr_chunk(req,"<p></p>\n");
+
 	    // ****** Table: API reference **********
 	    // caption
 	    strlcpy(txt, "<table>\n" \
