@@ -8,6 +8,19 @@
 #ifndef MAIN_ESP32_WS2812_TYPES_H_
 #define MAIN_ESP32_WS2812_TYPES_H_
 
+typedef enum {
+	RES_OK,
+	RES_NOT_FOUND,
+	RES_NO_VALUE,
+	RES_NO_DATA,
+	RES_INVALID_DATA_TYPE,
+	RES_OUT_OF_RANGE,
+	RES_NOT_ACTIVE,
+	RES_FINISHED,
+	RES_FAILED
+} t_result;
+
+
 // **** for web/rest-Services
 
 // kind of urls for REST-Service

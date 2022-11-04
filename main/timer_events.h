@@ -16,17 +16,6 @@
 #define LEN_EVT_ID 16
 
 
-typedef enum {
-	RES_OK,
-	RES_NOT_FOUND,
-	RES_NO_VALUE,
-	RES_NO_DATA,
-	RES_INVALID_DATA_TYPE,
-	RES_OUT_OF_RANGE,
-	RES_NOT_ACTIVE,
-	RES_FINISHED,
-	RES_FAILED
-} t_result;
 
 /**********************************************
  * status of a play list
@@ -123,29 +112,6 @@ typedef enum {
 typedef struct EVENT_GROUP {
 	char id[LEN_EVT_ID];
 
-	/*
-	event_status_type status;
-
-	int64_t time; // event time
-	uint32_t w_flags;
-	double w_pos;
-	double w_distance;
-	double w_len_factor;
-	double w_len_factor_delta;
-	double w_speed;
-	double w_acceleration;
-	double w_brightness;
-	double w_brightness_delta;
-	int64_t w_wait_time;
-	int64_t w_bmp_remaining_lines;
-	int32_t delta_pos; // +1 or -1
-	char w_object_oid[LEN_EVT_OID];
-
-	// time dependend events,
-//	uint32_t t_repeats; // 0=for evener
-//	uint32_t w_t_repeats;
-	*/
-
 	T_EVENT *evt_init_list;
 	T_EVENT *evt_work_list;
 	T_EVENT *evt_final_list;
@@ -154,29 +120,13 @@ typedef struct EVENT_GROUP {
 	struct EVENT_GROUP *nxt;
 } T_EVENT_GROUP;
 
-/*
-typedef struct SCENE {
-	char id[LEN_EVT_ID];
-	event_status_type status;
-
-	//uint32_t flags;
-	T_EVENT_GROUP *event_group; // actual working event
-	T_EVENT_GROUP *event_groups;
-	struct SCENE *nxt;
-} T_SCENE;
-*/
-
 typedef struct TRACK_ELEMENT {
 	uint32_t id;
 	int repeats;
-	//char evtgrp_id[LEN_EVT_ID];
-
-
+	int64_t time; // event time
 	event_status_type status;
 
 	uint32_t w_repeats;
-
-	int64_t time; // event time
 	uint32_t w_flags;
 	double w_pos;
 	double w_distance;
@@ -190,7 +140,6 @@ typedef struct TRACK_ELEMENT {
 	int64_t w_bmp_remaining_lines;
 	int32_t delta_pos; // +1 or -1
 	char w_object_oid[LEN_EVT_OID];
-
 	event_status_type evt_grp_current_status;
 	T_EVENT_GROUP *evtgrp;
 	T_EVENT *evt_work_current;

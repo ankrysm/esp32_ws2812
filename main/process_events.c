@@ -11,6 +11,49 @@ extern T_TRACK tracks[];
 
 static int extended_logging = true;
 
+// ********************** RESET functions *********************************************************
+
+static void reset_track_element_repeats(T_TRACK_ELEMENT *ele) {
+	ele->w_repeats = ele->repeats;
+}
+
+static void reset_track_element(T_TRACK_ELEMENT *ele) {
+	ele->status = EVT_STS_READY;
+	ele->evt_grp_current_status = EVT_STS_READY;
+	ele->w_flags = 0;
+	ele->w_pos = 0;
+	ele->w_len_factor = 1.0;
+	ele->w_len_factor_delta = 0.0;
+	ele->w_speed = 0.0;
+	ele->w_acceleration = 0.0;
+	ele->w_brightness = 1.0;
+	ele->w_brightness_delta = 0.0;
+	ele->w_distance = 0.0;
+	ele->w_wait_time = 0;
+	ele->w_bmp_remaining_lines = 0;
+	ele->time = 0;
+	ele->delta_pos = 1;
+	ele->evt_work_current = ele->evtgrp ? ele->evtgrp->evt_work_list : NULL;
+	memset(ele->w_object_oid,0, LEN_EVT_OID);
+}
+
+void reset_tracks() {
+	ESP_LOGI(__func__,"start");
+	for ( int i=0; i < N_TRACKS; i++) {
+		T_TRACK *track = &(tracks[i]);
+		if ( ! track->element_list)
+			continue; // nothing to reset
+
+		for( T_TRACK_ELEMENT *ele = track->element_list; ele; ele = ele->nxt) {
+			reset_track_element(ele);
+			reset_track_element_repeats(ele);
+		}
+
+		track->current_element = track->element_list;
+		track->status = EVT_STS_READY;
+	}
+}
+
 
 static void process_track_element_init(T_TRACK_ELEMENT *ele) {
 	ESP_LOGI(__func__, "started");
@@ -304,22 +347,6 @@ static void  process_track_element_work(T_TRACK_ELEMENT *ele, uint64_t scene_tim
 		ele->status = EVT_STS_FINISHED;
 		ESP_LOGI(__func__, "ele.id=%d: ALL DONE", ele->id);
 	}
-
-//	if (!evt) {
-//		// no more events
-//		check_for_repeat(evtgrp);
-//		if ( evtgrp->status == EVT_STS_FINISHED) {
-//			// all done
-//			ESP_LOGI(__func__, "evt.id='%s': repeat events (%d/%d) ALL DONE", evtgrp->id, evtgrp->w_t_repeats, evtgrp->t_repeats);
-//			return;
-//		}
-//		// next turn, reset events
-//		reset_event_group(evtgrp);
-//		evtgrp->w_flags |= EVFL_WAIT_FIRST_DONE;
-//		// status is set to READY
-//		//needs to be RUNNING
-//		//evtgrp->status = EVT_STS_RUNNING;
-//	}
 }
 
 // ************************************************************************************
@@ -359,10 +386,29 @@ static void process_track(T_TRACK *track, uint64_t scene_time, uint64_t timer_pe
 			process_track_element_final(track->current_element);
 			process_object(track->current_element);
 
-			// next track element
+			// check for repeat TODO
+			ESP_LOGI(__func__, "track %d, ele.id=%d, repeate %d/%d",
+					track->id, track->current_element->id,
+					track->current_element->w_repeats, track->current_element->repeats);
+			bool doit_again = false;
+			if (track->current_element->repeats <=0) {
+				doit_again = true;
+			} else {
+				(track->current_element->w_repeats)--;
+				if (track->current_element->w_repeats <=0) {
+					doit_again = false;
+				} else {
+					doit_again = true;
+				}
+			}
+			if ( doit_again ) {
+				reset_track_element(track->current_element);
+				continue;
+			}
+
+			//no repeats, next track element
 			track->current_element = track->current_element->nxt;
 			continue;
-			//return; // not necessary to do more
 		}
 
 		//ESP_LOGI(__func__, "start process_event_what evt=%d", evt->id);
@@ -414,47 +460,10 @@ int process_tracks(uint64_t scene_time, uint64_t timer_period) {
 			continue; // nothing to process
 
 		process_track(track, scene_time, timer_period);
+
 		if ( track->status != EVT_STS_FINISHED)
 			active_tracks++;
 	}
 	return active_tracks;
-}
-
-// ********************** RESET functions *********************************************************
-
-
-static void reset_track_element(T_TRACK_ELEMENT *ele) {
-	ele->status = EVT_STS_READY;
-	ele->evt_grp_current_status = EVT_STS_READY;
-	ele->w_repeats = ele->repeats;
-	ele->w_flags = 0;
-	ele->w_pos = 0;
-	ele->w_len_factor = 1.0;
-	ele->w_len_factor_delta = 0.0;
-	ele->w_speed = 0.0;
-	ele->w_acceleration = 0.0;
-	ele->w_brightness = 1.0;
-	ele->w_brightness_delta = 0.0;
-	ele->w_distance = 0.0;
-	ele->w_wait_time = 0;
-	ele->w_bmp_remaining_lines = 0;
-	ele->time = 0;
-	ele->delta_pos = 1;
-	ele->evt_work_current = ele->evtgrp ? ele->evtgrp->evt_work_list : NULL;
-	memset(ele->w_object_oid,0, LEN_EVT_OID);
-}
-
-void reset_tracks() {
-	ESP_LOGI(__func__,"start");
-	for ( int i=0; i < N_TRACKS; i++) {
-		T_TRACK *track = &(tracks[i]);
-		if ( ! track->element_list)
-			continue; // nothing to reset
-		for( T_TRACK_ELEMENT *ele = track->element_list; ele; ele = ele->nxt) {
-			reset_track_element(ele);
-		}
-		track->current_element = track->element_list;
-		track->status = EVT_STS_READY;
-	}
 }
 
