@@ -59,8 +59,6 @@ T_EVENT_CONFIG event_config_tab[] = {
 		{ET_BOUNCE, EVT_PARA_NONE, "bounce", "reverse speed", ""},
 		{ET_REVERSE, EVT_PARA_NONE, "reverse", "reverse paint direction", ""},
 		{ET_GOTO_POS, EVT_PARA_NUMERIC, "goto", "go to led position","new position"},
-	//	{ET_MARKER, EVT_PARA_STRING, "marker", "set marker","name of the marker"},
-	//	{ET_JUMP_MARKER, EVT_PARA_STRING, "jump_marker", "jump to marker","destination marker"},
 		{ET_CLEAR,EVT_PARA_NONE, "clear", "blank the strip",""},
 		{ET_SET_BRIGHTNESS, EVT_PARA_NUMERIC,"brightness", "set brightness","brightness factor 0.0 .. 1.0"},
 		{ET_SET_BRIGHTNESS_DELTA, EVT_PARA_NUMERIC,"brightness_delta", "change brightness", "brightness delta per display cycle"},

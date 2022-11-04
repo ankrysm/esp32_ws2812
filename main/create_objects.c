@@ -144,8 +144,8 @@ static esp_err_t decode_json4event_object_data(cJSON *element, T_DISPLAY_OBJECT 
 /**
  * reads a single T_EVT_OBJECT element
  * expected:
- * - oid
- * - data list
+ * - id
+ * - list of display objects
  */
 static esp_err_t decode_json4event_object(cJSON *element,  char *errmsg, size_t sz_errmsg) {
 	esp_err_t rc = ESP_FAIL;
@@ -214,9 +214,7 @@ static esp_err_t decode_json4event_object(cJSON *element,  char *errmsg, size_t 
 
 
 /**
- * "object" list contains objects with
- *   - an id and
- *   - a data list
+ * decode an "object" list
  */
 esp_err_t decode_json4event_object_list(cJSON *element, char *errmsg, size_t sz_errmsg) {
 	memset(errmsg, 0, sz_errmsg);

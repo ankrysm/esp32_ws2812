@@ -118,8 +118,6 @@ typedef enum {
 	ET_BOUNCE,               // - W - (-) change direction speed=-speed
 	ET_REVERSE,              // - W - (-) change delta_pos to -delta_pos
 	ET_GOTO_POS,             // I W - (numeric) goto to position
-//	ET_MARKER,               // - W - destination marker
-//	ET_JUMP_MARKER,          // - W - jump to event with the marker
 	ET_CLEAR,                // I W F clear pixels
 	ET_SET_BRIGHTNESS,       // I W -
 	ET_SET_BRIGHTNESS_DELTA, // I W -

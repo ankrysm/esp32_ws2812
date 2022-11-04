@@ -12,9 +12,10 @@ extern char *cfg_autoplayfile;
 
 
 /**
- * json data should contain 2 lists:
+ * json data should contain 3 lists:
  * "objects" - what do paint
- * "scenes" - time dependend scenes
+ * "events" - list of events
+ * "tracks" - list of max. 16 tracks
  */
 esp_err_t decode_json4event_root(char *content, char *errmsg, size_t sz_errmsg) {
 	cJSON *tree = NULL;

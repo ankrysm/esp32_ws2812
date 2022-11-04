@@ -189,10 +189,7 @@ static esp_err_t decode_json4event_group(cJSON *element, /*T_SCENE *scene,*/ cha
 	}
 
 	char *attr;
-	double val;
 	char sval[64];
-	//bool bval;
-	//int id = -1;
 	esp_err_t lrc, rc = ESP_FAIL;
 	T_EVENT_GROUP *evtgrp = NULL;
 
@@ -205,12 +202,6 @@ static esp_err_t decode_json4event_group(cJSON *element, /*T_SCENE *scene,*/ cha
 		if ( !(evtgrp = create_event_group(sval)))
 			break;
 		ESP_LOGI(__func__, "id='%s': event created", evtgrp->id);
-
-//		attr="repeats";
-//		if (evt_get_number(element, attr, &val, errmsg, sz_errmsg) == RES_OK) {
-//			evt->t_repeats = val;
-//			ESP_LOGI(__func__, "id=%s, %s=%d", evt->id, attr, evt->t_repeats);
-//		}
 
 		int id=0;
 		// to do for init (before run)
@@ -233,11 +224,8 @@ static esp_err_t decode_json4event_group(cJSON *element, /*T_SCENE *scene,*/ cha
 	if ( rc == ESP_OK) {
 		snprintf(errmsg, sz_errmsg, "event created");
 		ESP_LOGI(__func__,"id='%s': %s", evtgrp->id, errmsg);
-
-		//reset_event_group(evtgrp);
-		//reset_event_repeats(evtgrp);
-
 		event_list_add(evtgrp);
+
 	} else {
 		ESP_LOGE(__func__, "id='%s': error: %s", sval, errmsg);
 		// delete created data
@@ -246,7 +234,6 @@ static esp_err_t decode_json4event_group(cJSON *element, /*T_SCENE *scene,*/ cha
 
 	return rc;
 }
-// */
 
 
 /**

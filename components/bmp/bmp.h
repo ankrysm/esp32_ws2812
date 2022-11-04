@@ -64,9 +64,14 @@ typedef struct tagBITMAPINFOHEADER {
 // third block: data
 
 // prototypes
+// from bmp.c
+void bmp_init();
+uint32_t get_bytes_per_pixel();
+uint32_t get_bytes_per_line();
+void clear_ux_bits();
+
 EventBits_t get_ux_bits(TickType_t xTicksToWait);
 void set_ux_quit_bits(EventBits_t uxQuitBits);
-size_t get_bytes_per_bmp_line();
 
 uint32_t get_read_length();
 uint8_t *get_read_buffer(int bufnr);

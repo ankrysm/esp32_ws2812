@@ -25,16 +25,8 @@ static const int EVENT_BITS_ALL = 0xFF;
 static volatile run_status_type s_run_status = RUN_STATUS_STOPPED;
 static volatile uint64_t s_scene_time = 0;
 
-//extern T_SCENE *s_scene_list;
-//extern T_EVT_OBJECT *s_object_list;
-//extern T_CONFIG gConfig;
-
 extern uint32_t cfg_flags;
 extern uint32_t cfg_trans_flags;
-//extern uint32_t cfg_numleds;
-//extern uint32_t cfg_cycle;
-//extern char *cfg_autoplayfile;
-
 
 static void show_status() {
 	if ( cfg_flags & CFG_SHOW_STATUS) {
@@ -152,34 +144,11 @@ static void periodic_timer_callback(void* arg) {
 		strip_set_range(0, n - 1, &bk);
 
 		reset_tracks();
-
-		// reset all event data + repeat data
-		//		if ( s_scene_list) {
-		//			for ( T_SCENE *scene= s_scene_list; scene; scene = scene->nxt) {
-		//				// process_scene will do the init
-		//				scene->status = EVT_STS_READY;
-		//			}
-		//		} else {
-		//			// clear the strip
-		//			uint32_t n = get_numleds();
-		//			ESP_LOGI(__func__,"do reset: blank, numleds=%u", n);
-		//			T_COLOR_RGB bk={.r=0,.g=0,.b=0};
-		//			strip_set_range(0, n - 1, &bk);
-		//		}
 	}
 
 	// paint scenes
 	int active_tracks=process_tracks(s_scene_time, s_timer_period);
 	bool finished = active_tracks == 0;
-
-//	if ( s_scene_list) {
-//		for ( T_SCENE *scene= s_scene_list; scene; scene = scene->nxt) {
-//			process_scene(scene, s_scene_time, s_timer_period);
-//			if (scene->status != EVT_STS_FINISHED) {
-//				finished = false;
-//			}
-//		}
-//	}
 
 	strip_show(false);
 	show_status();
@@ -273,8 +242,6 @@ uint64_t get_scene_time() {
 	return s_scene_time;
 }
 
-
-
 // sets the new scene status, returnes the old one
 run_status_type set_scene_status(run_status_type new_status) {
 	ESP_LOGI(__func__, "start %d",new_status);
@@ -308,7 +275,6 @@ void init_timer_events() {
 	// initialize eventlist handling
 	init_eventlist_utils();
 
-	//s_timer_period = delta_ms;
 	s_timer_event_group = xEventGroupCreate();
 	xEventGroupClearBits(s_timer_event_group, EVENT_BITS_ALL);
 

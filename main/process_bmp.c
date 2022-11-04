@@ -9,7 +9,6 @@
 
 //extern BITMAPINFOHEADER bmpInfoHeader;
 
-//static uint32_t read_buffer_pos = 0; // current position in read_buffer
 static uint32_t read_buffer_len = 0; // data length in read_buffer
 static uint8_t *read_buffer = NULL;
 static uint32_t rd_mempos = 0;

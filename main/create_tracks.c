@@ -71,7 +71,6 @@ static esp_err_t decode_json4tracks(cJSON *element, int *id, char *errmsg, size_
 	esp_err_t rc = ESP_FAIL;
 
 	char *attr;
-	char sval[64];
 	double val;
 	t_result lrc;
 	int tidx=0;

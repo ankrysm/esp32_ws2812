@@ -8,17 +8,10 @@
 
 #include "esp32_ws2812.h"
 
-//#define STRIP_DEMO
 extern uint32_t cfg_flags;
 
-
-//extern size_t s_size_led_strip_pixels;
-//extern uint8_t *led_strip_pixels;
-
 static uint32_t last_hash = 0;
-
 static bool is_dirty = false;
-
 
 static void do_set_pixel(int32_t idx, T_COLOR_RGB *rgb) {
 
@@ -32,7 +25,6 @@ static void do_set_pixel(int32_t idx, T_COLOR_RGB *rgb) {
 		led_strip_set_pixel(idx, 0, 0, 0);
 	is_dirty = true;
 }
-
 
 /**
  * sets the color for a pixel range
