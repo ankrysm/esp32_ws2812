@@ -14,7 +14,7 @@
 
 #define MAX_CONTENTLEN 10240
 
-extern T_DISPLAY_OBJECT *s_object_list;
+
 extern esp_vfs_spiffs_conf_t fs_conf;
 
 typedef struct rest_server_context {
@@ -31,6 +31,9 @@ static httpd_handle_t server = NULL;
 
 // from global_data.c
 extern T_HTTP_PROCCESSING_TYPE http_processing[];
+extern T_TRACK tracks[];
+extern T_DISPLAY_OBJECT *s_object_list;
+extern T_EVENT_GROUP *s_event_group_list;
 
 //static void httpd_resp_sendstr_chunk(httpd_req_t *req, char *resp_str) {
 //	httpd_resp_send_chunk(req, resp_str, HTTPD_RESP_USE_STRLEN);
@@ -119,13 +122,131 @@ static void get_handler_list(httpd_req_t *req) {
 	char buf[255];
 	const size_t sz_buf = sizeof(buf);
 
-	extern T_SCENE *s_scene_list;
+	//extern T_SCENE *s_scene_list;
 	if (obtain_eventlist_lock() != ESP_OK) {
 		snprintf(buf, sz_buf, "%s couldn't get lock on eventlist\n", __func__);
 		httpd_resp_sendstr_chunk(req, buf);
 		return;
 	}
 
+	snprintf(buf, sz_buf, "\n*** objects ***\n");
+	httpd_resp_sendstr_chunk(req, buf);
+
+	if ( !s_object_list) {
+		snprintf(buf, sz_buf, "   no objects\n");
+		httpd_resp_sendstr_chunk(req, buf);
+
+	} else {
+		for (T_DISPLAY_OBJECT *obj=s_object_list; obj; obj=obj->nxt) {
+			snprintf(buf, sz_buf, "   object '%s'\n", obj->oid);
+			httpd_resp_sendstr_chunk(req, buf);
+			if (obj->data) {
+				for(T_DISPLAY_OBJECT_DATA *data = obj->data; data; data=data->nxt) {
+					if ( data->type == OBJT_BMP) {
+						snprintf(buf, sz_buf,"    id=%d, type=%d/%s, len=%d, url=%s\n",
+								data->id, data->type, object_type2text(data->type), data->len,
+								data->para.url
+						);
+					} else {
+						snprintf(buf, sz_buf,"    id=%d, type=%d/%s, len=%d\n",
+								data->id, data->type, object_type2text(data->type), data->len
+						);
+					}
+					httpd_resp_sendstr_chunk(req, buf);
+
+				}
+			} else {
+				snprintf(buf, sz_buf, "   no data list in object\n");
+				httpd_resp_sendstr_chunk(req, buf);
+			}
+
+		}
+	}
+
+	snprintf(buf, sz_buf, "\n*** events ***\n");
+	httpd_resp_sendstr_chunk(req, buf);
+
+	if ( !s_event_group_list) {
+		snprintf(buf, sz_buf, "   no events\n");
+		httpd_resp_sendstr_chunk(req, buf);
+
+	} else {
+		for ( T_EVENT_GROUP *evtgrp= s_event_group_list; evtgrp; evtgrp = evtgrp->nxt) {
+			snprintf(buf, sz_buf, "   Event id='%s':\n", evtgrp->id);
+			httpd_resp_sendstr_chunk(req, buf);
+
+			// INIT events
+			if (evtgrp->evt_init_list) {
+				snprintf(buf, sz_buf,"    INIT events:\n");
+				httpd_resp_sendstr_chunk(req, buf);
+
+				for (T_EVENT *evt = evtgrp->evt_init_list; evt; evt=evt->nxt) {
+					httpd_resp_sendstr_chunk(req,"     ");
+					event2text(evt, buf, sizeof(buf));
+					httpd_resp_sendstr_chunk(req, buf);
+					httpd_resp_sendstr_chunk(req,"\n");
+				}
+			} else {
+				snprintf(buf, sz_buf,"    no INIT events.\n");
+				httpd_resp_sendstr_chunk(req, buf);
+			}
+
+			// WORK events
+			if (evtgrp->evt_work_list) {
+				snprintf(buf, sz_buf,"    WORK events:\n");
+				httpd_resp_sendstr_chunk(req, buf);
+
+				for (T_EVENT *evt = evtgrp->evt_work_list; evt; evt=evt->nxt) {
+					httpd_resp_sendstr_chunk(req,"     ");
+					event2text(evt, buf, sizeof(buf));
+					httpd_resp_sendstr_chunk(req, buf);
+					httpd_resp_sendstr_chunk(req,"\n");
+
+				}
+			} else {
+				snprintf(buf, sz_buf,"\n  no WORK events.");
+				httpd_resp_sendstr_chunk(req, buf);
+			}
+
+			// FINAL events
+			if (evtgrp->evt_final_list) {
+				snprintf(buf, sz_buf,"    FINAL events:\n");
+				httpd_resp_sendstr_chunk(req, buf);
+
+				for (T_EVENT *evt = evtgrp->evt_final_list; evt; evt=evt->nxt) {
+					httpd_resp_sendstr_chunk(req,"     ");
+					event2text(evt, buf, sizeof(buf));
+					httpd_resp_sendstr_chunk(req, buf);
+					httpd_resp_sendstr_chunk(req,"\n");
+
+				}
+			} else {
+				snprintf(buf, sz_buf,"    no FINAL events.\n");
+				httpd_resp_sendstr_chunk(req, buf);
+			}
+		}
+	}
+
+
+	snprintf(buf, sz_buf, "\ntracks:\n");
+	httpd_resp_sendstr_chunk(req, buf);
+
+	for (int i = 0; i < N_TRACKS; i++) {
+		T_TRACK *track = &(tracks[i]);
+		if ( ! track->element_list) {
+			snprintf(buf, sz_buf, "* track %2d is empty\n", i);
+			httpd_resp_sendstr_chunk(req, buf);
+			continue; // nothing to process
+		}
+		snprintf(buf, sz_buf, "* track %2d:\n", i);
+		httpd_resp_sendstr_chunk(req, buf);
+		for( T_TRACK_ELEMENT *ele = track->element_list; ele; ele = ele->nxt) {
+			snprintf(buf,sz_buf, "    id=%d, event='%s', repeat=%d\n", ele->id, ele->evtgrp ? ele->evtgrp->id : "", ele->repeats);
+			httpd_resp_sendstr_chunk(req, buf);
+		}
+	}
+
+	/*
 	if ( !s_object_list) {
 		snprintf(buf, sz_buf, "\nno objectst");
 		httpd_resp_sendstr_chunk(req, buf);
@@ -222,6 +343,7 @@ static void get_handler_list(httpd_req_t *req) {
 			}
 		}
 	}
+	*/
 	httpd_resp_sendstr_chunk(req, "\n");
 
 	release_eventlist_lock();
@@ -319,18 +441,24 @@ static esp_err_t clear_data(char *msg, size_t sz_msg, run_status_type new_status
 	}
 
 	bool hasError = false;
-	if (scene_list_free() == ESP_OK) {
-		snprintfapp(msg,sz_msg,"event list cleared");
+	if (clear_event_group_list() == ESP_OK) {
+		snprintfapp(msg,sz_msg,"event group list cleared");
 	} else {
 		hasError=true;
-		snprintfapp(msg,sz_msg,"clear event list failed");
+		snprintfapp(msg,sz_msg,"clear event group list failed");
 	}
 
-	if ( object_list_free() == ESP_OK) {
+	if ( clear_object_list() == ESP_OK) {
 		snprintfapp(msg, sz_msg,", object list cleared");
 	} else {
 		hasError = true;
 		snprintfapp(msg,sz_msg - strlen(msg),", clear object list failed");
+	}
+	if ( clear_tracks() == ESP_OK) {
+		snprintfapp(msg, sz_msg,", track list cleared");
+	} else {
+		hasError = true;
+		snprintfapp(msg,sz_msg - strlen(msg),", clear track list failed");
 	}
 	return hasError ? ESP_FAIL : ESP_OK;
 

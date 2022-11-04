@@ -55,25 +55,6 @@ typedef enum {
 	EVT_STS_FINISHED  // event_finished
 } event_status_type;
 
-/*
-#define TEXT2OBJT(c) ( \
-	!strcasecmp(c,"clear") ? OBJT_CLEAR : \
-	!strcasecmp(c,"color") ? OBJT_COLOR : \
-	!strcasecmp(c,"color_transition") ? OBJT_COLOR_TRANSITION : \
-	!strcasecmp(c,"rainbow") ? OBJT_RAINBOW : \
-	!strcasecmp(c,"sparkle") ? OBJT_SPARKLE : \
-	!strcasecmp(c,"bmp") ? OBJT_BMP : OBJT_UNKNOWN \
-)
-
-#define OBJT2TEXT(c) ( \
-	c==OBJT_CLEAR ? "clear" : \
-	c==OBJT_COLOR ? "color" : \
-	c==OBJT_COLOR_TRANSITION ? "color_transition" : \
-	c==OBJT_RAINBOW ? "rainbow" : \
-	c==OBJT_SPARKLE ? "sparkle" : \
-	c==OBJT_BMP ? "bmp" : "unknown" \
-)
-*/
 
 //************* object and event definitions **************
 
@@ -103,17 +84,12 @@ typedef struct EVT_OBJECT {
 	struct EVT_OBJECT *nxt;
 } T_DISPLAY_OBJECT;
 
-//typedef struct {
-//	uint64_t time; // initial duration, when 0 execute immediately
-//	int64_t w_time; // working time, count doun from 'time'
-//} T_EVENT_PARA_WAIT;
 
 typedef struct EVENT {
 	uint32_t id;
 	event_type type; // what to do
-	event_status_type status;
+	//event_status_type status;
 	union {
-//		T_EVENT_PARA_WAIT wait;
 		char svalue[32];
 		double value;
 	} para;
@@ -147,6 +123,7 @@ typedef enum {
 typedef struct EVENT_GROUP {
 	char id[LEN_EVT_ID];
 
+	/*
 	event_status_type status;
 
 	int64_t time; // event time
@@ -165,8 +142,9 @@ typedef struct EVENT_GROUP {
 	char w_object_oid[LEN_EVT_OID];
 
 	// time dependend events,
-	uint32_t t_repeats; // 0=for evener
-	uint32_t w_t_repeats;
+//	uint32_t t_repeats; // 0=for evener
+//	uint32_t w_t_repeats;
+	*/
 
 	T_EVENT *evt_init_list;
 	T_EVENT *evt_work_list;
@@ -176,6 +154,7 @@ typedef struct EVENT_GROUP {
 	struct EVENT_GROUP *nxt;
 } T_EVENT_GROUP;
 
+/*
 typedef struct SCENE {
 	char id[LEN_EVT_ID];
 	event_status_type status;
@@ -185,6 +164,47 @@ typedef struct SCENE {
 	T_EVENT_GROUP *event_groups;
 	struct SCENE *nxt;
 } T_SCENE;
+*/
+
+typedef struct TRACK_ELEMENT {
+	uint32_t id;
+	int repeats;
+	//char evtgrp_id[LEN_EVT_ID];
+
+
+	event_status_type status;
+
+	uint32_t w_repeats;
+
+	int64_t time; // event time
+	uint32_t w_flags;
+	double w_pos;
+	double w_distance;
+	double w_len_factor;
+	double w_len_factor_delta;
+	double w_speed;
+	double w_acceleration;
+	double w_brightness;
+	double w_brightness_delta;
+	int64_t w_wait_time;
+	int64_t w_bmp_remaining_lines;
+	int32_t delta_pos; // +1 or -1
+	char w_object_oid[LEN_EVT_OID];
+
+	event_status_type evt_grp_current_status;
+	T_EVENT_GROUP *evtgrp;
+	T_EVENT *evt_work_current;
+
+	struct TRACK_ELEMENT *nxt;
+} T_TRACK_ELEMENT;
+
+typedef struct TRACK {
+	int id;
+	event_status_type status;
+	T_TRACK_ELEMENT *current_element;
+	T_TRACK_ELEMENT *element_list;
+} T_TRACK;
+
 
 
 #endif /* MAIN_TIMER_EVENTS_H_ */

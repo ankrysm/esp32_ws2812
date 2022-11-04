@@ -7,8 +7,12 @@
 
 #include "esp32_ws2812.h"
 
-T_SCENE *s_scene_list = NULL;
+//T_SCENE *s_scene_list = NULL;
+T_TRACK tracks[N_TRACKS];
+size_t sz_tracks = sizeof(tracks);
+
 T_DISPLAY_OBJECT *s_object_list = NULL;
+T_EVENT_GROUP *s_event_group_list = NULL;
 
 uint32_t cfg_flags = 0;
 uint32_t cfg_trans_flags = 0;
@@ -20,6 +24,7 @@ char last_loaded_file[LEN_PATH_MAX];
 
 void global_data_init() {
 	memset(last_loaded_file, 0, sizeof(last_loaded_file));
+	memset(tracks, 0, sizeof(tracks));
 }
 
 T_HTTP_PROCCESSING_TYPE http_processing[] = {
@@ -54,8 +59,8 @@ T_EVENT_CONFIG event_config_tab[] = {
 		{ET_BOUNCE, EVT_PARA_NONE, "bounce", "reverse speed", ""},
 		{ET_REVERSE, EVT_PARA_NONE, "reverse", "reverse paint direction", ""},
 		{ET_GOTO_POS, EVT_PARA_NUMERIC, "goto", "go to led position","new position"},
-		{ET_MARKER, EVT_PARA_STRING, "marker", "set marker","name of the marker"},
-		{ET_JUMP_MARKER, EVT_PARA_STRING, "jump_marker", "jump to marker","destination marker"},
+	//	{ET_MARKER, EVT_PARA_STRING, "marker", "set marker","name of the marker"},
+	//	{ET_JUMP_MARKER, EVT_PARA_STRING, "jump_marker", "jump to marker","destination marker"},
 		{ET_CLEAR,EVT_PARA_NONE, "clear", "blank the strip",""},
 		{ET_SET_BRIGHTNESS, EVT_PARA_NUMERIC,"brightness", "set brightness","brightness factor 0.0 .. 1.0"},
 		{ET_SET_BRIGHTNESS_DELTA, EVT_PARA_NUMERIC,"brightness_delta", "change brightness", "brightness delta per display cycle"},
