@@ -28,6 +28,15 @@ void process_object(T_TRACK_ELEMENT *ele) {
 		}
 	}
 	if (! obj) {
+		if ( ele->w_flags & EVFL_CLEARPIXEL) {
+			ele->w_flags &= ~EVFL_CLEARPIXEL; // reset the flag
+			uint32_t n = get_numleds();
+			ESP_LOGI(__func__,"clear pixel without object: whole strip: blank, numleds=%u", n);
+			T_COLOR_RGB bk={.r=0,.g=0,.b=0};
+			strip_set_range(0, n - 1, &bk);
+			return;
+		}
+
 		ESP_LOGI(__func__, "nothing to paint");
 		return;
 	}

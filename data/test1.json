@@ -60,9 +60,9 @@
 		],
      	 "work": [
      	 	{"type":"brightness_delta", "value":0.01},
-		 	{"type":"paint", "value":500},
+		 	{"type":"paint", "value":2000},
      	 	{"type":"brightness_delta", "value":-0.01},
-		 	{"type":"paint", "value":500}
+		 	{"type":"paint", "value":2000}
 		 ],
 		 "finalxx":[
 		 	{"type":"clear"}

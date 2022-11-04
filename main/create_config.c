@@ -8,7 +8,6 @@
 #include "esp32_ws2812.h"
 
 extern uint32_t cfg_flags;
-//extern uint32_t cfg_trans_flags;
 extern uint32_t cfg_numleds;
 extern uint32_t cfg_cycle;
 extern char *cfg_autoplayfile;

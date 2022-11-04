@@ -4,6 +4,11 @@
 			"list" :[
 			 	{"type":"color", "color":"green","len":2}
 			 ]
+		  },
+		  {  "id":"o2",
+			"list" :[
+			 	{"type":"color", "color":"blue","len":3}
+			 ]
 		  }
 	  ],
 	  "events": [
@@ -20,13 +25,33 @@
 		 	{"type":"bounce"},
 		 	{"type":"paint", "value":1000}
 		 ],
-		 "final":[
+		 "finalxx":[
 		 	{"type":"clear"}
 		 ]
-	 	}
+	 	},
+	 	{
+	 	 "id":"B",
+	 	 "init": [
+	 	 	{"type":"brightness", "value":0.1},
+     	 	{"type":"goto", "value":100},
+		 	{"type":"speed", "value":-2.5},
+     	 	{"type":"object","value":"o2"}
+	 	 ],
+     	 "work": [
+		 	{"type":"paint", "value":2000},
+		 	{"type":"bounce"},
+		 	{"type":"paint", "value":2000}
+		 ]
+	 	},
+	 	{"id":"STOP","work":[{"type":"clear"}]}
 	  ],
 	"tracks" : [
-		{"id":1, "elements":[{"event":"A"}] }
+		{"id":1, "elements":[
+			{"event":"A"},
+			{"event":"B"},
+			{"event":"A"},
+			{"event":"STOP"}
+		] }
 	]
 
 }
