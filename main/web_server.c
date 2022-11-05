@@ -55,7 +55,18 @@
 	"th, caption {" \
 		"background-color: #f1f3f4;" \
 		"font-weight: 700;" \
+	"}" \
+	"pre {" \
+		"background-color: darkblue;" \
+		"color: yellow;" \
+		"font-family: Fixedsys, Courier, monospace;" \
+		"padding: 1em;" \
+	"}" \
+	"code {" \
+		"font-family: monospace;" \
+		"white-space: pre;" \
 	"}"
+
 
 // from global_data.c
 extern T_EVENT_CONFIG event_config_tab[];
@@ -134,161 +145,186 @@ esp_err_t get_handler_settings_html(httpd_req_t *req) {
 esp_err_t get_handler_help_html(httpd_req_t *req) {
 	esp_err_t res = ESP_OK;
 	char txt[1024];
+    extern const unsigned char example_json_start[] asm("_binary_example_json_start");
+    extern const unsigned char example_json_end[]   asm("_binary_example_json_end");
+    extern const unsigned char example_config_json_start[] asm("_binary_example_config_json_start");
+    extern const unsigned char example_config_json_end[]   asm("_binary_example_config_json_end");
+    const size_t sz_example_json = (example_json_end - example_json_start);
+    const size_t sz_example_config_json = (example_config_json_end - example_config_json_start);
 
-	   // Send HTML file header
-	    httpd_resp_sendstr_chunk(req, HTML_HEADER);
 
-	    // HTML content
-	    httpd_resp_sendstr_chunk(req,"<h2>Help</h2>" );
+	// Send HTML file header
+	httpd_resp_sendstr_chunk(req, HTML_HEADER);
 
-	    /// **** common descriptions *****
-	    httpd_resp_sendstr_chunk(req,"<p>TODO</p>\n");
+	// HTML content
+	httpd_resp_sendstr_chunk(req,"<h2>Help</h2>" );
 
-	    // ****** Table: API reference **********
-	    // caption
-	    strlcpy(txt, "<table>\n" \
-	  	      "<caption>API reference</caption>\n", sizeof(txt));
-	    httpd_resp_sendstr_chunk(req,txt);
+	httpd_resp_sendstr_chunk(req,"<h3>API Description</h3>" );
 
-	    // header
-	    memset(txt, 0, sizeof(txt));
-	    strlcat(txt,"<tr>", sizeof(txt));
-	    strlcat(txt,"<th>", sizeof(txt)); strlcat(txt,"path", sizeof(txt)); strlcat(txt,"</th>", sizeof(txt));
-	    strlcat(txt,"<th>", sizeof(txt)); strlcat(txt,"description", sizeof(txt)); strlcat(txt,"</th>", sizeof(txt));
-	    strlcat(txt,"</tr>\n", sizeof(txt));
-	    httpd_resp_sendstr_chunk(req,txt);
+	/// **** common descriptions *****
+	httpd_resp_sendstr_chunk(req,"<p>Configurations and scenes are described in json files with sections</p>\n");
+	httpd_resp_sendstr_chunk(req,"<p>\"objects\" - what to display, colors and section length</p>\n");
+	httpd_resp_sendstr_chunk(req,"<p>\"events\" - how to arrange and modify displayed objects, move them, blink ... </p>\n");
+	httpd_resp_sendstr_chunk(req,"<p>\"tracks\" - arrange events, repeat them </p>\n");
 
-	    // content
-		for  (int i=0; http_processing[i].todo != HP_END_OF_LIST; i++) {
-			snprintf(txt, sizeof(txt),"<tr><td>%s%s</td><td>%s%s</td></tr>\n",
-					http_processing[i].path,
-					(http_processing[i].flags & HPF_PATH_FROM_URL ? "\"fname\"" : ""),
-					http_processing[i].help,
-					(http_processing[i].flags & HPF_POST ? ", requires POST data" : "")
-			);
-			httpd_resp_sendstr_chunk(req, txt);
+	// ****** Table: API reference **********
+	// caption
+	strlcpy(txt, "<table>\n" \
+			"<caption>API reference</caption>\n", sizeof(txt));
+	httpd_resp_sendstr_chunk(req,txt);
+
+	// header
+	memset(txt, 0, sizeof(txt));
+	strlcat(txt,"<tr>", sizeof(txt));
+	strlcat(txt,"<th>", sizeof(txt)); strlcat(txt,"path", sizeof(txt)); strlcat(txt,"</th>", sizeof(txt));
+	strlcat(txt,"<th>", sizeof(txt)); strlcat(txt,"description", sizeof(txt)); strlcat(txt,"</th>", sizeof(txt));
+	strlcat(txt,"</tr>\n", sizeof(txt));
+	httpd_resp_sendstr_chunk(req,txt);
+
+	// content
+	for  (int i=0; http_processing[i].todo != HP_END_OF_LIST; i++) {
+		snprintf(txt, sizeof(txt),"<tr><td>%s%s</td><td>%s%s</td></tr>\n",
+				http_processing[i].path,
+				(http_processing[i].flags & HPF_PATH_FROM_URL ? "\"fname\"" : ""),
+				http_processing[i].help,
+				(http_processing[i].flags & HPF_POST ? ", requires POST data" : "")
+		);
+		httpd_resp_sendstr_chunk(req, txt);
+	}
+
+	// trailer
+	strlcpy(txt, "</table>\n", sizeof(txt));
+	httpd_resp_sendstr_chunk(req,txt);
+
+	// ***** Table: "Event syntax" *************
+	// caption
+	strlcpy(txt, "<table>\n" \
+			"<caption>event syntax</caption>\n", sizeof(txt));
+	httpd_resp_sendstr_chunk(req,txt);
+
+	// header
+	memset(txt, 0, sizeof(txt));
+	strlcat(txt,"<tr>", sizeof(txt));
+	strlcat(txt,"<th>", sizeof(txt)); strlcat(txt,"json syntax", sizeof(txt)); strlcat(txt,"</th>", sizeof(txt));
+	strlcat(txt,"<th>", sizeof(txt)); strlcat(txt,"description", sizeof(txt)); strlcat(txt,"</th>", sizeof(txt));
+	strlcat(txt,"</tr>\n", sizeof(txt));
+	httpd_resp_sendstr_chunk(req,txt);
+
+	// content
+	for (int i=0; event_config_tab[i].evt_type != ET_NONE; i++) {
+		int evtcfg = event_config_tab[i].evt_para_type & 0x0F;
+		bool optional_para = event_config_tab[i].evt_para_type & EVT_PARA_OPTIONAL;
+		switch (evtcfg) {
+		case EVT_PARA_NONE:
+			snprintf(txt, sizeof(txt), "<tr><td>{\"type\":\"%s\"}</td><td>%s%s</td></tr>\n",
+					event_config_tab[i].name,
+					event_config_tab[i].help,
+					(optional_para ? "(optional)":""));
+			break;
+		case EVT_PARA_NUMERIC:
+			snprintf(txt, sizeof(txt), "<tr><td>{\"type\":\"%s\", \"value\":&lt;%s&gt;}</td><td>%s%s</td></tr>\n",
+					event_config_tab[i].name,
+					event_config_tab[i].parahelp,
+					event_config_tab[i].help,
+					(optional_para ? "(optional)":""));
+			break;
+		case EVT_PARA_STRING:
+			snprintf(txt, sizeof(txt), "<tr><td>{\"type\":\"%s\", \"value\":\"&lt;%s&gt;\" }</td><td>%s%s</td></tr>\n",
+					event_config_tab[i].name,
+					event_config_tab[i].parahelp,
+					event_config_tab[i].help,
+					(optional_para ? "(optional)":""));
+			break;
 		}
+		httpd_resp_sendstr_chunk(req, txt);
+	}
 
-		// trailer
-	    strlcpy(txt, "</table>\n", sizeof(txt));
-	    httpd_resp_sendstr_chunk(req,txt);
+	// trailer
+	strlcpy(txt, "</table>\n", sizeof(txt));
+	httpd_resp_sendstr_chunk(req,txt);
 
-	    // ***** Table: "Event syntax" *************
-	    // caption
-	    strlcpy(txt, "<table>\n" \
-	  	      "<caption>event syntax</caption>\n", sizeof(txt));
-	    httpd_resp_sendstr_chunk(req,txt);
+	// ****** Table: object parameter **********
+	// caption
+	strlcpy(txt, "<table>\n" \
+			"<caption>object parameter</caption>\n", sizeof(txt));
+	httpd_resp_sendstr_chunk(req,txt);
 
-	    // header
-	    memset(txt, 0, sizeof(txt));
-	    strlcat(txt,"<tr>", sizeof(txt));
-	    strlcat(txt,"<th>", sizeof(txt)); strlcat(txt,"json syntax", sizeof(txt)); strlcat(txt,"</th>", sizeof(txt));
-	    strlcat(txt,"<th>", sizeof(txt)); strlcat(txt,"description", sizeof(txt)); strlcat(txt,"</th>", sizeof(txt));
-	    strlcat(txt,"</tr>\n", sizeof(txt));
-	    httpd_resp_sendstr_chunk(req,txt);
+	// header
+	memset(txt, 0, sizeof(txt));
+	strlcat(txt,"<tr>", sizeof(txt));
+	strlcat(txt,"<th>", sizeof(txt)); strlcat(txt,"attribute name", sizeof(txt)); strlcat(txt,"</th>", sizeof(txt));
+	strlcat(txt,"<th>", sizeof(txt)); strlcat(txt,"description", sizeof(txt)); strlcat(txt,"</th>", sizeof(txt));
+	strlcat(txt,"</tr>\n", sizeof(txt));
+	httpd_resp_sendstr_chunk(req,txt);
 
-	    // content
-	    for (int i=0; event_config_tab[i].evt_type != ET_NONE; i++) {
-	    	int evtcfg = event_config_tab[i].evt_para_type & 0x0F;
-	    	bool optional_para = event_config_tab[i].evt_para_type & EVT_PARA_OPTIONAL;
-	    	switch (evtcfg) {
-	    	case EVT_PARA_NONE:
-	    		snprintf(txt, sizeof(txt), "<tr><td>{\"type\":\"%s\"}</td><td>%s%s</td></tr>\n",
-	    				event_config_tab[i].name,
-						event_config_tab[i].help,
-	    				(optional_para ? "(optional)":""));
-	    		break;
-	    	case EVT_PARA_NUMERIC:
-	    		snprintf(txt, sizeof(txt), "<tr><td>{\"type\":\"%s\", \"value\":&lt;%s&gt;}</td><td>%s%s</td></tr>\n",
-	    				event_config_tab[i].name,
-						event_config_tab[i].parahelp,
-						event_config_tab[i].help,
-	    				(optional_para ? "(optional)":""));
-	    		break;
-	    	case EVT_PARA_STRING:
-	    		snprintf(txt, sizeof(txt), "<tr><td>{\"type\":\"%s\", \"value\":\"&lt;%s&gt;\" }</td><td>%s%s</td></tr>\n",
-	    				event_config_tab[i].name,
-						event_config_tab[i].parahelp,
-						event_config_tab[i].help,
-	    				(optional_para ? "(optional)":""));
-	    		break;
-	    	}
-			httpd_resp_sendstr_chunk(req, txt);
-	    }
+	// content
+	for  (int i=0; object_attr_config_tab[i].type != OBJATTR_EOT; i++) {
+		snprintf(txt, sizeof(txt),"<tr><td>\"%s\"</td><td>%s</td></tr>\n",
+				object_attr_config_tab[i].name,
+				object_attr_config_tab[i].help
+		);
+		httpd_resp_sendstr_chunk(req, txt);
+	}
 
-	    // trailer
-	    strlcpy(txt, "</table>\n", sizeof(txt));
-	    httpd_resp_sendstr_chunk(req,txt);
+	// trailer
+	strlcpy(txt, "</table>\n", sizeof(txt));
+	httpd_resp_sendstr_chunk(req,txt);
 
-	    // ****** Table: object parameter **********
-	    // caption
-	    strlcpy(txt, "<table>\n" \
-	  	      "<caption>object parameter</caption>\n", sizeof(txt));
-	    httpd_resp_sendstr_chunk(req,txt);
+	// ****** Table: object definitions **********
+	// caption
+	strlcpy(txt, "<table>\n" \
+			"<caption>object definition</caption>\n", sizeof(txt));
+	httpd_resp_sendstr_chunk(req,txt);
 
-	    // header
-	    memset(txt, 0, sizeof(txt));
-	    strlcat(txt,"<tr>", sizeof(txt));
-	    strlcat(txt,"<th>", sizeof(txt)); strlcat(txt,"attribute name", sizeof(txt)); strlcat(txt,"</th>", sizeof(txt));
-	    strlcat(txt,"<th>", sizeof(txt)); strlcat(txt,"description", sizeof(txt)); strlcat(txt,"</th>", sizeof(txt));
-	    strlcat(txt,"</tr>\n", sizeof(txt));
-	    httpd_resp_sendstr_chunk(req,txt);
+	// header
+	memset(txt, 0, sizeof(txt));
+	strlcat(txt,"<tr>", sizeof(txt));
+	strlcat(txt,"<th>", sizeof(txt)); strlcat(txt,"\"type\"", sizeof(txt)); strlcat(txt,"</th>", sizeof(txt));
+	strlcat(txt,"<th>", sizeof(txt)); strlcat(txt,"parameter group 1", sizeof(txt)); strlcat(txt,"</th>", sizeof(txt));
+	strlcat(txt,"<th>", sizeof(txt)); strlcat(txt,"parameter group 2", sizeof(txt)); strlcat(txt,"</th>", sizeof(txt));
+	strlcat(txt,"<th>", sizeof(txt)); strlcat(txt,"description", sizeof(txt)); strlcat(txt,"</th>", sizeof(txt));
+	strlcat(txt,"</tr>\n", sizeof(txt));
+	httpd_resp_sendstr_chunk(req,txt);
 
-	    // content
-		for  (int i=0; object_attr_config_tab[i].type != OBJATTR_EOT; i++) {
-			snprintf(txt, sizeof(txt),"<tr><td>\"%s\"</td><td>%s</td></tr>\n",
-					object_attr_config_tab[i].name,
-					object_attr_config_tab[i].help
-			);
-			httpd_resp_sendstr_chunk(req, txt);
-		}
-
-		// trailer
-	    strlcpy(txt, "</table>\n", sizeof(txt));
-	    httpd_resp_sendstr_chunk(req,txt);
-
-	    // ****** Table: object definitions **********
-	    // caption
-	    strlcpy(txt, "<table>\n" \
-	  	      "<caption>object definition</caption>\n", sizeof(txt));
-	    httpd_resp_sendstr_chunk(req,txt);
-
-	    // header
-	    memset(txt, 0, sizeof(txt));
-	    strlcat(txt,"<tr>", sizeof(txt));
-	    strlcat(txt,"<th>", sizeof(txt)); strlcat(txt,"\"type\"", sizeof(txt)); strlcat(txt,"</th>", sizeof(txt));
-	    strlcat(txt,"<th>", sizeof(txt)); strlcat(txt,"parameter group 1", sizeof(txt)); strlcat(txt,"</th>", sizeof(txt));
-	    strlcat(txt,"<th>", sizeof(txt)); strlcat(txt,"parameter group 2", sizeof(txt)); strlcat(txt,"</th>", sizeof(txt));
-	    strlcat(txt,"<th>", sizeof(txt)); strlcat(txt,"description", sizeof(txt)); strlcat(txt,"</th>", sizeof(txt));
-	    strlcat(txt,"</tr>\n", sizeof(txt));
-	    httpd_resp_sendstr_chunk(req,txt);
-
-	    // content
-		for  (int i=0; object_config_tab[i].type != OBJT_EOT; i++) {
-			char g1[64];
-			char g2[64];
+	// content
+	for  (int i=0; object_config_tab[i].type != OBJT_EOT; i++) {
+		char g1[64];
+		char g2[64];
 
 
-			memset(g1,0,sizeof(g1));
-			memset(g2,0,sizeof(g2));
-			object_attr_group2text(object_config_tab[i].attr_group1, g1, sizeof(g1));
-			object_attr_group2text(object_config_tab[i].attr_group2, g2, sizeof(g2));
-			snprintf(txt, sizeof(txt),"<tr><td>\"%s\"</td><td>%s</td><td>%s</td><td>%s</td></tr>\n",
-					object_config_tab[i].name,
-					g1, g2,
-					object_config_tab[i].help
-			);
-			httpd_resp_sendstr_chunk(req, txt);
-		}
+		memset(g1,0,sizeof(g1));
+		memset(g2,0,sizeof(g2));
+		object_attr_group2text(object_config_tab[i].attr_group1, g1, sizeof(g1));
+		object_attr_group2text(object_config_tab[i].attr_group2, g2, sizeof(g2));
+		snprintf(txt, sizeof(txt),"<tr><td>\"%s\"</td><td>%s</td><td>%s</td><td>%s</td></tr>\n",
+				object_config_tab[i].name,
+				g1, g2,
+				object_config_tab[i].help
+		);
+		httpd_resp_sendstr_chunk(req, txt);
+	}
 
-		// trailer
-	    strlcpy(txt, "</table>\n", sizeof(txt));
-	    httpd_resp_sendstr_chunk(req,txt);
+	// trailer
+	strlcpy(txt, "</table>\n", sizeof(txt));
+	httpd_resp_sendstr_chunk(req,txt);
 
-	    // Footer
-	    httpd_resp_sendstr_chunk(req, HTML_FOOTER);
-	    // finished
-	    httpd_resp_send_chunk(req, NULL, 0);
+	// examples
+	httpd_resp_sendstr_chunk(req,"<h3>Examples</h3>\n" );
+
+	httpd_resp_sendstr_chunk(req,"<p>Example of a displayed scene</p>\n" );
+	httpd_resp_sendstr_chunk(req, "<pre><code class=\"language-json\">\n");
+	httpd_resp_send_chunk(req, (const char *)example_json_start, sz_example_json);
+	httpd_resp_sendstr_chunk(req,"</code></pre>\n");
+
+	httpd_resp_sendstr_chunk(req,"<p>Example of a configuration file</p>\n" );
+	httpd_resp_sendstr_chunk(req, "<pre><code class=\"language-json\">\n");
+	httpd_resp_send_chunk(req, (const char *)example_config_json_start, sz_example_config_json);
+	httpd_resp_sendstr_chunk(req,"</code></pre>\n");
+
+	// Footer
+	httpd_resp_sendstr_chunk(req, HTML_FOOTER);
+	// finished
+	httpd_resp_send_chunk(req, NULL, 0);
 
 	return res;
 }

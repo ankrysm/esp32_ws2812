@@ -17,6 +17,7 @@
 		  }
 
 	  ],
+
 	  "events": [
 	 	{
 	 	 "id":"A",
@@ -63,14 +64,14 @@
 	 	},
 	 	{"id":"STOP","work":[{"type":"clear"}]}
 	  ],
-	"tracks" : [
+
+	  "tracks" : [
 		{"id":1, "elements":[
 			{"event":"A","repeat":3},
-			{"event":"B","repeat":300},
+			{"event":"B","repeat":3},
 			{"event":"A","repeat":3},
 			{"event":"STOP"}
 		] },
 		{"id":2, "elements":[{"event":"C","repeat":10}]}
-	]
-
+	 ]
 }
