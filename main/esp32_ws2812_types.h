@@ -37,6 +37,7 @@ typedef enum {
 	HP_STOP,
 	HP_PAUSE,
 	HP_BLANK,
+	HP_ASK,
 	HP_CONFIG_GET,
 	HP_CONFIG_SET,
 	HP_RESET,

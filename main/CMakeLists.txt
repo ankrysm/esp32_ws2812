@@ -8,7 +8,8 @@ set(COMPONENT_SRCS
 					)
 set(COMPONENT_ADD_INCLUDEDIRS ".")
 
-set(COMPONENT_EMBED_FILES "favicon.ico" "upload_script.html" "ledstrip.png" "example.json" "example_config.json")
+set(COMPONENT_EMBED_FILES "favicon.ico" "upload_script.html" "ledstrip.png" "example.json" "example_config.json" "stylesheet.css"
+		"main_page.html" "main_content.html")
 
 
 register_component()

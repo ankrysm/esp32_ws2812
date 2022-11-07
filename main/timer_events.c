@@ -203,13 +203,20 @@ void scenes_start() {
     s_timer_period = s_timer_period_new;
 }
 
-void scenes_stop() {
+void scenes_stop(bool flag_blank) {
 	// timer stops by themselves
 	ESP_LOGI(__func__, "start");
 	xEventGroupClearBits(s_timer_event_group, EVENT_BITS_ALL);
-    xEventGroupSetBits(s_timer_event_group, EVENT_BIT_STOP);
+	if ( flag_blank) {
+		xEventGroupSetBits(s_timer_event_group, EVENT_BIT_STOP|EVENT_BIT_BLANK);
+		make_it_blank();
+	} else {
+		xEventGroupSetBits(s_timer_event_group, EVENT_BIT_STOP);
+	}
+	bmp_stop_processing();
 }
 
+/*
 void scenes_blank() {
 	// timer stops by themselves
 	ESP_LOGI(__func__, "start");
@@ -218,6 +225,7 @@ void scenes_blank() {
     make_it_blank();
     bmp_stop_processing();
 }
+//*/
 
 void scenes_pause() {
 	ESP_LOGI(__func__, "start");
@@ -247,7 +255,8 @@ run_status_type set_scene_status(run_status_type new_status) {
 	ESP_LOGI(__func__, "start %d",new_status);
 	run_status_type ret = s_run_status;
 	switch(new_status) {
-	case RUN_STATUS_STOPPED: scenes_stop(); break;
+	case RUN_STATUS_STOPPED: scenes_stop(false); break;
+	case RUN_STATUS_STOP_AND_BLANK: scenes_stop(true); break;
 	case RUN_STATUS_RUNNING: scenes_start(); break;
 	case RUN_STATUS_PAUSED:  scenes_pause(); break;
 	default:

@@ -1,0 +1,29 @@
+<div class="btn-group">
+  <button type="button" onclick="getRunStatus('r')">PLAY...</button>
+  <button type="button" onclick="getRunStatus('p')">PAUSE...</button>
+  <button type="button" onclick="getRunStatus('s')">STOP...</button>
+  <button type="button" onclick="getRunStatus('i')">Get status</button>
+</div>
+
+<br>
+<div id="runstatus"></div>
+
+<script>
+function getRunStatus(url) {
+  var xhttp = new XMLHttpRequest();
+  xhttp.onreadystatechange = function() {
+    if (this.readyState == 4 && this.status == 200) {
+    	getRunStatusFunction(this);
+    }
+  };
+  xhttp.open("GET", url, true);
+  xhttp.send();
+}
+function getRunStatusFunction(json) {
+  var jsonDoc = JSON.parse(json.responseText);
+  var runstatusDiv = document.getElementById("runstatus");
+  runstatusDiv.innerHTML = jsonDoc.text;
+  runstatusDiv.style.color = jsonDoc.color;
+  runstatusDiv.style.backgroundColor = jsonDoc.bgcolor;
+}
+</script>

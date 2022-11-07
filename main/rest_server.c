@@ -246,104 +246,6 @@ static void get_handler_list(httpd_req_t *req) {
 		}
 	}
 
-	/*
-	if ( !s_object_list) {
-		snprintf(buf, sz_buf, "\nno objectst");
-		httpd_resp_sendstr_chunk(req, buf);
-	} else {
-		for (T_DISPLAY_OBJECT *obj=s_object_list; obj; obj=obj->nxt) {
-			snprintf(buf, sz_buf, "\n   object '%s'", obj->oid);
-			httpd_resp_sendstr_chunk(req, buf);
-			if (obj->data) {
-				for(T_DISPLAY_OBJECT_DATA *data = obj->data; data; data=data->nxt) {
-					if ( data->type == OBJT_BMP) {
-						snprintf(buf, sz_buf,"\n    id=%d, type=%d/%s, len=%d, url=%s",
-								data->id, data->type, object_type2text(data->type), data->len,
-								data->para.url
-						);
-					} else {
-						snprintf(buf, sz_buf,"\n    id=%d, type=%d/%s, len=%d",
-								data->id, data->type, object_type2text(data->type), data->len
-						);
-					}
-					httpd_resp_sendstr_chunk(req, buf);
-
-				}
-			} else {
-				snprintf(buf, sz_buf, "\n   no data list in object");
-				httpd_resp_sendstr_chunk(req, buf);
-			}
-
-		}
-	}
-
-
-	if ( !s_scene_list) {
-		snprintf(buf, sz_buf, "\nno scenes");
-		httpd_resp_sendstr_chunk(req, buf);
-
-	} else {
-		for (T_SCENE *scene = s_scene_list; scene; scene=scene->nxt) {
-			if ( !scene->event_groups) {
-				snprintf(buf, sz_buf, "\nno events");
-				httpd_resp_sendstr_chunk(req, buf);
-			} else {
-				for ( T_EVENT_GROUP *evtgrp= scene->event_groups; evtgrp; evtgrp = evtgrp->nxt) {
-					snprintf(buf, sz_buf, "\nEvent id='%s', repeats=%u:", evtgrp->id, evtgrp->t_repeats);
-					httpd_resp_sendstr_chunk(req, buf);
-
-					// INIT events
-					if (evtgrp->evt_init_list) {
-						snprintf(buf, sz_buf,"\n  INIT events:");
-						httpd_resp_sendstr_chunk(req, buf);
-
-						for (T_EVENT *evt = evtgrp->evt_init_list; evt; evt=evt->nxt) {
-							httpd_resp_sendstr_chunk(req,"\n  ");
-							event2text(evt, buf, sizeof(buf));
-							httpd_resp_sendstr_chunk(req, buf);
-
-						}
-					} else {
-						snprintf(buf, sz_buf,"\n  no INIT events.");
-						httpd_resp_sendstr_chunk(req, buf);
-					}
-
-					// WORK events
-					if (evtgrp->evt_work_list) {
-						snprintf(buf, sz_buf,"\n  WORK events:");
-						httpd_resp_sendstr_chunk(req, buf);
-
-						for (T_EVENT *evt = evtgrp->evt_work_list; evt; evt=evt->nxt) {
-							httpd_resp_sendstr_chunk(req,"\n  ");
-							event2text(evt, buf, sizeof(buf));
-							httpd_resp_sendstr_chunk(req, buf);
-
-						}
-					} else {
-						snprintf(buf, sz_buf,"\n  no WORK events.");
-						httpd_resp_sendstr_chunk(req, buf);
-					}
-
-					// FINAL events
-					if (evtgrp->evt_final_list) {
-						snprintf(buf, sz_buf,"\n  FINAL events:");
-						httpd_resp_sendstr_chunk(req, buf);
-
-						for (T_EVENT *evt = evtgrp->evt_final_list; evt; evt=evt->nxt) {
-							httpd_resp_sendstr_chunk(req,"\n  ");
-							event2text(evt, buf, sizeof(buf));
-							httpd_resp_sendstr_chunk(req, buf);
-
-						}
-					} else {
-						snprintf(buf, sz_buf,"\n  no FINAL events.");
-						httpd_resp_sendstr_chunk(req, buf);
-					}
-				}
-			}
-		}
-	}
-	*/
 	httpd_resp_sendstr_chunk(req, "\n");
 
 	release_eventlist_lock();
@@ -422,12 +324,59 @@ static void get_handler_status_current(httpd_req_t *req) {
 	response_with_status(req, "", get_scene_status());
 }
 
+// run/pause/stop/blank
 static void get_handler_scene_new_status(httpd_req_t *req, run_status_type new_status) {
-	run_status_type old_status = get_scene_status();
-	if ( old_status != new_status) {
-		old_status = set_scene_status(new_status);
+
+	if ( new_status == RUN_STATUS_ASK) {
+		new_status = get_scene_status();
+	} else {
+		// not ask, set it
+		run_status_type old_status = get_scene_status();
+		if ( old_status != new_status) {
+			old_status = set_scene_status(new_status);
+		}
 	}
-	response_with_status(req, old_status != new_status ? "new status set" : "", new_status);
+	httpd_resp_set_type(req, "application/json");
+
+	cJSON *root = cJSON_CreateObject();
+
+	char txt[32];
+	char color[32];
+	char bgcolor[32];
+	strlcpy(bgcolor,"black", sizeof(color));
+
+	switch (new_status) {
+	case RUN_STATUS_STOPPED:
+	case RUN_STATUS_STOP_AND_BLANK:
+		strlcpy(color,"red", sizeof(color));
+		strlcpy(txt,"STOPPED", sizeof(txt));
+		break;
+	case RUN_STATUS_RUNNING:
+		strlcpy(color,"green", sizeof(color));
+		strlcpy(txt,"RUNNING", sizeof(txt));
+		break;
+	case RUN_STATUS_PAUSED:
+		strlcpy(color,"yellow", sizeof(color));
+		strlcpy(txt,"PAUSE", sizeof(txt));
+		break;
+	default:
+		strlcpy(color,"lightblue", sizeof(color));
+		strlcpy(txt,"UNKNOWN", sizeof(txt));
+	}
+	cJSON_AddStringToObject(root, "color", color);
+	cJSON_AddStringToObject(root, "bgcolor", bgcolor);
+	cJSON_AddStringToObject(root, "text", txt);
+	cJSON_AddNumberToObject(root, "scene_time", get_scene_time());
+
+	char *resp = cJSON_PrintUnformatted(root);
+	ESP_LOGI(__func__,"RESP=%s", resp?resp:"nix");
+
+	httpd_resp_sendstr_chunk(req, resp);
+	httpd_resp_sendstr_chunk(req, "\n"); // response more readable
+
+	free((void *)resp);
+	cJSON_Delete(root);
+
 }
 
 static esp_err_t clear_data(char *msg, size_t sz_msg, run_status_type new_status) {
@@ -498,7 +447,7 @@ static void get_handler_reset(httpd_req_t *req) {
 
 	// clear nvs
 	nvs_flash_erase();
-	scenes_stop();
+	scenes_stop(true);
 
 	char resp_str[64];
 	snprintf(resp_str, sizeof(resp_str),"RESET done\n");
@@ -507,12 +456,14 @@ static void get_handler_reset(httpd_req_t *req) {
 	get_handler_restart(req);
 }
 
+/*
 static void get_handler_blank(httpd_req_t *req) {
 
 	scenes_blank();
 
 	response_with_status(req, "BLANK done", get_scene_status());
 }
+//*/
 
 static void get_handler_config(httpd_req_t *req, char *msg) {
     httpd_resp_set_type(req, "application/json");
@@ -840,16 +791,7 @@ static esp_err_t get_handler_main(httpd_req_t *req)
 	if (!pt ) {
 		// try web site
 		res = get_handler_html(req);
-		if ( res == ESP_OK) {
-			return res;
-		}
-
-        snprintf(resp_str,sizeof(resp_str),"nothing found");
-        ESP_LOGE(__func__, "%s", resp_str);
-		snprintfapp(resp_str, sizeof(resp_str), "\n");
-        httpd_resp_send_err(req, HTTPD_404_NOT_FOUND, resp_str);
-        return ESP_FAIL;
-
+		return res;
 	}
 
 	if (pt->flags & HPF_POST) {
@@ -922,7 +864,11 @@ static esp_err_t get_handler_main(httpd_req_t *req)
 		break;
 
 	case HP_BLANK:
-		get_handler_blank(req);
+		get_handler_scene_new_status(req, RUN_STATUS_STOP_AND_BLANK);
+		break;
+
+	case HP_ASK:
+		get_handler_scene_new_status(req, RUN_STATUS_ASK);
 		break;
 
 	case HP_CONFIG_GET:

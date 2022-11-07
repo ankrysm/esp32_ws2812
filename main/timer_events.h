@@ -24,14 +24,19 @@ typedef enum {
 	RUN_STATUS_NOT_SET,
 	RUN_STATUS_STOPPED,
 	RUN_STATUS_RUNNING,
-	RUN_STATUS_PAUSED
+	RUN_STATUS_PAUSED,
+	RUN_STATUS_STOP_AND_BLANK,
+	RUN_STATUS_ASK
 } run_status_type;
 
 #define RUN_STATUS_TYPE2TEXT(c) ( \
 	c == RUN_STATUS_NOT_SET ? "NOT SET" : \
 	c == RUN_STATUS_STOPPED ? "STOPPED" : \
 	c == RUN_STATUS_RUNNING ? "RUNNING" : \
-	c == RUN_STATUS_PAUSED  ? "PAUSED" : "???" )
+	c == RUN_STATUS_PAUSED  ? "PAUSED" : \
+	c == RUN_STATUS_STOP_AND_BLANK ? "STOPP AND BLANK" : \
+	c == RUN_STATUS_ASK ? "ASK" : \
+			"???" )
 
 
 /**********************************************
