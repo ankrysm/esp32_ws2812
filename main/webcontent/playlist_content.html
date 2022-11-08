@@ -1,0 +1,74 @@
+	<article>
+		<h2>Playlist</h2>
+		<table id="playlist"></table>
+		<p id="msg"></p>
+
+
+	</article>
+<script>
+function getFiles() {
+	var xhttp = new XMLHttpRequest();
+	xhttp.onreadystatechange = function() {
+	  if (this.readyState == 4 ){
+	  	if (this.status == 200) {
+	  		getFilesFunction(this);
+			getFilesMsgFunction("done.");
+	  	} else {
+	  		getFilesErrFunction(this.statusText);
+	  	}
+	  } else {
+		  getFilesMsgFunction("retrieving file list ...");
+	  }
+	};
+	xhttp.open("GET", "f/list", true);
+	xhttp.send();
+}
+
+function getFilesErrFunction(text) {
+	  var errmsgdiv = document.getElementById("msg");
+	  errmsgdiv.innerHTML = text;
+	  errmsgdiv.style.color = "black";
+	  errmsgdiv.style.backgroundColor = "red";
+}
+
+function getFilesMsgFunction(text) {
+	  var errmsgdiv = document.getElementById("msg");
+	  errmsgdiv.innerHTML = text;
+}
+
+function getFilesFunction(json) {
+	var j = JSON.parse(json.responseText);
+	var files = j.files;
+    var table="<tr><th>Name</th><th>Size</th><th>Actions</th></tr>\n";
+    files.forEach((item) => {
+		table +='<tr><td>'
+		+'<a href="/f/get/'+item.name+'">'+item.name+'</a>'
+		+'</td><td>' + item.sz +'</td><td>'
+		+'<button type="button" onclick="playfile('+"'"+item.name+"'"+')">PLAY</button>'
+		+'</td></tr>\n';
+	});
+	document.getElementById("playlist").innerHTML = table;
+}
+
+function playfile(fname) {
+	var xhttp = new XMLHttpRequest();
+	xhttp.onreadystatechange = function() {
+	  if (this.readyState == 4 ){
+	  	if (this.status == 200) {
+			  getFilesMsgFunction("loading file " + fname + " done");
+	  	} else {
+	  		getFilesErrFunction(this.statusText);
+	  	}
+	  } else {
+		  getFilesMsgFunction("loading file " + fname);
+	  }
+	};
+	xhttp.open("GET", "f/load/" + fname, true);
+	xhttp.send();
+
+}
+
+function onBodyLoad() {
+	getFiles();
+}
+</script>

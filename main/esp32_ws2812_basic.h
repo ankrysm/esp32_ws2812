@@ -38,7 +38,7 @@
 #include "esp_log.h"
 #include "esp_random.h"
 #include "bootloader_random.h"
-
+#include "esp_app_desc.h"
 
 #include "esp_smartconfig.h"
 #include "lwip/apps/netbiosns.h"

@@ -54,32 +54,30 @@ static void http_help(httpd_req_t *req) {
 		httpd_resp_sendstr_chunk(req, resp_str);
 	}
 
-	/*
-	int pos =0;
-	httpd_resp_sendstr_chunk(req, "event syntax:\n");
-	while (print_event_config_r(&pos, resp_str, sizeof(resp_str))) {
-		httpd_resp_sendstr_chunk(req, resp_str);
-		httpd_resp_sendstr_chunk(req, "\n");
-	}
-	*/
 }
 
 static void add_system_informations(cJSON *root) {
 	esp_chip_info_t chip_info;
 	esp_chip_info(&chip_info);
 
+	const esp_app_desc_t *app_desc = esp_app_get_description();
+
 	size_t total,used;
 	storage_info(&total,&used);
 
-	cJSON *sysinfo = cJSON_AddObjectToObject(root,"system");
-	cJSON *fs_size = cJSON_AddObjectToObject(sysinfo,"filesystem");
+//	cJSON *sysinfo = cJSON_AddObjectToObject(root,"system");
+//	cJSON *fs_size = cJSON_AddObjectToObject(sysinfo,"filesystem");
 
-	cJSON_AddStringToObject(sysinfo, "version", IDF_VER);
-	cJSON_AddNumberToObject(sysinfo, "cores", chip_info.cores);
-	cJSON_AddNumberToObject(sysinfo, "free_heap_size",esp_get_free_heap_size());
-	cJSON_AddNumberToObject(sysinfo, "minimum_free_heap_size",esp_get_minimum_free_heap_size());
-	cJSON_AddNumberToObject(fs_size, "total", total);
-	cJSON_AddNumberToObject(fs_size, "used", used);
+	cJSON_AddStringToObject(root, "version", IDF_VER);
+	cJSON_AddNumberToObject(root, "cores", chip_info.cores);
+	cJSON_AddNumberToObject(root, "free_heap_size",esp_get_free_heap_size());
+	cJSON_AddNumberToObject(root, "minimum_free_heap_size",esp_get_minimum_free_heap_size());
+	cJSON_AddNumberToObject(root, "filesystem_total", total);
+	cJSON_AddNumberToObject(root, "filesystem_used", used);
+	cJSON_AddStringToObject(root, "compile_date", app_desc->date);
+	cJSON_AddStringToObject(root, "compile_time", app_desc->time);
+	cJSON_AddStringToObject(root, "app_version", app_desc->version);
+
 
 }
 
@@ -270,11 +268,14 @@ static esp_err_t get_handler_file_list(httpd_req_t *req) {
         return ESP_FAIL;
     }
 
-    httpd_resp_set_type(req, "plain/text");
+    httpd_resp_set_type(req, "application/json");
+    cJSON *root = cJSON_CreateObject();
+    cJSON *files = cJSON_CreateArray();
+    cJSON_AddItemToObject(root, "files", files);
 
     // Iterate over all files / folders and fetch their names and sizes
     while ((entry = readdir(dir)) != NULL) {
-        entrytype = (entry->d_type == DT_DIR ? "directory" : "file");
+        entrytype = (entry->d_type == DT_DIR ? "dir" : "file");
 
         snprintf(entrypath, sizeof(entrypath), "%s/%s",fs_conf.base_path, entry->d_name);
         if (stat(entrypath, &entry_stat) == -1) {
@@ -285,11 +286,28 @@ static esp_err_t get_handler_file_list(httpd_req_t *req) {
             httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, msg);
             return ESP_FAIL;
         }
-        snprintf(msg, sizeof(msg), "%s '%s' (%ld bytes)\n", entrytype, entry->d_name, entry_stat.st_size);
-        httpd_resp_sendstr_chunk(req, msg);
+        cJSON *fentry = cJSON_CreateObject();
+        cJSON_AddStringToObject(fentry,"type",  entrytype);
+        cJSON_AddStringToObject(fentry,"name",  entry->d_name);
+        cJSON_AddNumberToObject(fentry,"sz",entry_stat.st_size);
+        cJSON_AddItemToArray(files, fentry);
+
+        snprintf(msg, sizeof(msg), "%s '%s' (%ld bytes)", entrytype, entry->d_name, entry_stat.st_size);
+        //httpd_resp_sendstr_chunk(req, msg);
         ESP_LOGI(__func__, "%s", msg);
     }
     closedir(dir);
+
+    char *resp = cJSON_PrintUnformatted(root);
+    ESP_LOGI(__func__,"RESP=%s", resp?resp:"nix");
+
+    //httpd_resp_sendstr_chunk(req, "STATUS=");
+	httpd_resp_sendstr_chunk(req, resp);
+	httpd_resp_sendstr_chunk(req, "\n"); // response more readable
+
+    free((void *)resp);
+    cJSON_Delete(root);
+
     ESP_LOGI(__func__,"ended.");
     return ESP_OK;
 }
@@ -312,7 +330,7 @@ static void response_with_status(httpd_req_t *req, char *msg, run_status_type st
     char *resp = cJSON_PrintUnformatted(root);
     ESP_LOGI(__func__,"RESP=%s", resp?resp:"nix");
 
-    httpd_resp_sendstr_chunk(req, "STATUS=");
+    //httpd_resp_sendstr_chunk(req, "STATUS=");
 	httpd_resp_sendstr_chunk(req, resp);
 	httpd_resp_sendstr_chunk(req, "\n"); // response more readable
 
@@ -341,30 +359,21 @@ static void get_handler_scene_new_status(httpd_req_t *req, run_status_type new_s
 	cJSON *root = cJSON_CreateObject();
 
 	char txt[32];
-	char color[32];
-	char bgcolor[32];
-	strlcpy(bgcolor,"black", sizeof(color));
 
 	switch (new_status) {
 	case RUN_STATUS_STOPPED:
 	case RUN_STATUS_STOP_AND_BLANK:
-		strlcpy(color,"red", sizeof(color));
 		strlcpy(txt,"STOPPED", sizeof(txt));
 		break;
 	case RUN_STATUS_RUNNING:
-		strlcpy(color,"green", sizeof(color));
 		strlcpy(txt,"RUNNING", sizeof(txt));
 		break;
 	case RUN_STATUS_PAUSED:
-		strlcpy(color,"yellow", sizeof(color));
 		strlcpy(txt,"PAUSE", sizeof(txt));
 		break;
 	default:
-		strlcpy(color,"lightblue", sizeof(color));
 		strlcpy(txt,"UNKNOWN", sizeof(txt));
 	}
-	cJSON_AddStringToObject(root, "color", color);
-	cJSON_AddStringToObject(root, "bgcolor", bgcolor);
 	cJSON_AddStringToObject(root, "text", txt);
 	cJSON_AddNumberToObject(root, "scene_time", get_scene_time());
 

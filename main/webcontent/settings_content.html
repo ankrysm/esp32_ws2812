@@ -1,0 +1,53 @@
+	<article>
+		<h2>Settings</h2>
+		<table id="settings"></table>
+		<p id="errmsg"></p>
+
+
+	</article>
+
+<script>
+
+function onBodyLoad() {
+	  var xhttp = new XMLHttpRequest();
+	  xhttp.onreadystatechange = function() {
+	    if (this.readyState == 4 ){
+	    	if (this.status == 200) {
+	    		getStatusFunction(this);
+	    	} else {
+	    		getRunStatusErrFunction(this.statustext);
+	    	}
+	    }
+	  };
+	  	xhttp.open("GET", "sts", true);
+	  	xhttp.send();
+}
+
+function getRunStatusErrFunction(text) {
+	  var errmsgdiv = document.getElementById("errmsg");
+	  errmsgdiv.innerHTML = text;
+	  errmsgdiv.style.color = "black";
+	  errmsgdiv.style.backgroundColor = "red";
+}
+
+function getStatusFunction(json) {
+    var j = JSON.parse(json.responseText);
+    var table="<tr><th>Attribute</th><th>Value</th></tr>\n";
+    table +="<tr><td>status</td><td>" + j.status +"</td></tr>\n";
+    table +="<tr><td>scene time</td><td>" + (j.scene_time/1000).toFixed(3) +" sec </td></tr>\n";
+    table +="<tr><td>timer period</td><td>" + j.timer_period +" ms</td></tr>\n";
+    table +="<tr><td>ESP-IDF version</td><td>" + j.version +"</td></tr>\n";
+    table +="<tr><td>cores</td><td>" + j.cores +"</td></tr>\n";
+    table +="<tr><td>free heap size</td><td>" + j.free_heap_size +" bytes</td></tr>\n";
+    table +="<tr><td>minimum free heap size</td><td>" + j.minimum_free_heap_size +" bytes</td></tr>\n";
+    table +="<tr><td>filesystem total</td><td>" + j.filesystem_total +" bytes </td></tr>\n";
+    table +="<tr><td>filesystem used</td><td>" + j.filesystem_used +" bytes ("+ (100 *j.filesystem_used / j.filesystem_total).toFixed(1)+"%)</td></tr>\n";
+    table +="<tr><td>compile_date</td><td>" + j.compile_date +"</td></tr>\n";
+    table +="<tr><td>compile_time</td><td>" + j.compile_time +"</td></tr>\n";
+    table +="<tr><td>app_version</td><td>" + j.app_version +"</td></tr>\n";
+    document.getElementById("settings").innerHTML = table;
+}
+</script>
+<noscript>
+	<p>no script</p>
+</noscript>

@@ -1,0 +1,82 @@
+	<article>
+		<h2>Run status</h2>
+		<p>set the runstatus</p>
+		<div id="runstatus" class="status-field"><p>......</p></div>
+		<br>
+		<div class="btn-group">
+		  	<button type="button" onclick="getRunStatus('r')">PLAY...</button>
+  			<button type="button" onclick="getRunStatus('p')">PAUSE...</button>
+  			<button type="button" onclick="getRunStatus('s')">STOP...</button>
+			<button type="button" onclick="getRunStatus('i')">refresh status</button>
+		</div>
+
+	</article>
+
+<script>
+let timerIsRunning=0;
+let timerVar;
+
+function getRunStatus(url) {
+  var xhttp = new XMLHttpRequest();
+  xhttp.onreadystatechange = function() {
+    if (this.readyState == 4 ){
+    	if (this.status == 200) {
+    		getRunStatusFunction(this);
+    	} else {
+    		getRunStatusErrFunction(this.statusText);
+    	}
+    }
+  };
+  	xhttp.open("GET", url, true);
+  	xhttp.send();
+}
+function setRunStatusInfo(text, color, bgcolor) {
+  var runstatusDiv = document.getElementById("runstatus");
+  runstatusDiv.innerHTML = text;
+  runstatusDiv.style.color = color;
+  runstatusDiv.style.backgroundColor = bgcolor;
+}
+
+function getRunStatusErrFunction(text) {
+	  var runstatusDiv = document.getElementById("runstatus");
+	  runstatusDiv.innerHTML = text;
+	  runstatusDiv.style.color = "black";
+	  runstatusDiv.style.backgroundColor = "red";
+}
+
+function getRunStatusFunction(json) {
+  var jsonDoc = JSON.parse(json.responseText);
+  var color = "black";
+  var bgcolor = "white";
+  var text = jsonDoc.text;
+  var t = (jsonDoc.scene_time / 1000).toFixed(3);
+  if ( text == "RUNNING") {
+	  bgcolor = "green";
+	  if ( timerIsRunning == 0) {
+		  timerVar = setInterval(refreshStatus, 1000);
+		  timerIsRunning=1;
+	  }
+  } else if (text == "STOPPED") {
+	  bgcolor = "red";
+	  if ( timerIsRunning > 0) {
+		  clearInterval(timerVar);
+		  timerIsRunning=0;
+	  }
+
+  } else if (text == "PAUSE" ) {
+	  bgcolor = "yellow";
+  }
+  text = text + " - " + t + " sec";
+  setRunStatusInfo(text,color,bgcolor);
+}
+
+function refreshStatus() {
+	  getRunStatus('i');
+}
+function onBodyLoad() {
+  refreshStatus();
+}
+</script>
+<noscript>
+	<p>no script</p>
+</noscript>

@@ -40,7 +40,7 @@ T_HTTP_PROCCESSING_TYPE http_processing[] = {
 		{"/f/list",    0,                          HP_FILE_LIST,   "list stored files"},
 		{"/f/store/",  HPF_PATH_FROM_URL|HPF_POST, HP_FILE_STORE,  "store JSON event lists into flash memory as \"fname\""},
 		{"/f/get/",    HPF_PATH_FROM_URL,          HP_FILE_GET,    "get content of stored file \"fname\""},
-		{"/f/load/",   HPF_PATH_FROM_URL,          HP_FILE_LOAD,   "load JSON event list stored in \"fname\" into memory"},
+		{"/f/load/",   HPF_PATH_FROM_URL,          HP_FILE_LOAD,   "load JSON event list stored as \"fname\" into memory"},
 		{"/f/delete/", HPF_PATH_FROM_URL,          HP_FILE_DELETE, "delete file \"fname\""},
 		{"/cfg/get",   0,                          HP_CONFIG_GET,  "show config"},
 		{"/cfg/set",   HPF_POST,                   HP_CONFIG_SET,  "set config"},
