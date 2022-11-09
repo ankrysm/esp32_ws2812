@@ -2,6 +2,7 @@
 		<h2>Run status</h2>
 		<p>set the runstatus</p>
 		<div id="runstatus" class="status-field"><p>......</p></div>
+		<div id="lastloadedfile" ><p>......</p></div>
 		<br>
 		<div class="btn-group">
 		  	<button type="button" onclick="getRunStatus('r')">PLAY...</button>
@@ -23,13 +24,14 @@ function getRunStatus(url) {
     	if (this.status == 200) {
     		getRunStatusFunction(this);
     	} else {
-    		getRunStatusErrFunction(this.statusText);
+    		alert(this.statusText);
     	}
     }
   };
   	xhttp.open("GET", url, true);
   	xhttp.send();
 }
+
 function setRunStatusInfo(text, color, bgcolor) {
   var runstatusDiv = document.getElementById("runstatus");
   runstatusDiv.innerHTML = text;
@@ -37,17 +39,11 @@ function setRunStatusInfo(text, color, bgcolor) {
   runstatusDiv.style.backgroundColor = bgcolor;
 }
 
-function getRunStatusErrFunction(text) {
-	  var runstatusDiv = document.getElementById("runstatus");
-	  runstatusDiv.innerHTML = text;
-	  runstatusDiv.style.color = "black";
-	  runstatusDiv.style.backgroundColor = "red";
-}
-
 function getRunStatusFunction(json) {
   var jsonDoc = JSON.parse(json.responseText);
   var color = "black";
   var bgcolor = "white";
+  var lastloadedfile = jsonDoc.last_loaded_file;
   var text = jsonDoc.text;
   var t = (jsonDoc.scene_time / 1000).toFixed(3);
   if ( text == "RUNNING") {
@@ -68,6 +64,7 @@ function getRunStatusFunction(json) {
   }
   text = text + " - " + t + " sec";
   setRunStatusInfo(text,color,bgcolor);
+  document.getElementById("lastloadedfile").innerHTML = "<p>last loaded file: <strong>"+ lastloadedfile+ "</strong></p>";
 }
 
 function refreshStatus() {

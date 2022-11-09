@@ -21,6 +21,7 @@ uint32_t cfg_cycle = 50;
 char *cfg_autoplayfile = NULL;
 
 char last_loaded_file[LEN_PATH_MAX];
+size_t sz_last_loaded_file = sizeof(last_loaded_file);
 
 void global_data_init() {
 	memset(last_loaded_file, 0, sizeof(last_loaded_file));

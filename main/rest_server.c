@@ -34,6 +34,8 @@ extern T_HTTP_PROCCESSING_TYPE http_processing[];
 extern T_TRACK tracks[];
 extern T_DISPLAY_OBJECT *s_object_list;
 extern T_EVENT_GROUP *s_event_group_list;
+extern char last_loaded_file[];
+extern size_t sz_last_loaded_file;
 
 //static void httpd_resp_sendstr_chunk(httpd_req_t *req, char *resp_str) {
 //	httpd_resp_send_chunk(req, resp_str, HTTPD_RESP_USE_STRLEN);
@@ -324,7 +326,9 @@ static void response_with_status(httpd_req_t *req, char *msg, run_status_type st
     cJSON_AddStringToObject(root, "status", RUN_STATUS_TYPE2TEXT(status));
     cJSON_AddNumberToObject(root, "scene_time", get_scene_time());
     cJSON_AddNumberToObject(root, "timer_period", get_event_timer_period());
-
+    if (strlen(last_loaded_file)) {
+    	cJSON_AddStringToObject(root, "last_loaded_file", last_loaded_file);
+    }
     add_system_informations(root);
 
     char *resp = cJSON_PrintUnformatted(root);
@@ -376,6 +380,7 @@ static void get_handler_scene_new_status(httpd_req_t *req, run_status_type new_s
 	}
 	cJSON_AddStringToObject(root, "text", txt);
 	cJSON_AddNumberToObject(root, "scene_time", get_scene_time());
+	cJSON_AddStringToObject(root, "last_loaded_file", strlen(last_loaded_file) ? last_loaded_file :"");
 
 	char *resp = cJSON_PrintUnformatted(root);
 	ESP_LOGI(__func__,"RESP=%s", resp?resp:"nix");
@@ -431,8 +436,11 @@ static esp_err_t get_handler_clear(httpd_req_t *req) {
 	run_status_type new_status = RUN_STATUS_STOPPED;
 	esp_err_t res = clear_data(msg, sizeof(msg), new_status);
 
-	response_with_status(req, msg, new_status);
     LOG_MEM(2);
+
+    httpd_resp_set_type(req, "plain/text");
+ 	snprintf(msg,sizeof(msg), "clear data done");
+ 	httpd_resp_sendstr_chunk(req, msg);
 
 	return res;
 }
@@ -523,9 +531,10 @@ static esp_err_t post_handler_load(httpd_req_t *req, char *content) {
         return ESP_FAIL;
 	}
 
-	snprintf(msg,sizeof(msg), "data load done");
 	ESP_LOGI(__func__, "ended with '%s'", msg);
-	response_with_status(req, msg, new_status);
+    httpd_resp_set_type(req, "plain/text");
+	snprintf(msg,sizeof(msg), "data load done");
+	httpd_resp_sendstr_chunk(req, msg);
 
 	return res;
 
@@ -538,7 +547,6 @@ static esp_err_t post_handler_file_store(httpd_req_t *req, char *content, char *
 	char msg[255];
 	memset(msg, 0, sizeof(msg));
 
-    httpd_resp_set_type(req, "plain/text");
 
 	if ( store_events_to_file(fname, content, msg, sizeof(msg))!= ESP_OK) {
 		ESP_LOGW(__func__, "%s", msg);
@@ -550,7 +558,13 @@ static esp_err_t post_handler_file_store(httpd_req_t *req, char *content, char *
 	snprintf(msg,sizeof(msg), "content saved to %s",fname);
 	ESP_LOGI(__func__, "success: %s", msg);
 
-	response_with_status(req, msg, get_scene_status());
+	// successful
+    httpd_resp_set_type(req, "plain/text");
+    char resp_txt[256];
+	snprintf(resp_txt,sizeof(resp_txt), "content saved to %s",fname);
+	snprintfapp(msg,sizeof(msg), "Response: '%s'",resp_txt);
+	httpd_resp_sendstr_chunk(req, resp_txt);
+
 	return ESP_OK;
 }
 
@@ -585,6 +599,8 @@ static esp_err_t get_handler_file_load(httpd_req_t *req, char *fname, size_t sz_
 	}
 
 	// successful
+	snprintf(last_loaded_file, sz_last_loaded_file,"%s", fname);
+
 	snprintfapp(msg,sizeof(msg), ", content loaded from %s",fname);
 	httpd_resp_sendstr_chunk(req, msg);
 	return ESP_OK;

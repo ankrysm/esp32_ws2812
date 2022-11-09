@@ -1,17 +1,54 @@
 @charset "utf-8";
 /* CSS Document */
 
+input[type=file]::file-selector-button {
+  margin-right: 20px;
+  border: none;
+  background: lightgreen;
+  padding: 5px 10px;
+  border: 1px solid green;
+  border-radius: 20%;
+  border-width: small;
+  color: black;
+  cursor: pointer;
+  transition: background .4s ease-in-out;
+}
+
+button {
+  background-color: lightgreen;
+  border: 1px solid green;
+  border-radius: 20%;
+  border-width: small;
+  padding: 5px 10px;
+  color: black;
+  cursor: pointer;
+  transition-duration: 0.4s;
+}
+
+
+button:hover {
+  background-color: #4CAF50;
+  color: white;
+}
+
+input[type=file]::file-selector-button:hover {
+  background: #4CAF50;
+  color: white;
+}
+
 table, th, td, caption {
 	border: thin solid #a0a0a0;
 }
 
+/*
 table, th, td {
  	width: 50%;
 }
+*/
 
 caption {
 	caption-side: top;
-	padding-top: 2em;
+	padding-down: 1em;
 	font-style: italic;
 }
 
@@ -22,7 +59,7 @@ table {
 	margin: 0 0 1em;
 	table-layout: auto;
 	max-width: 100%;
-	width: 50%;
+/*	width: 50%; */
 }
 th, td {
 	font-weight: normal;
@@ -266,6 +303,14 @@ footer p:last-child {
   }
 }
 
+button {
+	background-color: lightgreen
+  border: 1px solid green;
+  border-radius: 20px;
+  border-width: medium;
+  color: white;
+  cursor: pointer;
+}
 
 .btn-group button {
   background-color: #04AA6D; /* Green background */
@@ -295,4 +340,28 @@ footer p:last-child {
   /* padding: 10px 24px; / * Some padding */
   width: 50%; /* Set a width if needed */
   text-align: center;
+}
+
+.tab-btn-group button {
+  background-color: #04AA6D; /* Green background */
+  border: 1px solid green; /* Green border */
+  border-radius: 20px;
+  border-width: medium;
+  color: white; /* White text */
+  padding: 10px 24px; /* Some padding */
+  cursor: pointer; /* Pointer/hand icon */
+  /*width: 50%; / * Set a width if needed */
+  display: inline-block;
+  margin: 2px 4px;
+}
+
+/*
+.tab-btn-group button:not(:last-child) {
+  border-bottom: none; / * Prevent double borders * /
+}
+*/
+
+/* Add a background color on hover */
+.tab-btn-group button:hover {
+  background-color: #3e8e41;
 }

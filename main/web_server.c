@@ -36,8 +36,8 @@ extern const unsigned char main_content_html_start[] asm("_binary_main_content_h
 extern const unsigned char main_content_html_end[]   asm("_binary_main_content_html_end");
 extern const unsigned char settings_content_html_start[] asm("_binary_settings_content_html_start");
 extern const unsigned char settings_content_html_end[]   asm("_binary_settings_content_html_end");
-extern const unsigned char playlist_content_html_start[] asm("_binary_playlist_content_html_start");
-extern const unsigned char playlist_content_html_end[]   asm("_binary_playlist_content_html_end");
+extern const unsigned char files_content_html_start[] asm("_binary_files_content_html_start");
+extern const unsigned char files_content_html_end[]   asm("_binary_files_content_html_end");
 
 extern const unsigned char example_json_start[] asm("_binary_example_json_start");
 extern const unsigned char example_json_end[]   asm("_binary_example_json_end");
@@ -122,14 +122,14 @@ static esp_err_t get_handler_settings_html(httpd_req_t *req, char *errmsg, size_
      return get_handler_main_footer(req, errmsg, sz_errmsg);
 
 }
-static esp_err_t get_handler_playlist_html(httpd_req_t *req, char *errmsg, size_t sz_errmsg) {
+static esp_err_t get_handler_files_html(httpd_req_t *req, char *errmsg, size_t sz_errmsg) {
 	esp_err_t res;
 	if ( (res = get_handler_main_header(req, errmsg, sz_errmsg)) != ESP_OK)
 		return res;
 
 	// HTML content
-    const size_t sz = (playlist_content_html_end - playlist_content_html_start);
-    httpd_resp_send_chunk(req, (const char *)playlist_content_html_start, sz);
+    const size_t sz = (files_content_html_end - files_content_html_start);
+    httpd_resp_send_chunk(req, (const char *)files_content_html_start, sz);
 
      return get_handler_main_footer(req, errmsg, sz_errmsg);
 
@@ -372,8 +372,8 @@ esp_err_t get_handler_html(httpd_req_t *req)
 	} else if (strstr(req->uri, "/settings.html") == req->uri) {
 		res = get_handler_settings_html(req, errmsg, sizeof(errmsg));
 
-	} else if (strstr(req->uri, "/playlists.html") == req->uri) {
-		res = get_handler_playlist_html(req, errmsg, sizeof(errmsg));
+	} else if (strstr(req->uri, "/files.html") == req->uri) {
+		res = get_handler_files_html(req, errmsg, sizeof(errmsg));
 
 	} else if (strstr(req->uri, "/help.html") == req->uri) {
 		res = get_handler_help_html(req, errmsg, sizeof(errmsg));

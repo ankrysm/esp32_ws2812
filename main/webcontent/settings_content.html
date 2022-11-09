@@ -36,6 +36,7 @@ function getStatusFunction(json) {
     table +="<tr><td>status</td><td>" + j.status +"</td></tr>\n";
     table +="<tr><td>scene time</td><td>" + (j.scene_time/1000).toFixed(3) +" sec </td></tr>\n";
     table +="<tr><td>timer period</td><td>" + j.timer_period +" ms</td></tr>\n";
+    table +="<tr><td>last loaded file</td><td>" + j.last_loaded_file +"</td></tr>\n";
     table +="<tr><td>ESP-IDF version</td><td>" + j.version +"</td></tr>\n";
     table +="<tr><td>cores</td><td>" + j.cores +"</td></tr>\n";
     table +="<tr><td>free heap size</td><td>" + j.free_heap_size +" bytes</td></tr>\n";

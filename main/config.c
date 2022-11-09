@@ -13,7 +13,6 @@ extern uint32_t cfg_trans_flags;
 extern uint32_t cfg_numleds;
 extern uint32_t cfg_cycle;
 extern char *cfg_autoplayfile;
-extern char last_loaded_file[];
 
 
 esp_vfs_spiffs_conf_t fs_conf = {
@@ -215,7 +214,7 @@ void add_config_informations(cJSON *element) {
 		cJSON_AddTrueToObject(var, "autoplay_started");
 	}
 
-	cJSON_AddStringToObject(var, "last_loaded_file", last_loaded_file);
+	//cJSON_AddStringToObject(var, "last_loaded_file", last_loaded_file);
 }
 
 
