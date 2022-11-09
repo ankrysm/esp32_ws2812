@@ -111,6 +111,9 @@ void reset_tracks();
 // from process_objects.c
 void process_object(T_TRACK_ELEMENT *ele);
 
+// from restserver.c
+void get_handler_list(httpd_req_t *req);
+
 // from timer_events.c
 void init_timer_events();
 int set_event_timer_period(int new_timer_period);

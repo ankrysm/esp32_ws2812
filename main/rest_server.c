@@ -117,7 +117,7 @@ static T_HTTP_PROCCESSING_TYPE *get_http_processing(char *path) {
 	return NULL;
 }
 
-static void get_handler_list(httpd_req_t *req) {
+void get_handler_list(httpd_req_t *req) {
 	// list events
 	char buf[255];
 	const size_t sz_buf = sizeof(buf);

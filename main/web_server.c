@@ -38,6 +38,8 @@ extern const unsigned char settings_content_html_start[] asm("_binary_settings_c
 extern const unsigned char settings_content_html_end[]   asm("_binary_settings_content_html_end");
 extern const unsigned char files_content_html_start[] asm("_binary_files_content_html_start");
 extern const unsigned char files_content_html_end[]   asm("_binary_files_content_html_end");
+extern const unsigned char help_content_html_start[] asm("_binary_help_content_html_start");
+extern const unsigned char help_content_html_end[]   asm("_binary_help_content_html_end");
 
 extern const unsigned char example_json_start[] asm("_binary_example_json_start");
 extern const unsigned char example_json_end[]   asm("_binary_example_json_end");
@@ -137,6 +139,8 @@ static esp_err_t get_handler_files_html(httpd_req_t *req, char *errmsg, size_t s
 
 static void get_handler_help_html_api_reference(httpd_req_t *req) {
 	char txt[256];
+    httpd_resp_set_type(req, "plain/text");
+
 	// caption
 	strlcpy(txt, "<table>\n" \
 			"<caption>API reference</caption>\n", sizeof(txt));
@@ -154,7 +158,7 @@ static void get_handler_help_html_api_reference(httpd_req_t *req) {
 	for  (int i=0; http_processing[i].todo != HP_END_OF_LIST; i++) {
 		snprintf(txt, sizeof(txt),"<tr><td>%s%s</td><td>%s%s</td></tr>\n",
 				http_processing[i].path,
-				(http_processing[i].flags & HPF_PATH_FROM_URL ? "\"fname\"" : ""),
+				(http_processing[i].flags & HPF_PATH_FROM_URL ? "&quot;fname&quot;" : ""),
 				http_processing[i].help,
 				(http_processing[i].flags & HPF_POST ? ", requires POST data" : "")
 		);
@@ -168,6 +172,7 @@ static void get_handler_help_html_api_reference(httpd_req_t *req) {
 
 static void get_handler_help_html_event_syntax(httpd_req_t *req) {
 	char txt[256];
+    httpd_resp_set_type(req, "plain/text");
 	// caption
 	strlcpy(txt, "<table>\n" \
 			"<caption>event syntax</caption>\n", sizeof(txt));
@@ -217,6 +222,7 @@ static void get_handler_help_html_event_syntax(httpd_req_t *req) {
 
 static void get_handler_help_html_object_parameter(httpd_req_t *req) {
 	char txt[256];
+    httpd_resp_set_type(req, "plain/text");
 	// caption
 	strlcpy(txt, "<table>\n" \
 			"<caption>object parameter</caption>\n", sizeof(txt));
@@ -286,7 +292,9 @@ static void get_handler_help_html_object_definitions(httpd_req_t *req) {
 
 static void get_handler_help_html_examples(httpd_req_t *req) {
 	const size_t sz_example_json = (example_json_end - example_json_start);
-	const size_t sz_example_config_json = (example_config_json_end - example_config_json_start);
+
+	httpd_resp_set_type(req, "plain/text");
+    const size_t sz_example_config_json = (example_config_json_end - example_config_json_start);
 
 	httpd_resp_sendstr_chunk(req,"<p>Example of a displayed scene</p>\n" );
 	httpd_resp_sendstr_chunk(req, "<pre><code class=\"language-json\">\n");
@@ -310,6 +318,10 @@ static esp_err_t get_handler_help_html(httpd_req_t *req, char *errmsg, size_t sz
 		return res;
 
 	// HTML content
+	const size_t sz = (help_content_html_end - help_content_html_start);
+	httpd_resp_send_chunk(req, (const char *)help_content_html_start, sz);
+
+	/*
 	// ***** start of article
 	httpd_resp_sendstr_chunk(req,"<article>");
 
@@ -340,10 +352,21 @@ static esp_err_t get_handler_help_html(httpd_req_t *req, char *errmsg, size_t sz
 	get_handler_help_html_examples(req);
 
 	// TODO add script section to provide onBodyLoad
-
 	// ***** end of article
 	httpd_resp_sendstr_chunk(req,"</article>");
-    return get_handler_main_footer(req, errmsg, sz_errmsg);
+	*/
+
+	return get_handler_main_footer(req, errmsg, sz_errmsg);
+}
+
+static void get_handler_listevents(httpd_req_t *req) {
+	httpd_resp_set_type(req, "plain/text");
+
+	httpd_resp_sendstr_chunk(req, "<pre><code class=\"language-json\">\n");
+	get_handler_list(req);
+	httpd_resp_sendstr_chunk(req,"</code></pre>\n");
+
+
 }
 
 /**
@@ -361,13 +384,13 @@ esp_err_t get_handler_html(httpd_req_t *req)
 	if ( res == ESP_OK)
 		return res; // it was a ressource
 
+	res = ESP_OK;
+
 	if (strcmp(req->uri,"/") == 0 || ! strlen(req->uri)) {
 		res = get_handler_index_html(req, errmsg, sizeof(errmsg));
+
 	} else if (strcmp(req->uri, "/index.html") == 0) {
 		res = get_handler_index_html(req, errmsg, sizeof(errmsg));
-
-	} else if (strstr(req->uri, "/settings.html") == req->uri) {
-		res = get_handler_settings_html(req, errmsg, sizeof(errmsg));
 
 	} else if (strstr(req->uri, "/settings.html") == req->uri) {
 		res = get_handler_settings_html(req, errmsg, sizeof(errmsg));
@@ -377,6 +400,24 @@ esp_err_t get_handler_html(httpd_req_t *req)
 
 	} else if (strstr(req->uri, "/help.html") == req->uri) {
 		res = get_handler_help_html(req, errmsg, sizeof(errmsg));
+
+	} else if (strstr(req->uri, "/help/api.html") == req->uri) {
+		get_handler_help_html_api_reference(req);
+
+	} else if (strstr(req->uri, "/help/event.html") == req->uri) {
+		get_handler_help_html_event_syntax(req);
+
+	} else if (strstr(req->uri, "/help/objpar.html") == req->uri) {
+		get_handler_help_html_object_parameter(req);
+
+	} else if (strstr(req->uri, "/help/objdefs.html") == req->uri) {
+		get_handler_help_html_object_definitions(req);
+
+	} else if (strstr(req->uri, "/help/examples.html") == req->uri) {
+		get_handler_help_html_examples(req);
+
+	} else if (strstr(req->uri, "/listevents.html") == req->uri) {
+		get_handler_listevents(req);
 
 	} else {
 		// not found

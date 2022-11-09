@@ -11,7 +11,7 @@ set(COMPONENT_ADD_INCLUDEDIRS ".")
 set(COMPONENT_EMBED_FILES "webcontent/favicon.ico" "webcontent/upload_script.html" "webcontent/ledstrip.jpg"
 		"webcontent/example.json" "webcontent/example_config.json" "webcontent/stylesheet.css"
 		"webcontent/main_page.html" "webcontent/main_content.html" "webcontent/settings_content.html"
-		"webcontent/files_content.html" )
+		"webcontent/files_content.html" "webcontent/help_content.html" )
 
 
 register_component()
