@@ -13,6 +13,7 @@ extern uint32_t cfg_trans_flags;
 extern uint32_t cfg_numleds;
 extern uint32_t cfg_cycle;
 extern char *cfg_autoplayfile;
+extern char last_loaded_file[];
 
 
 esp_vfs_spiffs_conf_t fs_conf = {
@@ -184,17 +185,13 @@ char *config2txt(char *txt, size_t sz) {
 }
 
 
-void add_config_informations(cJSON *element) {
+void add_config_informations(cJSON *root) {
 
 	// persistent data
-	cJSON *root = cJSON_AddObjectToObject(element,"config");
+	//cJSON *root = cJSON_AddObjectToObject(element,"config");
 
 	cJSON_AddNumberToObject(root, "numleds", cfg_numleds);
-
 	cJSON_AddNumberToObject(root, "cycle", cfg_cycle);
-
-	cJSON_addBoolean(root, "with_wifi", cfg_trans_flags & CFG_WITH_WIFI );
-
 	cJSON_AddStringToObject(root, "autoplay_file", cfg_autoplayfile && strlen(cfg_autoplayfile) ? cfg_autoplayfile : "");
 
 	cJSON_addBoolean(root,  "autoplay", cfg_flags & CFG_AUTOPLAY );
@@ -204,17 +201,12 @@ void add_config_informations(cJSON *element) {
 	cJSON_addBoolean(root, "strip_demo",  cfg_flags & CFG_STRIP_DEMO);
 
 	// transient data
-	cJSON *var = cJSON_AddObjectToObject(element,"var");
+	cJSON *var = cJSON_AddObjectToObject(root,"work");
 
-	if (cfg_trans_flags & CFG_AUTOPLAY_LOADED) {
-		cJSON_AddTrueToObject(var, "autoplay_file_loaded");
-	}
-
-	if (cfg_trans_flags & CFG_AUTOPLAY_STARTED) {
-		cJSON_AddTrueToObject(var, "autoplay_started");
-	}
-
-	//cJSON_AddStringToObject(var, "last_loaded_file", last_loaded_file);
+	cJSON_addBoolean(var, "with_wifi", cfg_trans_flags & CFG_WITH_WIFI );
+	cJSON_addBoolean(var, "autoplay_file_loaded",cfg_trans_flags & CFG_AUTOPLAY_LOADED);
+	cJSON_addBoolean(var, "autoplay_started",cfg_trans_flags & CFG_AUTOPLAY_STARTED);
+	cJSON_AddStringToObject(var, "last_loaded_file", last_loaded_file);
 }
 
 

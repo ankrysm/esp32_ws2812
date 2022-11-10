@@ -3,6 +3,5 @@
 	"cycle": 50,
 	"autoplay_file": "",
 	"autoplay": false,
-	"show_status": true,
-	"strip_demo": false
+	"show_status": true
 }

@@ -24,6 +24,8 @@
 #include "bmp.h"
 #include "https_get.h"
 
+#define SZ_BUFFER 4096
+
 typedef enum {
 	BRP_GOT_FILE_HEADER, // 0
 	BRP_GOT_INFO_HEADER, // 1
@@ -150,8 +152,8 @@ int https_callback_bmp_processing(t_https_callback_todo to_do, uint8_t **buf, ui
 	} else if (to_do == HCT_READING) {
 		// gets and clears the bit
 		uxBits = xEventGroupClearBits(s_bmp_event_group_for_reader, BMP_BIT_STOP_WORKING);
-		if ( uxBits)
-			ESP_LOGI(__func__, "uxBits = 0x%X", uxBits);
+		//if ( uxBits)
+		//	ESP_LOGI(__func__, "uxBits = 0x%X", uxBits);
 
 		// read data
 		if ( buf_len_expected > 0 &&  *buf_len > buf_len_expected) {
@@ -205,7 +207,7 @@ int https_callback_bmp_processing(t_https_callback_todo to_do, uint8_t **buf, ui
 			// data len as multiple amount of data per line
 			size_t linesize =get_bytes_per_line();
 			sz_read_buffer = linesize;
-			while (sz_read_buffer < 1024 ) {
+			while (sz_read_buffer < SZ_BUFFER ) {
 				sz_read_buffer += linesize;
 			}
 			ESP_LOGI(__func__, "sz_read_buffer = %d",sz_read_buffer);

@@ -321,41 +321,6 @@ static esp_err_t get_handler_help_html(httpd_req_t *req, char *errmsg, size_t sz
 	const size_t sz = (help_content_html_end - help_content_html_start);
 	httpd_resp_send_chunk(req, (const char *)help_content_html_start, sz);
 
-	/*
-	// ***** start of article
-	httpd_resp_sendstr_chunk(req,"<article>");
-
-	httpd_resp_sendstr_chunk(req,"<h2>Help</h2>" );
-
-	httpd_resp_sendstr_chunk(req,"<h3>API Description</h3>" );
-
-	/// **** common descriptions *****
-	httpd_resp_sendstr_chunk(req,"<p>Configurations and scenes are described in json files with sections</p>\n");
-	httpd_resp_sendstr_chunk(req,"<p>\"objects\" - what to display, colors and section length</p>\n");
-	httpd_resp_sendstr_chunk(req,"<p>\"events\" - how to arrange and modify displayed objects, move them, blink ... </p>\n");
-	httpd_resp_sendstr_chunk(req,"<p>\"tracks\" - arrange events, repeat them </p>\n");
-
-	// ****** Table: API reference **********
-	get_handler_help_html_api_reference(req);
-
-	// ***** Table: "Event syntax" *************
-	get_handler_help_html_event_syntax(req);
-
-	// ****** Table: object parameter **********
-	get_handler_help_html_object_parameter(req);
-
-	// ****** Table: object definitions **********
-	get_handler_help_html_object_definitions(req);
-
-	// ******* examples **********************
-	httpd_resp_sendstr_chunk(req,"<h3>Examples</h3>\n" );
-	get_handler_help_html_examples(req);
-
-	// TODO add script section to provide onBodyLoad
-	// ***** end of article
-	httpd_resp_sendstr_chunk(req,"</article>");
-	*/
-
 	return get_handler_main_footer(req, errmsg, sz_errmsg);
 }
 

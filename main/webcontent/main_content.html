@@ -1,78 +1,141 @@
 	<article>
-		<h2>Run status</h2>
-		<p>set the runstatus</p>
+		<h2>Main control</h2>
+		<h3>start / stop</h3>
 		<div id="runstatus" class="status-field"><p>......</p></div>
-		<div id="lastloadedfile" ><p>......</p></div>
 		<br>
 		<div class="btn-group">
 		  	<button type="button" onclick="getRunStatus('r')">PLAY...</button>
   			<button type="button" onclick="getRunStatus('p')">PAUSE...</button>
   			<button type="button" onclick="getRunStatus('s')">STOP...</button>
+  			<button type="button" onclick="getRunStatus('b')">STOP &amp; BLANK ...</button>
 			<button type="button" onclick="getRunStatus('i')">refresh status</button>
 		</div>
+
+		<h3>last loaded file</h3>
+		<div id="lastloadedfile" ><p>......</p></div>
+		<button type="button" onclick="load_llfcontent()">load content</button>
+		<button type="button" onclick="clear_llfcontent()">clear content</button>
+		<pre id="llfcontent">
+		<code>
+		</code>
+		</pre>
 
 	</article>
 
 <script>
-let timerIsRunning=0;
-let timerVar;
+var timerIsRunning=false;
+var timerVar;
+var scene_time=0;
+var status_text="";
+var status_color="black";
+var status_bg_color="";
+const timer_interval = 1000;
 
 function getRunStatus(url) {
-  var xhttp = new XMLHttpRequest();
-  xhttp.onreadystatechange = function() {
-    if (this.readyState == 4 ){
-    	if (this.status == 200) {
-    		getRunStatusFunction(this);
-    	} else {
-    		alert(this.statusText);
-    	}
-    }
-  };
+	var xhttp = new XMLHttpRequest();
+	xhttp.onreadystatechange = function() {
+	    if (this.readyState == 4 ){
+	    	if (this.status == 200) {
+	    		getRunStatusFunction(this);
+	    	} else {
+	    		alert(this.statusText);
+	    	}
+	    }
+  	};
   	xhttp.open("GET", url, true);
   	xhttp.send();
 }
 
-function setRunStatusInfo(text, color, bgcolor) {
+function setRunStatusInfo() {
   var runstatusDiv = document.getElementById("runstatus");
-  runstatusDiv.innerHTML = text;
-  runstatusDiv.style.color = color;
-  runstatusDiv.style.backgroundColor = bgcolor;
+  runstatusDiv.innerHTML = status_text + " - " + (scene_time/1000).toFixed(1) + " sec";
+  runstatusDiv.style.color = status_color;
+  runstatusDiv.style.backgroundColor = status_bg_color;
 }
 
 function getRunStatusFunction(json) {
   var jsonDoc = JSON.parse(json.responseText);
-  var color = "black";
-  var bgcolor = "white";
-  var lastloadedfile = jsonDoc.last_loaded_file;
   var text = jsonDoc.text;
-  var t = (jsonDoc.scene_time / 1000).toFixed(3);
-  if ( text == "RUNNING") {
-	  bgcolor = "green";
-	  if ( timerIsRunning == 0) {
-		  timerVar = setInterval(refreshStatus, 1000);
-		  timerIsRunning=1;
+  scene_time =jsonDoc.scene_time;
+  status_color="black";
+  if ( text == "STARTING") {
+	  status_text = "Running";
+	  status_bg_color = "green";
+	  scene_time = 0;
+	  if ( !timerIsRunning) {
+		  timerVar = setInterval(refreshStatus, timer_interval);
+		  timerIsRunning=true;
+	  }
+  } else if ( text == "RUNNING") {
+	  status_text = "Running";
+	  status_bg_color = "green";
+	  // should be running
+	  if ( !timerIsRunning) {
+		  timerVar = setInterval(refreshStatus, timer_interval);
+		  timerIsRunning=true;
+	  }
+  } else if (text == "CONTINUE" ) {
+	  status_text = "Running";
+	  status_bg_color = "green";
+	  if ( !timerIsRunning) {
+		  timerVar = setInterval(refreshStatus, timer_interval);
+		  timerIsRunning=true;
 	  }
   } else if (text == "STOPPED") {
-	  bgcolor = "red";
-	  if ( timerIsRunning > 0) {
+	  status_text = "Stopped";
+	  status_bg_color = "red";
+	  scene_time =0;
+	  if ( timerIsRunning) {
 		  clearInterval(timerVar);
-		  timerIsRunning=0;
+		  timerIsRunning=false;
 	  }
-
   } else if (text == "PAUSE" ) {
-	  bgcolor = "yellow";
+	  status_text = "Pause";
+	  status_bg_color = "yellow";
+	  if ( timerIsRunning) {
+		  clearInterval(timerVar);
+		  timerIsRunning=false;
+	  }
+  } else {
+	  status_text = "unexpected '" + text + "'";
+	  status_bg_color = "white";
   }
-  text = text + " - " + t + " sec";
-  setRunStatusInfo(text,color,bgcolor);
+  //text = text + " - " + (scene_time/1000).toFixed(1) + " sec";
+  setRunStatusInfo();
+
+  var lastloadedfile = jsonDoc.last_loaded_file;
   document.getElementById("lastloadedfile").innerHTML = "<p>last loaded file: <strong>"+ lastloadedfile+ "</strong></p>";
 }
 
 function refreshStatus() {
-	  getRunStatus('i');
+	  //getRunStatus('i'); // too much traffic
+	  scene_time += timer_interval;
+	  setRunStatusInfo();
 }
 function onBodyLoad() {
-  refreshStatus();
+  //refreshStatus();
+	getRunStatus('i');
 }
+
+function load_llfcontent() {
+	var xhttp = new XMLHttpRequest();
+	xhttp.onreadystatechange = function() {
+	    if (this.readyState == 4 ){
+	    	if (this.status == 200) {
+	    		document.getElementById("llfcontent").innerHTML = this.responseText;
+	    	} else {
+	    		alert(this.statusText);
+	    	}
+	    }
+  	};
+  	xhttp.open("GET", "li", true);
+  	xhttp.send();
+}
+
+function clear_llfcontent() {
+	document.getElementById("llfcontent").innerHTML ="";
+}
+
 </script>
 <noscript>
 	<p>no script</p>

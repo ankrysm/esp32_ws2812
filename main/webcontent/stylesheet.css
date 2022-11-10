@@ -64,13 +64,15 @@ table {
 th, td {
 	font-weight: normal;
 	text-align: left;
+	padding: 0.5em 1.5em;
 }
 th, caption {
 	background-color: GoldenRod
 	font-weight: 700;
 }
 pre {
-	background-color: BlanchedAlmond
+	background-color: lightgreen
+	background: lightgreen
 	color: black;
 	font-family: Fixedsys, Courier, monospace;
 	padding: 1em;

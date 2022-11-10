@@ -18,8 +18,54 @@
 
 	</article>
 <script>
+
+var autoplay_file="";
+var last_loaded_file="";
+
 function onBodyLoad() {
+	get_autoplay_file();
 	getFiles();
+}
+
+function get_autoplay_file() {
+	var xhttp = new XMLHttpRequest();
+	xhttp.onreadystatechange = function() {
+	  if (this.readyState == 4 ){
+	  	if (this.status == 200) {
+	  	    var j = JSON.parse(this.responseText);
+			autoplay_file = j.autoplay_file;
+			last_loaded_file =j.work.last_loaded_file;
+	  	} else {
+	  		alert("get_autoplay_file" + this.statusText);
+	  	}
+	  }
+	};
+	xhttp.open("GET", "cfg/get", true);
+	xhttp.send();
+}
+
+function set_autoplay_file(fname) {
+	if (autoplay_file == fname) {
+		// its the same
+		return;
+	}
+	var xhttp = new XMLHttpRequest();
+	xhttp.onreadystatechange = function() {
+	  if (this.readyState == 4 ){
+	  	if (this.status == 200) {
+	        location.reload();
+			showMsg("done.");
+	  	} else {
+	  		alert(this.statusText);
+	  	}
+	  } else {
+		  showMsg("retrieving file list ..."); // it took a while
+	  }
+	};
+	var data = '{"autoplay_file":"'+fname+'"}';
+	xhttp.open("POST", "cfg/set", true);
+	xhttp.send(data);
+
 }
 
 function getFiles() {
@@ -54,12 +100,21 @@ function clearMsg() {
 function getFilesFunction(json) {
 	var j = JSON.parse(json.responseText);
 	var files = j.files;
-    var table="<caption>list of files</caption><tr><th>Name</th><th>Size</th><th>Actions</th></tr>\n";
+    var table="<caption>list of files<br>(A) - autoplay file, (L) - loaded</caption><tr><th>Name</th><th>Size (bytes)</th><th>Actions</th></tr>\n";
     files.forEach((item) => {
+    	var addtxt = "";
+    	if ( item.name == autoplay_file) {
+    		addtxt += "(A)";
+    	}
+    	if (item.name == last_loaded_file) {
+    		addtxt += "(L)";
+    	}
 		table +='<tr><td>'
-		+'<a href="/f/get/'+item.name+'">'+item.name+'</a>'
+		+'<a href="/f/get/'+item.name+'">'+item.name+'</a>' + addtxt
 		+'</td><td>' + item.sz +'</td><td>'
-		+'<div class="tab-btn-group"><button type="button" onclick="loadfile('+"'"+item.name+"'"+')">LOAD</button>'
+		+'<div class="tab-btn-group">'
+		+'<button type="button" onclick="loadfile('+"'"+item.name+"'"+')">LOAD</button>'
+		+'<button type="button" onclick="set_autoplay_file('+"'"+item.name+"'"+')">AUTO</button>'
 		+'<button type="button" onclick="deletefile('+"'"+item.name+"'"+')">DELETE</button></div>'
 		+'</td></tr>\n';
 	});
@@ -72,6 +127,7 @@ function loadfile(fname) {
 	xhttp.onreadystatechange = function() {
 	  if (this.readyState == 4 ){
 	  	if (this.status == 200) {
+	        location.reload();
 			showMsg("loading file " + fname + " done");
 	  	} else {
 	  		alert("loading file " + fname + " failed:" +this.statusText);
@@ -85,6 +141,10 @@ function loadfile(fname) {
 }
 
 function deletefile(fname) {
+	var check = confirm('delete file '+fname+' ?');
+	if ( check == false)
+		return; //no.
+
 	var xhttp = new XMLHttpRequest();
 	xhttp.onreadystatechange = function() {
 	  if (this.readyState == 4 ){

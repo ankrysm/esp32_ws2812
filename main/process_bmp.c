@@ -7,7 +7,7 @@
 
 #include "esp32_ws2812.h"
 
-//extern BITMAPINFOHEADER bmpInfoHeader;
+#define LEN_RD_BUF 3*1000 // 3 bytes for n leds
 
 static uint32_t read_buffer_len = 0; // data length in read_buffer
 static uint8_t *read_buffer = NULL;
@@ -18,8 +18,11 @@ static volatile bool is_bmp_reading = false;
 
 static int bufno=0; // which buffer has data 1 or 2, depends on HAS_DATA-bit
 
-static uint8_t buf[3*500]; // 3 bits for max. 500 leds TODO with calloc
+static uint8_t buf[LEN_RD_BUF]; // TODO with calloc
 static int32_t bytes_per_line = -1;
+
+static uint32_t bmp_cnt=0;
+static uint32_t bmp_missing_lines=0;
 
 void process_object_bmp(int32_t pos, int32_t len, double brightness) {
 	// special handling for bmp processing
@@ -31,6 +34,7 @@ void process_object_bmp(int32_t pos, int32_t len, double brightness) {
 
 	t_result res = bmp_work(buf, sizeof(buf), brightness);
 
+	bmp_cnt++;
 	if ( res == RES_OK) {
 		if ( bytes_per_line < 0 )
 			bytes_per_line = get_bytes_per_line();
@@ -40,7 +44,8 @@ void process_object_bmp(int32_t pos, int32_t len, double brightness) {
 		ESP_LOGI(__func__,"bmp_read_data: all lines read, connection closed");
 
 	} else {
-		ESP_LOGW(__func__, "unexpected result %d",res);
+		bmp_missing_lines++;
+		ESP_LOGW(__func__, "unexpected result %d, bmp_cnt=%d, bmp_missing_lines=%d",res, bmp_cnt, bmp_missing_lines);
 		// GRB
 		uint8_t r,g,b;
 		r = 32; g=0; b=0;
@@ -243,11 +248,13 @@ t_result bmp_open_url(char *id) {
 	}
 
 	ESP_LOGI(__func__,"bmp_open_connection success, url='%s'", data->para.url);
+	bmp_cnt = bmp_missing_lines = 0;
 	return RES_OK;
 }
 
 void bmp_stop_processing() {
 	ESP_LOGI(__func__,"start");
+	is_bmp_reading = false;
 	set_ux_quit_bits(BMP_BIT_STOP_WORKING); // request for stop working
 }
 

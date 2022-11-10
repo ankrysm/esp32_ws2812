@@ -187,7 +187,7 @@ void get_handler_list(httpd_req_t *req) {
 					httpd_resp_sendstr_chunk(req,"\n");
 				}
 			} else {
-				snprintf(buf, sz_buf,"    no INIT events.\n");
+				snprintf(buf, sz_buf,"    INIT events: none\n");
 				httpd_resp_sendstr_chunk(req, buf);
 			}
 
@@ -204,7 +204,7 @@ void get_handler_list(httpd_req_t *req) {
 
 				}
 			} else {
-				snprintf(buf, sz_buf,"\n  no WORK events.");
+				snprintf(buf, sz_buf,"    WORK events: none\n.");
 				httpd_resp_sendstr_chunk(req, buf);
 			}
 
@@ -221,14 +221,14 @@ void get_handler_list(httpd_req_t *req) {
 
 				}
 			} else {
-				snprintf(buf, sz_buf,"    no FINAL events.\n");
+				snprintf(buf, sz_buf,"    FINAL events: none.\n");
 				httpd_resp_sendstr_chunk(req, buf);
 			}
 		}
 	}
 
 
-	snprintf(buf, sz_buf, "\ntracks:\n");
+	snprintf(buf, sz_buf, "\n*** tracks: ***\n");
 	httpd_resp_sendstr_chunk(req, buf);
 
 	for (int i = 0; i < N_TRACKS; i++) {
@@ -349,12 +349,15 @@ static void get_handler_status_current(httpd_req_t *req) {
 // run/pause/stop/blank
 static void get_handler_scene_new_status(httpd_req_t *req, run_status_type new_status) {
 
+	bool changed = false;
+	run_status_type old_status = get_scene_status();
+
 	if ( new_status == RUN_STATUS_ASK) {
-		new_status = get_scene_status();
+		new_status = old_status;
 	} else {
 		// not ask, set it
-		run_status_type old_status = get_scene_status();
 		if ( old_status != new_status) {
+			changed = true;
 			old_status = set_scene_status(new_status);
 		}
 	}
@@ -370,7 +373,15 @@ static void get_handler_scene_new_status(httpd_req_t *req, run_status_type new_s
 		strlcpy(txt,"STOPPED", sizeof(txt));
 		break;
 	case RUN_STATUS_RUNNING:
-		strlcpy(txt,"RUNNING", sizeof(txt));
+		if ( changed) {
+			if ( old_status == RUN_STATUS_PAUSED) {
+				strlcpy(txt, "CONTINUE", sizeof(txt));
+			} else {
+				strlcpy(txt, "STARTING", sizeof(txt));
+			}
+		} else {
+			strlcpy(txt, "RUNNING", sizeof(txt));
+		}
 		break;
 	case RUN_STATUS_PAUSED:
 		strlcpy(txt,"PAUSE", sizeof(txt));
@@ -491,9 +502,6 @@ static void get_handler_config(httpd_req_t *req, char *msg) {
 
     // configuration
     add_config_informations(root);
-
-    // some system informations
-    add_system_informations(root);
 
     char *resp = cJSON_PrintUnformatted(root);
     ESP_LOGI(__func__,"resp=%s", resp?resp:"nix");

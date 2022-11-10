@@ -210,7 +210,7 @@ esp_err_t https_get(char *url, https_get_callback callback) {
     //request_config.cert_pem = server_root_cert_pem_start;
     s_callback = callback;
 
-  xTaskCreate(&http_main_task, "http_main_task", 8192, NULL, 5, &xHandle);
+  xTaskCreate(&http_main_task, "http_main_task", 32768, NULL, 5, &xHandle);
   ESP_LOGI(__func__, "'http_main_task' started");
   return ESP_OK;
 

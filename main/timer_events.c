@@ -216,17 +216,6 @@ void scenes_stop(bool flag_blank) {
 	bmp_stop_processing();
 }
 
-/*
-void scenes_blank() {
-	// timer stops by themselves
-	ESP_LOGI(__func__, "start");
-	xEventGroupClearBits(s_timer_event_group, EVENT_BITS_ALL);
-    xEventGroupSetBits(s_timer_event_group, EVENT_BIT_STOP|EVENT_BIT_BLANK);
-    make_it_blank();
-    bmp_stop_processing();
-}
-//*/
-
 void scenes_pause() {
 	ESP_LOGI(__func__, "start");
 	xEventGroupClearBits(s_timer_event_group, EVENT_BITS_ALL);

@@ -21,8 +21,7 @@ typedef int32_t LONG;
 
 // sets by working process
 #define BMP_BIT_BUFFER_PROCESSED   0x01
-//#define BMP_BIT_FINISH_PROCESSED   0x02
-#define BMP_BIT_STOP_WORKING       0x04
+#define BMP_BIT_STOP_WORKING       0x02
 
 // sets by https-callback process
 #define BMP_BIT_BUFFER1_HAS_DATA   0x10
