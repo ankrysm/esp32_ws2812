@@ -13,6 +13,7 @@ extern uint32_t cfg_trans_flags;
 extern uint32_t cfg_numleds;
 extern uint32_t cfg_cycle;
 extern char *cfg_autoplayfile;
+extern char *cfg_timezone;
 extern char last_loaded_file[];
 
 
@@ -52,8 +53,10 @@ esp_err_t store_config() {
 	 */
 	nvs_set_u32(my_handle, CFG_KEY_FLAGS, cfg_flags);
 	nvs_set_u32(my_handle, CFG_KEY_NUMLEDS, cfg_numleds);
-	nvs_set_str(my_handle, CFG_KEY_AUTOPLAY_FILE, cfg_autoplayfile?cfg_autoplayfile:"");
 	nvs_set_u32(my_handle, CFG_KEY_CYCLE, cfg_cycle);
+
+	nvs_set_str(my_handle, CFG_KEY_AUTOPLAY_FILE, cfg_autoplayfile ? cfg_autoplayfile : "");
+	nvs_set_str(my_handle, CFG_KEY_TIMEZONE, cfg_timezone ? cfg_timezone : "");
 
 	ret = nvs_commit(my_handle);
 	if (ret != ESP_OK) {
@@ -118,6 +121,8 @@ esp_err_t load_config() {
     	}
 
     	size_t len;
+
+    	// ***** autoplay file ********************************
     	if ( cfg_autoplayfile) {
     		free(cfg_autoplayfile);
     		cfg_autoplayfile = NULL;
@@ -137,6 +142,27 @@ esp_err_t load_config() {
     		break;
     	}
 
+    	// ****** time zone *************************
+    	if ( cfg_timezone) {
+    		free(cfg_timezone);
+    		cfg_timezone = NULL;
+    	}
+    	ret = nvs_get_str(my_handle, CFG_KEY_TIMEZONE, NULL, &len); ///call for length
+        ESP_LOGI(__func__, "retrieve '%s' len = %d'", CFG_KEY_TIMEZONE, len);
+
+    	if (ret == ESP_OK) {
+    		cfg_timezone = calloc(len+1, sizeof(char));
+        	nvs_get_str(my_handle, CFG_KEY_TIMEZONE, cfg_timezone, &len); // call for value
+            ESP_LOGI(__func__, "retrieve '%s' successful: '%s'", CFG_KEY_TIMEZONE, cfg_timezone?cfg_timezone:"");
+
+            set_timezone(cfg_timezone);
+    	} else if (ret == ESP_ERR_NVS_NOT_FOUND) {
+    		// it is ok missing it
+            ESP_LOGI(__func__, "retrieve '%s' not found", CFG_KEY_TIMEZONE);
+    	} else {
+            ESP_LOGI(__func__, "retrieve '%s' failed, ret=%d", CFG_KEY_TIMEZONE, ret);
+    		break;
+    	}
 
     } while(0);
 
@@ -160,6 +186,7 @@ char *config2txt(char *txt, size_t sz) {
 			"config:\n" \
 			"numleds=%d\n" \
 			"autoplayfile=%s\n" \
+			"timezone=%s\n" \
 			"cfg_flags=0x%04x\n" \
 			"  autoplay=%s\n" \
 			"  showstatus=%s\n" \
@@ -171,6 +198,7 @@ char *config2txt(char *txt, size_t sz) {
 			"cycle=%d\n" ,
 			cfg_numleds,
 			cfg_autoplayfile ? cfg_autoplayfile:"",
+			cfg_timezone ? cfg_timezone:"",
 			cfg_flags,
 			(cfg_flags & CFG_AUTOPLAY ? "true" : "false"),
 			(cfg_flags & CFG_SHOW_STATUS ? "true" : "false"),
@@ -193,6 +221,7 @@ void add_config_informations(cJSON *root) {
 	cJSON_AddNumberToObject(root, "numleds", cfg_numleds);
 	cJSON_AddNumberToObject(root, "cycle", cfg_cycle);
 	cJSON_AddStringToObject(root, "autoplay_file", cfg_autoplayfile && strlen(cfg_autoplayfile) ? cfg_autoplayfile : "");
+	cJSON_AddStringToObject(root, "timezone", cfg_timezone && strlen(cfg_timezone) ? cfg_timezone : "");
 
 	cJSON_addBoolean(root,  "autoplay", cfg_flags & CFG_AUTOPLAY );
 

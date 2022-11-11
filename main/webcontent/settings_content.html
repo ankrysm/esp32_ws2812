@@ -7,10 +7,19 @@
 			<tr><th>parameter</th><th>value</th><th>description</th></tr>
 			<tr><td>number of leds</td><td><input type="text" id="numleds"></td><td>1 .. 1000</td></tr>
 			<tr><td>cycle time</td><td><input type="text" id="cycle"></td><td>in ms, 20 .. 10000</td></tr>
+			<tr><td>time zone</td><td><input type="text" id="timezone"></td><td>Timezone for example 'CET-1CEST,M3.5.0,M10.5.0/3'</td></tr>
 			<tr><td>autoplay</td><td><input type="checkbox" id="autoplay"></td><td>play autoplay file after startup</td></tr>
 			<tr><td>show status</td><td><input type="checkbox" id="show_status"></td><td>first led shows status</td></tr>
 			<tr><td><button id="restart" type="button" onclick="restart()">restart</button></td><td><button id="store_config" type="button" onclick="storeConfig()">store</button><br></td><td></td></tr>
 		</table>
+		
+		<h3>last messages</h3>
+		<button type="button" onclick="load_messages()">load messages</button>
+		<button type="button" onclick="clear_messages()">clear messages</button>
+		<pre id="lastmessages">
+		<code>
+		</code>
+		</pre>
 
 
 	</article>
@@ -74,6 +83,7 @@ function storeConfig() {
 	var newJ = {};
 	var n;
 	var chk;
+	var str;
 	var changed;
 	try {
 		n = checkNumber("numleds", 1, 1000);
@@ -96,6 +106,13 @@ function storeConfig() {
 			newJ.show_status = chk;
 			changed = true;
 		}
+		// timezone
+		str = document.getElementById("timezone").value;
+		if ( str != j.timezone) {
+			newJ.timezone = str;
+			changed = true;
+		}
+		
 		if ( !changed) {
 			alert("no changes");
 			return;
@@ -112,6 +129,7 @@ function fillConfigValues() {
 	document.getElementById("numleds").value = j.numleds;
 	document.getElementById("cycle").value = j.cycle;
 	document.getElementById("autoplay").checked = j.autoplay;
+	document.getElementById("timezone").checked = j.timezone;
 	document.getElementById("show_status").checked = j.show_status;
 }
 
@@ -161,6 +179,37 @@ function restart() {
 	xhttp.open("GET", "cfg/restart", true);
 	xhttp.send();
 }
+
+function load_messages() {
+	var xhttp = new XMLHttpRequest();
+	xhttp.onreadystatechange = function() {
+	    if (this.readyState == 4 ){
+	    	if (this.status == 200) {
+	    		document.getElementById("lastmessages").innerHTML = this.responseText;
+	    	} else {
+	    		alert(this.statusText);
+	    	}
+	    }
+  	};
+  	xhttp.open("GET", "err", true);
+  	xhttp.send();
+}
+
+function clear_messages() {
+	var xhttp = new XMLHttpRequest();
+	xhttp.onreadystatechange = function() {
+	    if (this.readyState == 4 ){
+	    	if (this.status == 200) {
+	    		document.getElementById("lastmessages").innerHTML = "";
+	    	} else {
+	    		alert(this.statusText);
+	    	}
+	    }
+  	};
+  	xhttp.open("GET", "clerr", true);
+  	xhttp.send();
+}
+
 </script>
 <noscript>
 	<p>no script</p>

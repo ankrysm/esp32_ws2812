@@ -22,6 +22,7 @@ uint32_t cfg_trans_flags = 0;
 uint32_t cfg_numleds = 60;
 uint32_t cfg_cycle = 50;
 char *cfg_autoplayfile = NULL;
+char *cfg_timezone = NULL;
 
 char last_loaded_file[LEN_PATH_MAX];
 size_t sz_last_loaded_file = sizeof(last_loaded_file);

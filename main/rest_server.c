@@ -143,7 +143,6 @@ static void get_handler_list_err(httpd_req_t *req) {
 
 
 static void get_handler_clear_err(httpd_req_t *req) {
-	char buf[512];
 
 	if( obtain_logsem_lock() != ESP_OK ) {
 		ESP_LOGE(__func__, "xSemaphoreTake failed");
@@ -567,14 +566,14 @@ static esp_err_t post_handler_load(httpd_req_t *req, char *content) {
 	run_status_type new_status = RUN_STATUS_STOPPED;
 	esp_err_t res = clear_data(msg, sizeof(msg), new_status);
 	if ( res != ESP_OK ) {
-		ESP_LOGW(__func__, "%s", msg);
+		log_warn(__func__, "%s", msg);
 		snprintfapp(msg, sizeof(msg), "\n");
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, msg);
         return ESP_FAIL;
 	}
 
 	if ( decode_json4event_root(content, msg, sizeof(msg)) != ESP_OK) {
-		ESP_LOGW(__func__, "%s", msg);
+		log_warn(__func__, "%s", msg);
 		snprintfapp(msg, sizeof(msg), "\n");
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, msg);
         return ESP_FAIL;
@@ -598,14 +597,14 @@ static esp_err_t post_handler_file_store(httpd_req_t *req, char *content, char *
 
 
 	if ( store_events_to_file(fname, content, msg, sizeof(msg))!= ESP_OK) {
-		ESP_LOGW(__func__, "%s", msg);
+		log_err(__func__, "%s", msg);
 		snprintfapp(msg, sizeof(msg), "\n");
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, msg);
         return ESP_FAIL;
 	}
 
 	snprintf(msg,sizeof(msg), "content saved to %s",fname);
-	ESP_LOGI(__func__, "success: %s", msg);
+	log_info(__func__, "success: %s", msg);
 
 	// successful
     httpd_resp_set_type(req, "plain/text");
@@ -632,7 +631,7 @@ static esp_err_t get_handler_file_load(httpd_req_t *req, char *fname, size_t sz_
 	// stop display program and clear data
 	run_status_type new_status = RUN_STATUS_STOPPED;
 	if ( clear_data(msg, sizeof(msg), new_status) != ESP_OK) {
-		ESP_LOGW(__func__, "clear_data failed, %s", msg);
+		log_warn(__func__, "clear_data failed, %s", msg);
 		snprintfapp(msg, sizeof(msg), "\n");
 		httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, msg);
 		return ESP_FAIL;
@@ -641,13 +640,14 @@ static esp_err_t get_handler_file_load(httpd_req_t *req, char *fname, size_t sz_
 	// load new data
 	if ( load_events_from_file(fname, errmsg, sizeof(errmsg)) != ESP_OK) {
 		snprintfapp(msg,sizeof(msg), ", load content from %s failed: %s",fname, errmsg);
-		ESP_LOGW(__func__, "load_events_from_file failed, %s", msg);
+		log_warn(__func__, "load_events_from_file failed, %s", msg);
 		snprintfapp(msg, sizeof(msg), "\n");
 		httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, msg);
 		return ESP_FAIL;
 	}
 
 	// successful
+	log_info(__func__,"content loaded from %s",fname);
 	snprintf(last_loaded_file, sz_last_loaded_file,"%s", fname);
 
 	snprintfapp(msg,sizeof(msg), ", content loaded from %s",fname);
@@ -722,10 +722,11 @@ static esp_err_t post_handler_config_set(httpd_req_t *req, char *buf) {
 	esp_err_t res = decode_json4config_root(buf, errmsg, sizeof(errmsg));
 
 	if (res == ESP_OK) {
-		snprintfapp(msg, sizeof(msg), ", decoding data done: %s",errmsg);
+		snprintfapp(msg, sizeof(msg), ", decoding data done: %s", errmsg);
+		log_info(__func__, "%s", msg);
 	} else {
-		snprintfapp(msg, sizeof(msg), ", decoding data failed: %s",errmsg);
-		ESP_LOGW(__func__, "error %s", msg);
+		snprintfapp(msg, sizeof(msg), ", decoding data failed: %s", errmsg);
+		log_err(__func__, "%s", msg);
 		snprintfapp(msg, sizeof(msg),"\n");
 		httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, msg);
 		return ESP_FAIL;

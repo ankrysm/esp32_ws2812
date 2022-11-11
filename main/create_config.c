@@ -11,6 +11,7 @@ extern uint32_t cfg_flags;
 extern uint32_t cfg_numleds;
 extern uint32_t cfg_cycle;
 extern char *cfg_autoplayfile;
+extern char *cfg_timezone;
 
 esp_err_t decode_json4config_root(char *content, char *errmsg, size_t sz_errmsg) {
 	cJSON *tree = NULL;
@@ -127,6 +128,26 @@ esp_err_t decode_json4config_root(char *content, char *errmsg, size_t sz_errmsg)
 			break;
 		}
 
+		attr="timezone";
+		lrc = evt_get_string(tree, attr, sval, sizeof(sval), errmsg, sz_errmsg);
+		if ( lrc == RES_OK || lrc == RES_NO_VALUE) {
+			if (!strcmp(cfg_timezone ? cfg_timezone:"", sval)) {
+				ESP_LOGI(__func__, "%s='%s' not changed",
+						attr, cfg_timezone ? cfg_timezone : "");
+			} else {
+				ESP_LOGI(__func__, "%s='%s' changed",
+						attr, cfg_timezone ? cfg_timezone : "");
+				if ( cfg_timezone)
+					free(cfg_timezone);
+				cfg_timezone = strlen(sval) ? strdup(sval) : NULL;
+				store_it = true;
+				set_timezone(cfg_timezone);
+			}
+		} else if ( lrc != RES_NOT_FOUND) {
+			ESP_LOGE(__func__, "parse attribute '%s' failed: %s", attr, errmsg);
+			break;
+		}
+
 		attr="strip_demo";
 		lrc = evt_get_bool(tree, attr, &bval, errmsg, sz_errmsg);
 		if (lrc== RES_OK) {
@@ -147,7 +168,6 @@ esp_err_t decode_json4config_root(char *content, char *errmsg, size_t sz_errmsg)
 		}
 
 		snprintf(errmsg,sz_errmsg,"success.");
-
 
 		rc = ESP_OK;
 
