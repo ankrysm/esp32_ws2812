@@ -7,7 +7,10 @@
 
 #include "esp32_ws2812.h"
 
-//T_SCENE *s_scene_list = NULL;
+T_LOG_ENTRY logtable[N_LOG_ENTRIES];
+size_t sz_logtable = sizeof(logtable);
+int log_write_idx=0;
+
 T_TRACK tracks[N_TRACKS];
 size_t sz_tracks = sizeof(tracks);
 
@@ -23,9 +26,13 @@ char *cfg_autoplayfile = NULL;
 char last_loaded_file[LEN_PATH_MAX];
 size_t sz_last_loaded_file = sizeof(last_loaded_file);
 
+
+
 void global_data_init() {
 	memset(last_loaded_file, 0, sizeof(last_loaded_file));
 	memset(tracks, 0, sizeof(tracks));
+	memset(logtable, 0, sizeof(logtable));
+	log_write_idx=0;
 }
 
 T_HTTP_PROCCESSING_TYPE http_processing[] = {
@@ -37,6 +44,8 @@ T_HTTP_PROCCESSING_TYPE http_processing[] = {
 		{"/sts",       0,                          HP_STATUS,      "status info"},
 		{"/cl",        0,                          HP_CLEAR,       "clear event list"},
 		{"/li",        0,                          HP_LIST,        "list events"},
+		{"/err",       0,                          HP_LIST_ERR,    "list last errors"},
+		{"/clerr",     0,                          HP_CLEAR_ERR,   "clear last errors"},
 		{"/lo",        HPF_POST,                   HP_LOAD,        "load events, replaces data in memory"},
 		{"/f/list",    0,                          HP_FILE_LIST,   "list stored files"},
 		{"/f/store/",  HPF_PATH_FROM_URL|HPF_POST, HP_FILE_STORE,  "store JSON event lists into flash memory as &quot;fname&quot;"},

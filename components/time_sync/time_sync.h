@@ -27,6 +27,16 @@ esp_err_t fetch_and_store_time_in_nvs(void*);
  */
 esp_err_t init_time_service(char *storage_namespace);
 
+/**
+ * @brief get current date string
+ */
+void get_current_timestamp(char *tbuf, size_t sz_tbuf);
+
+/**
+ * @brief set the timezone
+ */
+void set_timezone(char *tz);
+
 #ifdef __cplusplus
 }
 #endif

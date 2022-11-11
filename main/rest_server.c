@@ -10,12 +10,12 @@
 
 #include "esp32_ws2812.h"
 
-//#define MDNS_INSTANCE "esp home web server"
-
 #define MAX_CONTENTLEN 10240
 
-
 extern esp_vfs_spiffs_conf_t fs_conf;
+extern T_LOG_ENTRY logtable[];
+extern size_t sz_logtable;
+extern int log_write_idx;
 
 typedef struct rest_server_context {
     char base_path[ESP_VFS_PATH_MAX + 1];
@@ -116,6 +116,47 @@ static T_HTTP_PROCCESSING_TYPE *get_http_processing(char *path) {
 	}
 	return NULL;
 }
+
+static void get_handler_list_err(httpd_req_t *req) {
+	char buf[512];
+
+	if( obtain_logsem_lock() != ESP_OK ) {
+		ESP_LOGE(__func__, "xSemaphoreTake failed");
+		return;
+	}
+
+	int pos=log_write_idx;
+	for ( int i=0; i < N_LOG_ENTRIES; i++) {
+		esp_err_t res = log_entry2text(pos, buf, sizeof(buf));
+		pos++;
+		if ( pos >= N_LOG_ENTRIES) {
+			pos=0;
+		}
+		if ( res == ESP_ERR_NOT_FOUND )
+			continue;
+
+		strlcat(buf, "\n", sizeof(buf));
+		httpd_resp_sendstr_chunk(req, buf);
+	}
+	release_logsem_lock();
+}
+
+
+static void get_handler_clear_err(httpd_req_t *req) {
+	char buf[512];
+
+	if( obtain_logsem_lock() != ESP_OK ) {
+		ESP_LOGE(__func__, "xSemaphoreTake failed");
+		return;
+	}
+
+	log_write_idx = 0;
+	memset(logtable, 0, sz_logtable);
+
+	httpd_resp_sendstr_chunk(req, "done.\n");
+	release_logsem_lock();
+}
+
 
 void get_handler_list(httpd_req_t *req) {
 	// list events
@@ -864,6 +905,10 @@ static esp_err_t get_handler_main(httpd_req_t *req)
 		get_handler_list(req);
 		break;
 
+	case HP_LIST_ERR:
+		get_handler_list_err(req);
+		break;
+
 	case HP_FILE_LIST:
 		get_handler_file_list(req);
 		break;
@@ -914,6 +959,10 @@ static esp_err_t get_handler_main(httpd_req_t *req)
 
 	case HP_CFG_RESET:
 		get_handler_reset(req);
+		break;
+
+	case HP_CLEAR_ERR:
+		get_handler_clear_err(req);
 		break;
 
 	default:

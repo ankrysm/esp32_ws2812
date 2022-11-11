@@ -175,15 +175,14 @@ esp_err_t init_time_service(char *storage_namespace) {
 	return ESP_OK;
 }
 
-void get_current_timestamp(char tbuf, size_t sz_tbuf) {
+void get_current_timestamp(char *tbuf, size_t sz_tbuf) {
 	char tformat[32];
 
 	struct timeval tv;
-    time_t now = 0;
     struct tm timeinfo = { 0 };
 
 	gettimeofday(&tv, NULL);
-    localtime_r(&now, &timeinfo);
+    localtime_r(&tv.tv_sec, &timeinfo);
 	snprintf(tformat, sizeof(tformat), "%%Y-%%m-%%d %%H:%%M:%%S.%06ld", tv.tv_usec);
 	strftime(tbuf, sz_tbuf, tformat, &timeinfo);
 }

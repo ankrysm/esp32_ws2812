@@ -12,76 +12,11 @@
 
 int main_flags=0;
 
-
-//uint64_t timmi_dt =22;
-
-//extern T_CONFIG gConfig;
-//extern uint32_t cfg_flags;
 extern uint32_t cfg_trans_flags;
 extern uint32_t cfg_numleds;
 extern uint32_t cfg_cycle;
-//extern char *cfg_autoplayfile;
 
 void firstled(int red, int green, int blue) ;
-
-//static uint64_t timtim=0;
-//extern T_EVENT *s_event_list;
-
-/*
-void timmi() {
-	if (obtain_eventlist_lock() != ESP_OK) {
-		ESP_LOGE(__func__, "couldn't get lock on eventlist");
-		return;
-	}
-	strip_clear();
-
-	if ( !s_event_list) {
-		firstled(16,0,16);
-		release_eventlist_lock();
-		timtim=0;
-		return;
-	}
-
-	/// play scenes
-	timtim += timmi_dt;
-	int n_paint=0;
-	// first check: is something to paint?
-	for ( T_EVENT *evt= s_event_list; evt; evt = evt->nxt) {
-		// first: move
-		process_move_events(evt,timmi_dt);
-		if ( evt->isdirty) {
-			n_paint++;
-			evt->isdirty=0;
-		}
-		// next: time events
-		// TODO
-	}
-
-	if ( n_paint > 0) {
-		// i have something to paint
-		for ( T_EVENT *evt= s_event_list; evt; evt = evt->nxt) {
-			process_loc_event(evt);
-		}
-		//ESP_LOGI(__func__, "strip_show");
-		strip_show();
-	}
-	release_eventlist_lock();
-}
-*/
-
-/*
-void timmi_task(void *para) {
-	ESP_LOGI(__func__,"running on core %d",xPortGetCoreID());
-	TickType_t xDelay = 50 / portTICK_PERIOD_MS;
-
-	while(1) {
-		//printf("xxx\n");
-		timmi();
-		vTaskDelay(xDelay);
-	}
-
-}
-*/
 
 void some_useful_informations() {
 	ESP_LOGI(__func__, "LEN_PATH_MAX=%d", LEN_PATH_MAX);
@@ -90,6 +25,8 @@ void some_useful_informations() {
 }
 
 void app_main() {
+
+	init_logging(ESP_LOG_VERBOSE);
 
 	global_data_init();
 
@@ -175,13 +112,6 @@ void app_main() {
 		firstled(32,0,0);
 		ESP_LOGI(__func__, "without WIFI");
 	}
-	// */
-
-	/*
-	TaskHandle_t  Core1TaskHnd ;
-	xTaskCreatePinnedToCore(timmi_task,"CPU_1",10000,NULL,1,&Core1TaskHnd,1);
-	*/
-
 
 	// load autostart file if specified
 	load_autostart_file();
@@ -190,6 +120,7 @@ void app_main() {
 	scenes_autostart();
 
 	// main loop
+	log_info(__func__, "main started");
 	ESP_LOGI(__func__,"running on core %d",xPortGetCoreID());
 	xDelay = 50000 / portTICK_PERIOD_MS;
 	while(1) {

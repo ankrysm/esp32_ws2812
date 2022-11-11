@@ -97,6 +97,17 @@ void strip_clear();
 void strip_show(bool forced);
 void firstled(int red, int green, int blue);
 
+// from logger.c
+void log_err(const char *func, const char *fmt, ...);
+void log_warn(const char *func, const char *fmt, ...);
+void log_info(const char *func, const char *fmt, ...);
+void log_deb(const char *func, const char *fmt, ...);
+void init_logging(esp_log_level_t initial_log_level);
+esp_err_t obtain_logsem_lock();
+esp_err_t release_logsem_lock();
+esp_err_t log_entry2text(int idx, char *text, size_t sz_text);
+
+
 // from process_bmp.c
 t_result bmp_work(uint8_t *buf, size_t sz_buf, double brightness);
 bool get_is_bmp_reading();

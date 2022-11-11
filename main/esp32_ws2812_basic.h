@@ -46,6 +46,7 @@
 #include "time_sync.h"
 #include "bmp.h"
 #include "https_get.h"
+#include "logger.h"
 
 #define LEN_PATH_MAX (ESP_VFS_PATH_MAX+128)
 #define N_TRACKS 16

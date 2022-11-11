@@ -27,6 +27,7 @@ typedef enum {
 typedef enum {
 	HP_STATUS,
 	HP_LIST,
+	HP_LIST_ERR,
 	HP_FILE_LIST,
 	HP_FILE_STORE,
 	HP_FILE_GET,
@@ -44,6 +45,7 @@ typedef enum {
 	HP_CFG_RESET,
 	HP_HELP,
 	HP_LOAD,
+	HP_CLEAR_ERR,
 	// End of list
 	HP_END_OF_LIST
 } t_http_processing;
