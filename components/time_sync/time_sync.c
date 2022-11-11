@@ -175,4 +175,26 @@ esp_err_t init_time_service(char *storage_namespace) {
 	return ESP_OK;
 }
 
+void get_current_timestamp(char tbuf, size_t sz_tbuf) {
+	char tformat[32];
 
+	struct timeval tv;
+    time_t now = 0;
+    struct tm timeinfo = { 0 };
+
+	gettimeofday(&tv, NULL);
+    localtime_r(&now, &timeinfo);
+	snprintf(tformat, sizeof(tformat), "%%Y-%%m-%%d %%H:%%M:%%S.%06ld", tv.tv_usec);
+	strftime(tbuf, sz_tbuf, tformat, &timeinfo);
+}
+
+/*
+ * examples
+ *  Berlin: CET-1CEST,M3.5.0,M10.5.0/3
+ *  Japan: JST
+ *
+ */
+void set_timezone(char *tz) {
+    setenv("TZ", tz, 1);
+    tzset();
+}
