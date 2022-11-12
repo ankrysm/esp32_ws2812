@@ -33,7 +33,7 @@
 /* Timer interval once every day (24 Hours) */
 #define TIME_PERIOD (86400000000ULL)
 
-static char *s_storage_namespace=NULL; // "storage"
+//static char *s_storage_namespace=NULL; // "storage"
 
 void initialize_sntp(void)
 {
@@ -76,6 +76,16 @@ esp_err_t fetch_and_store_time_in_nvs(void *args)
     if (obtain_time() != ESP_OK) {
         return ESP_FAIL;
     }
+    return ESP_OK;
+}
+
+/*
+esp_err_t fetch_and_store_time_in_nvs(void *args)
+{
+    initialize_sntp();
+    if (obtain_time() != ESP_OK) {
+        return ESP_FAIL;
+    }
 
     nvs_handle_t my_handle;
     esp_err_t err;
@@ -111,7 +121,9 @@ exit:
     }
     return err;
 }
+*/
 
+/*
 esp_err_t update_time_from_nvs(void)
 {
     nvs_handle_t my_handle;
@@ -143,13 +155,17 @@ exit:
     nvs_close(my_handle);
     return err;
 }
-
+*/
 
 esp_err_t init_time_service(char *storage_namespace) {
+    initialize_sntp();
+    if (obtain_time() != ESP_OK) {
+        return ESP_FAIL;
+    }
 
+    /*
 	s_storage_namespace = strdup(storage_namespace);
 
-	esp_err_t res;
 	if (esp_reset_reason() == ESP_RST_POWERON) {
 		ESP_LOGI(__func__, "Updating time from NVS");
 		if ( (res=update_time_from_nvs()) != ESP_OK) {
@@ -157,7 +173,8 @@ esp_err_t init_time_service(char *storage_namespace) {
 			return res;
 		}
 	}
-
+	*/
+	esp_err_t res;
 	const esp_timer_create_args_t nvs_update_timer_args = {
 			.callback = (void *)&fetch_and_store_time_in_nvs,
 	};
@@ -194,6 +211,7 @@ void get_current_timestamp(char *tbuf, size_t sz_tbuf) {
  *
  */
 void set_timezone(char *tz) {
+	ESP_LOGI(__func__, "new tz is '%s'", tz);
     setenv("TZ", tz, 1);
     tzset();
 }

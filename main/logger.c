@@ -44,25 +44,13 @@ static void log_doit(esp_log_level_t level, const char *func, const char *fmt, v
 	}
 
 	T_LOG_ENTRY *buf = &(logtable[log_write_idx]);
-
+	buf->level = level;
 	gettimeofday(&(buf->tv), NULL);
-
-	/*
-	char tbuf[32];
-	get_current_timestamp( tbuf,sizeof(tbuf));
-	snprintf(buf, LEN_LOG, "%s: %s:", tbuf, (
-		level == ESP_LOG_ERROR ? "ERROR" :
-		level == ESP_LOG_WARN  ? "WARN" :
-		level == ESP_LOG_INFO  ? "INFO" :
-		level == ESP_LOG_DEBUG ? "DEBUG" :
-		level == ESP_LOG_VERBOSE ? "VERBOSE" : "UNKNOWN" )
-	);
-	*/
-
-	//size_t l = strlen(buf);
 	vsnprintf(buf->msg, LEN_LOG, fmt, ap);
 
-	ESP_LOG_LEVEL(level, func, "%s", buf->msg);
+	char txt[64];
+	log_entry_basics4buffer(buf, txt, sizeof(txt));
+	ESP_LOG_LEVEL(level, func, "%s - %s", txt, buf->msg);
 
 	log_write_idx++;
 	if (log_write_idx >= N_LOG_ENTRIES)
@@ -106,15 +94,38 @@ void init_logging(esp_log_level_t initial_log_level) {
 	xLogSemaphore = xSemaphoreCreateMutex();
 }
 
-esp_err_t log_entry2text(int idx, char *text, size_t sz_text) {
+/**
+ * log entry to buffer without thr text
+ */
+void log_entry_basics4buffer(T_LOG_ENTRY *buf, char *text, size_t sz_text) {
 	memset(text, 0, sz_text);
-	if ( idx < 0 || idx >= N_LOG_ENTRIES)
-		return ESP_ERR_NOT_FOUND;
-
-	T_LOG_ENTRY *buf = &(logtable[idx]);
 
 	if ( buf->level == ESP_LOG_NONE)
-		return ESP_ERR_NOT_FOUND;
+		return;
+
+    struct tm timeinfo = { 0 };
+	char tformat[32];
+	char tbuf[32];
+
+    localtime_r(&(buf->tv.tv_sec), &timeinfo);
+	snprintf(tformat, sizeof(tformat), "%%Y-%%m-%%d %%H:%%M:%%S.%06ld", buf->tv.tv_sec);
+	strftime(tbuf, sizeof(tbuf), tformat, &timeinfo);
+
+	snprintf(text, sz_text, "%s: %s:", tbuf, (
+			buf->level == ESP_LOG_ERROR ? "ERROR" :
+			buf->level == ESP_LOG_WARN  ? "WARN" :
+			buf->level == ESP_LOG_INFO  ? "INFO" :
+			buf->level == ESP_LOG_DEBUG ? "DEBUG" :
+			buf->level == ESP_LOG_VERBOSE ? "VERBOSE" : "UNKNOWN" ));
+
+}
+
+
+void log_entry2text4buffer(T_LOG_ENTRY *buf, char *text, size_t sz_text) {
+	memset(text, 0, sz_text);
+
+	if ( buf->level == ESP_LOG_NONE)
+		return;
 
     struct tm timeinfo = { 0 };
 	char tformat[32];
@@ -131,6 +142,20 @@ esp_err_t log_entry2text(int idx, char *text, size_t sz_text) {
 			buf->level == ESP_LOG_DEBUG ? "DEBUG" :
 			buf->level == ESP_LOG_VERBOSE ? "VERBOSE" : "UNKNOWN" ),
 			buf->msg);
+
+}
+
+esp_err_t log_entry2text(int idx, char *text, size_t sz_text) {
+	memset(text, 0, sz_text);
+	if ( idx < 0 || idx >= N_LOG_ENTRIES)
+		return ESP_ERR_NOT_FOUND;
+
+	T_LOG_ENTRY *buf = &(logtable[idx]);
+
+	if ( buf->level == ESP_LOG_NONE)
+		return ESP_ERR_NOT_FOUND;
+
+	log_entry2text4buffer(buf, text, sz_text);
 
 	return ESP_OK;
 }
