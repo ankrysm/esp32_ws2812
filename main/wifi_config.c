@@ -379,9 +379,3 @@ void initialise_wifi()
 
 }
 
-
-//void app_main(void)
-//{
-//    ESP_ERROR_CHECK( nvs_flash_init() );
-//    initialise_wifi();
-//}

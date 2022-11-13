@@ -8,12 +8,26 @@
 #ifndef MAIN_ESP32_WS2812_TYPES_H_
 #define MAIN_ESP32_WS2812_TYPES_H_
 
+typedef enum {
+	RES_OK,
+	RES_NOT_FOUND,
+	RES_NO_VALUE,
+	RES_NO_DATA,
+	RES_INVALID_DATA_TYPE,
+	RES_OUT_OF_RANGE,
+	RES_NOT_ACTIVE,
+	RES_FINISHED,
+	RES_FAILED
+} t_result;
+
+
 // **** for web/rest-Services
 
 // kind of urls for REST-Service
 typedef enum {
 	HP_STATUS,
 	HP_LIST,
+	HP_LIST_ERR,
 	HP_FILE_LIST,
 	HP_FILE_STORE,
 	HP_FILE_GET,
@@ -24,12 +38,14 @@ typedef enum {
 	HP_STOP,
 	HP_PAUSE,
 	HP_BLANK,
+	HP_ASK,
 	HP_CONFIG_GET,
 	HP_CONFIG_SET,
 	HP_RESET,
 	HP_CFG_RESET,
 	HP_HELP,
 	HP_LOAD,
+	HP_CLEAR_ERR,
 	// End of list
 	HP_END_OF_LIST
 } t_http_processing;
@@ -118,8 +134,6 @@ typedef enum {
 	ET_BOUNCE,               // - W - (-) change direction speed=-speed
 	ET_REVERSE,              // - W - (-) change delta_pos to -delta_pos
 	ET_GOTO_POS,             // I W - (numeric) goto to position
-	ET_MARKER,               // - W - destination marker
-	ET_JUMP_MARKER,          // - W - jump to event with the marker
 	ET_CLEAR,                // I W F clear pixels
 	ET_SET_BRIGHTNESS,       // I W -
 	ET_SET_BRIGHTNESS_DELTA, // I W -

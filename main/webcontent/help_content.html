@@ -1,0 +1,98 @@
+<article>
+	<h2>Help</h2>
+
+	<p>source code on github: <a href="https://github.com/ankrysm/esp32_ws2812">source code</a></p>
+
+	<h3>First some hints for Apple user</h3>
+	<p>Because complex scenes uses a lot of memory the ESP32 application uses the old windows BMP-format
+	to stream pixel data from a web storage</p>
+	<p>If you have led strip with 300 leds you need a bmp file with a width of 300. There will be on pixel line displayed in one cycle
+	so the height multiplied by the cycle time determines the display time.</p>
+	<p>To create BMP files you can use the preview app. To save images as BMP you have to press the option key while
+	selecting entries from the format list box. BMP is not shown normally</p>
+	<p>Another possibility is to use <b>sips</b> from the command line in the terminal app.</p>
+	<p>Example: <em>sips -s format bmp -r 90 image.jpeg --out image.bmp</em></p>
+	<p>It converts image.jpg into image.bmp and rotates it by 90 degrees.</p>
+	<p>The files created by <em>sips</em> are smaller than the files exported by <em>preview app</em> because
+	<em>sips</em> uses 3 bytes per pixel <em>preview</em> uses 4 bytes</p>
+
+	<h3>common descriptions</h3>
+		<p>Configurations and scenes are described in json files with sections</p>
+		<ul>
+		<li><strong>&quot;objects&quot;</strong> - what to display, colors and section length</li>
+		<li><strong>&quot;events&quot;</strong> - how to arrange and modify displayed objects, move them, blink ... </li>
+		<li><strong>&quot;tracks&quot;</strong> - arrange events, repeat them </li>
+		</ul>
+
+	<h3>API description</h3>
+		<table id="api"></table>
+
+	<h3>Event syntax</h3>
+		<table id="event"></table>
+
+	<h3>Object parameter</h3>
+		<table id="objpara"></table>
+
+	<h3>Object definitions</h3>
+		<table id="objdefs"></table>
+
+	<h3>Track definitions</h3>
+	<p>The <strong>&quot;tracks&quot;</strong> section contains a list of up to 16 tracks</p>
+	<p>One track is a JSON object with an <strong>&quot;id&quot;</strong> and an <strong>&quot;elements&quot;</strong> list</p>
+	<p>each entry is an JSON object with the following attributes:</p>
+		<ul>
+		<li><strong>&quot;event&quot;</strong> - the name of the event list as defined in the <strong>&quot;events&quot;</strong> section</li>
+		<li><strong>&quot;repeat&quot;</strong> - number of event list repeats default 1 </li>
+		</ul>
+
+	<h3>Examples</h3>
+		<div id="examples"></div>
+
+	<p id="errmsg"></p>
+
+</article>
+
+<script>
+
+	function onBodyLoad() {
+		loadHelpTable("api", "/help/api.html");
+		loadHelpTable("event", "/help/event.html");
+		loadHelpTable("objpara", "/help/objpar.html");
+		loadHelpTable("objdefs", "/help/objdefs.html");
+		loadHelpDiv("examples", "/help/examples.html");
+	}
+
+	function loadHelpTable(table_name, url) {
+		var xhttp = new XMLHttpRequest();
+		xhttp.onreadystatechange = function() {
+			if (this.readyState == 4) {
+				if (this.status == 200) {
+					document.getElementById(table_name).innerHTML = this.responseText;
+				} else {
+					alert(this.statustext);
+				}
+			}
+		};
+		xhttp.open("GET", url, true);
+		xhttp.send();
+	}
+
+	function loadHelpDiv(table_name, url) {
+		var xhttp = new XMLHttpRequest();
+		xhttp.onreadystatechange = function() {
+			if (this.readyState == 4) {
+				if (this.status == 200) {
+					document.getElementById(table_name).innerHTML = this.responseText;
+				} else {
+					alert(this.statustext);
+				}
+			}
+		};
+		xhttp.open("GET", url, true);
+		xhttp.send();
+	}
+
+</script>
+<noscript>
+	<p>no script</p>
+</noscript>

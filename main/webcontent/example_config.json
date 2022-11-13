@@ -1,0 +1,7 @@
+{
+	"numleds": 300,
+	"cycle": 50,
+	"autoplay_file": "",
+	"autoplay": false,
+	"show_status": true
+}

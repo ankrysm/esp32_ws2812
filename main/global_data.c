@@ -7,35 +7,52 @@
 
 #include "esp32_ws2812.h"
 
-T_SCENE *s_scene_list = NULL;
+T_LOG_ENTRY logtable[N_LOG_ENTRIES];
+size_t sz_logtable = sizeof(logtable);
+int log_write_idx=0;
+
+T_TRACK tracks[N_TRACKS];
+size_t sz_tracks = sizeof(tracks);
+
 T_DISPLAY_OBJECT *s_object_list = NULL;
+T_EVENT_GROUP *s_event_group_list = NULL;
 
 uint32_t cfg_flags = 0;
 uint32_t cfg_trans_flags = 0;
 uint32_t cfg_numleds = 60;
 uint32_t cfg_cycle = 50;
 char *cfg_autoplayfile = NULL;
+char *cfg_timezone = NULL;
 
 char last_loaded_file[LEN_PATH_MAX];
+size_t sz_last_loaded_file = sizeof(last_loaded_file);
+
+
 
 void global_data_init() {
 	memset(last_loaded_file, 0, sizeof(last_loaded_file));
+	memset(tracks, 0, sizeof(tracks));
+	memset(logtable, 0, sizeof(logtable));
+	log_write_idx=0;
 }
 
 T_HTTP_PROCCESSING_TYPE http_processing[] = {
 		{"/r",         0,                          HP_RUN,         "run"},
 		{"/s",         0,                          HP_STOP,        "stop"},
 		{"/p",         0,                          HP_PAUSE,       "pause"},
-		{"/b",         0,                          HP_BLANK,       "blank strip"},
-		{"/i",         0,                          HP_STATUS,      "info"},
+		{"/b",         0,                          HP_BLANK,       "stop and blank strip"},
+		{"/i",         0,                          HP_ASK,         "run status"},
+		{"/sts",       0,                          HP_STATUS,      "status info"},
 		{"/cl",        0,                          HP_CLEAR,       "clear event list"},
 		{"/li",        0,                          HP_LIST,        "list events"},
+		{"/err",       0,                          HP_LIST_ERR,    "list last errors"},
+		{"/clerr",     0,                          HP_CLEAR_ERR,   "clear last errors"},
 		{"/lo",        HPF_POST,                   HP_LOAD,        "load events, replaces data in memory"},
 		{"/f/list",    0,                          HP_FILE_LIST,   "list stored files"},
-		{"/f/store/",  HPF_PATH_FROM_URL|HPF_POST, HP_FILE_STORE,  "store JSON event lists into flash memory as \"fname\""},
-		{"/f/get/",    HPF_PATH_FROM_URL,          HP_FILE_GET,    "get content of stored file \"fname\""},
-		{"/f/load/",   HPF_PATH_FROM_URL,          HP_FILE_LOAD,   "load JSON event list stored in \"fname\" into memory"},
-		{"/f/delete/", HPF_PATH_FROM_URL,          HP_FILE_DELETE, "delete file \"fname\""},
+		{"/f/store/",  HPF_PATH_FROM_URL|HPF_POST, HP_FILE_STORE,  "store JSON event lists into flash memory as &quot;fname&quot;"},
+		{"/f/get/",    HPF_PATH_FROM_URL,          HP_FILE_GET,    "get content of stored file &quot;fname&quot;"},
+		{"/f/load/",   HPF_PATH_FROM_URL,          HP_FILE_LOAD,   "load JSON event list stored as &quot;fname&quot; into memory"},
+		{"/f/delete/", HPF_PATH_FROM_URL,          HP_FILE_DELETE, "delete file &quot;fname&quot;"},
 		{"/cfg/get",   0,                          HP_CONFIG_GET,  "show config"},
 		{"/cfg/set",   HPF_POST,                   HP_CONFIG_SET,  "set config"},
 		{"/cfg/restart", 0,                        HP_RESET,       "restart the controller"},
@@ -54,8 +71,6 @@ T_EVENT_CONFIG event_config_tab[] = {
 		{ET_BOUNCE, EVT_PARA_NONE, "bounce", "reverse speed", ""},
 		{ET_REVERSE, EVT_PARA_NONE, "reverse", "reverse paint direction", ""},
 		{ET_GOTO_POS, EVT_PARA_NUMERIC, "goto", "go to led position","new position"},
-		{ET_MARKER, EVT_PARA_STRING, "marker", "set marker","name of the marker"},
-		{ET_JUMP_MARKER, EVT_PARA_STRING, "jump_marker", "jump to marker","destination marker"},
 		{ET_CLEAR,EVT_PARA_NONE, "clear", "blank the strip",""},
 		{ET_SET_BRIGHTNESS, EVT_PARA_NUMERIC,"brightness", "set brightness","brightness factor 0.0 .. 1.0"},
 		{ET_SET_BRIGHTNESS_DELTA, EVT_PARA_NUMERIC,"brightness_delta", "change brightness", "brightness delta per display cycle"},

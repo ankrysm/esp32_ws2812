@@ -27,6 +27,7 @@
 #define CFG_KEY_NUMLEDS "numleds"
 #define CFG_KEY_AUTOPLAY_FILE "autoplayfile"
 #define CFG_KEY_CYCLE "cycle"
+#define CFG_KEY_TIMEZONE "timezone"
 
 
 #endif /* CONFIG_H_ */

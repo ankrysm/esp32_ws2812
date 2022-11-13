@@ -1,0 +1,223 @@
+	<article>
+		<h2>Files</h2>
+
+		<table id="files"></table>
+
+        <table>
+     	<caption>upload</caption>
+        <tr> <td><label for="newfile">Upload a file</label></td>
+             <td colspan="2"><input id="newfile" type="file" onchange="setpath()" style="width:100%;"></td>
+        </tr>
+        <tr> <td><label for="filepath">store as</label></td>
+             <td><input id="filepath" type="text" style="width:100%;"></td>
+             <td><button id="upload" type="button" onclick="upload()">Upload</button></td>
+        </tr>
+        </table>
+
+		<p id="msg"></p>
+
+	</article>
+<script>
+
+var autoplay_file="";
+var last_loaded_file="";
+
+function onBodyLoad() {
+	get_autoplay_file();
+	getFiles();
+}
+
+function get_autoplay_file() {
+	var xhttp = new XMLHttpRequest();
+	xhttp.onreadystatechange = function() {
+	  if (this.readyState == 4 ){
+	  	if (this.status == 200) {
+	  	    var j = JSON.parse(this.responseText);
+			autoplay_file = j.autoplay_file;
+			last_loaded_file =j.work.last_loaded_file;
+	  	} else {
+	  		alert("get_autoplay_file" + this.statusText);
+	  	}
+	  }
+	};
+	xhttp.open("GET", "cfg/get", true);
+	xhttp.send();
+}
+
+function set_autoplay_file(fname) {
+	if (autoplay_file == fname) {
+		// its the same
+		return;
+	}
+	var xhttp = new XMLHttpRequest();
+	xhttp.onreadystatechange = function() {
+	  if (this.readyState == 4 ){
+	  	if (this.status == 200) {
+	        location.reload();
+			showMsg("done.");
+	  	} else {
+	  		alert(this.statusText);
+	  	}
+	  } else {
+		  showMsg("retrieving file list ..."); // it took a while
+	  }
+	};
+	var data = '{"autoplay_file":"'+fname+'"}';
+	xhttp.open("POST", "cfg/set", true);
+	xhttp.send(data);
+
+}
+
+function getFiles() {
+	var xhttp = new XMLHttpRequest();
+	xhttp.onreadystatechange = function() {
+	  if (this.readyState == 4 ){
+	  	if (this.status == 200) {
+	  		getFilesFunction(this);
+			showMsg("done.");
+	  	} else {
+	  		alert(this.statusText);
+	  	}
+	  } else {
+		  showMsg("retrieving file list ..."); // it took a while
+	  }
+	};
+	xhttp.open("GET", "f/list", true);
+	xhttp.send();
+}
+
+function showMsg(text) {
+	  var errmsgdiv = document.getElementById("msg");
+	  errmsgdiv.innerHTML = text;
+	  setTimeout(clearMsg, 10000); // clear msg object after 10 sec
+}
+
+function clearMsg() {
+	  var errmsgdiv = document.getElementById("msg");
+	  errmsgdiv.innerHTML = "&nbsp;";
+}
+
+function getFilesFunction(json) {
+	var j = JSON.parse(json.responseText);
+	var files = j.files;
+    var table="<caption>list of files<br>(A) - autoplay file, (L) - loaded</caption><tr><th>Name</th><th>Size (bytes)</th><th>Actions</th></tr>\n";
+    files.forEach((item) => {
+    	var addtxt = "";
+    	if ( item.name == autoplay_file) {
+    		addtxt += "(A)";
+    	}
+    	if (item.name == last_loaded_file) {
+    		addtxt += "(L)";
+    	}
+		table +='<tr><td>'
+		+'<a href="/f/get/'+item.name+'">'+item.name+'</a>' + addtxt
+		+'</td><td>' + item.sz +'</td><td>'
+		+'<div class="tab-btn-group">'
+		+'<button type="button" onclick="loadfile('+"'"+item.name+"'"+')">LOAD</button>'
+		+'<button type="button" onclick="set_autoplay_file('+"'"+item.name+"'"+')">AUTO</button>'
+		+'<button type="button" onclick="deletefile('+"'"+item.name+"'"+')">DELETE</button></div>'
+		+'</td></tr>\n';
+	});
+	document.getElementById("files").innerHTML = table;
+}
+
+// load file into memory
+function loadfile(fname) {
+	var xhttp = new XMLHttpRequest();
+	xhttp.onreadystatechange = function() {
+	  if (this.readyState == 4 ){
+	  	if (this.status == 200) {
+	        location.reload();
+			showMsg("loading file " + fname + " done");
+	  	} else {
+	  		alert("loading file " + fname + " failed:" +this.statusText);
+	  	}
+	  } else {
+		  showMsg("loading file " + fname+ " ...");
+	  }
+	};
+	xhttp.open("GET", "f/load/" + fname, true);
+	xhttp.send();
+}
+
+function deletefile(fname) {
+	var check = confirm('delete file '+fname+' ?');
+	if ( check == false)
+		return; //no.
+
+	var xhttp = new XMLHttpRequest();
+	xhttp.onreadystatechange = function() {
+	  if (this.readyState == 4 ){
+	  	if (this.status == 200) {
+			showMsg("file " + fname + " deleted");
+	  	} else {
+	  		alert("delete file " + fname + " failed:" +this.statusText);
+	  	}
+        location.reload();
+	  } else {
+		  showMsg("delete file " + fname+ " ...");
+	  }
+	};
+	xhttp.open("GET", "f/delete/" + fname, true);
+	xhttp.send();
+}
+
+// file upload functions
+function setpath() {
+    var default_path = document.getElementById("newfile").files[0].name;
+    document.getElementById("filepath").value = default_path;
+}
+function upload() {
+    var filePath = document.getElementById("filepath").value;
+    var upload_path = "/f/store/" + filePath;
+    var fileInput = document.getElementById("newfile").files;
+
+    /* Max size of an individual file. Make sure this
+     * value is same as that set in file_server.c */
+    var MAX_FILE_SIZE = 200*1024;
+    var MAX_FILE_SIZE_STR = "200KB";
+
+    if (fileInput.length == 0) {
+        alert("No file selected!");
+    } else if (filePath.length == 0) {
+        alert("File path on server is not set!");
+    } else if (filePath.indexOf(' ') >= 0) {
+        alert("File path on server cannot have spaces!");
+    } else if (filePath[filePath.length-1] == '/') {
+        alert("File name not specified after path!");
+    } else if (fileInput[0].size > 200*1024) {
+        alert("File size must be less than 200KB!");
+    } else {
+        document.getElementById("newfile").disabled = true;
+        document.getElementById("filepath").disabled = true;
+        document.getElementById("upload").disabled = true;
+
+        var file = fileInput[0];
+        var xhttp = new XMLHttpRequest();
+        xhttp.onreadystatechange = function() {
+            if (xhttp.readyState == 4) {
+                if (xhttp.status == 200) {
+                    //document.open();
+                    //document.write(xhttp.responseText);
+                    //document.close();
+                    showMsg("upload file " + filePath + 'done');
+                    location.reload();
+
+                } else if (xhttp.status == 0) {
+                    alert("Server closed the connection abruptly!");
+                    location.reload();
+                } else {
+                    alert(xhttp.status + " Error!\n" + xhttp.responseText);
+                    location.reload();
+                }
+            } else {
+      		  showMsg("upload file " + fname+ " ...");
+            }
+        };
+        xhttp.open("POST", upload_path, true);
+        xhttp.send(file);
+    }
+}
+
+
+</script>

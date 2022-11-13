@@ -1,0 +1,369 @@
+@charset "utf-8";
+/* CSS Document */
+
+input[type=file]::file-selector-button {
+  margin-right: 20px;
+  border: none;
+  background: lightgreen;
+  padding: 5px 10px;
+  border: 1px solid green;
+  border-radius: 20%;
+  border-width: small;
+  color: black;
+  cursor: pointer;
+  transition: background .4s ease-in-out;
+}
+
+button {
+  background-color: lightgreen;
+  border: 1px solid green;
+  border-radius: 20%;
+  border-width: small;
+  padding: 5px 10px;
+  color: black;
+  cursor: pointer;
+  transition-duration: 0.4s;
+}
+
+
+button:hover {
+  background-color: #4CAF50;
+  color: white;
+}
+
+input[type=file]::file-selector-button:hover {
+  background: #4CAF50;
+  color: white;
+}
+
+table, th, td, caption {
+	border: thin solid #a0a0a0;
+}
+
+/*
+table, th, td {
+ 	width: 50%;
+}
+*/
+
+caption {
+	caption-side: top;
+	padding-down: 1em;
+	font-style: italic;
+}
+
+table {
+	border-collapse: collapse;
+	border-spacing: 0;
+	border-width: thin 0 0 thin;
+	margin: 0 0 1em;
+	table-layout: auto;
+	max-width: 100%;
+/*	width: 50%; */
+}
+th, td {
+	font-weight: normal;
+	text-align: left;
+	padding: 0.5em 1.5em;
+}
+th, caption {
+	background-color: GoldenRod
+	font-weight: 700;
+}
+pre {
+	background-color: lightgreen
+	background: lightgreen
+	color: black;
+	font-family: Fixedsys, Courier, monospace;
+	padding: 1em;
+}
+code {
+	font-family: monospace;
+	white-space: pre;
+}
+
+/* klassisches Layout für SELFHTML-Beispiele */
+
+
+html {
+  background: #f0d9a2;
+  color: #5d0505;
+}
+
+body {
+	margin: 1em auto;
+	max-width: 65em;
+	font-family: sans-serif;
+}
+
+h1, main, aside, main svg {
+	border-radius: 0 .5em .5em;
+	border: 1px none;
+	padding: .5em 1em;
+	margin: 0;
+}
+
+h1, h2 {
+	background: #f0d9a2;
+	color: #5d0505;
+	font-family: Arial;
+	font-size: 2.5rem;
+}
+
+aside h2 {
+	font-size: 1.8rem;
+}
+
+header {
+  border-color: transparent;
+}
+
+#logo {
+ display:inline-block;
+ text-shadow: none;
+ color: transparent;
+ background:url(ledstrip.jpg);
+ width:150px;
+ height:150px;
+}
+
+
+article img {
+	width: 33%;
+	float: right;
+	margin-left: 0.2em;
+}
+
+figure {
+  display: inline-block;
+  width: 30%;
+  margin: 0.2em;
+}
+figure img {
+  width: 100%;
+}
+figure figcaption {
+  font-style: italic;
+}
+
+section {
+  border-color: transparent;
+}
+article {
+  border-color: transparent;
+}
+aside {
+  border-color: transparent;
+}
+footer {
+  border-color:transparent;
+}
+
+nav a {
+  background: #5d0505;
+  border: 1px solid;
+  border-color: #5d5050;
+  border-left-color: #f0d9a2;
+  color:  #f0d9a2;
+}
+
+nav li:first-child  a{ border-radius: 1em 0 0 1em; }
+nav li:last-child  a{ border-radius: 0 1em 1em 0; }
+
+nav a:hover, nav a:focus {
+  background: orange;
+  border-color: #5d5050;
+  color:  #5d0505;
+}
+
+nav a[aria-current=page] {
+	color:orange;
+	font-weight:bold;
+}
+nav a[aria-current=page]:hover,nav a[aria-current=page]:focus {
+	color:#5d0505;
+
+}
+
+a {
+  color: blue;
+}
+
+/* responsives Layout */
+
+body {
+  display: flex;
+  flex-flow: row wrap;
+}
+
+/* Mobile first - alle Dokument-Blöcke bekommen 100% Breite */
+header, nav, article, section, aside, footer {
+  border-radius: 0px 0.5em 0.5em;
+  border: 1px none;
+  padding: 0.5em;
+  margin: 0.5em;
+  flex: 1 100%;
+}
+
+header {
+  display: flex;
+  flex-flow: row wrap;
+}
+header * {
+  flex: 1 1 0%;
+}
+header img {
+  flex: 0 0 150px;
+  margin-right: 20px;
+}
+header nav {
+  flex: 1 1 100%;
+}
+nav, nav ul, nav li{
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+nav ul {
+  display: flex;
+  flex-direction: column;
+}
+nav li {
+  list-style-type: none;
+  margin: 1.3em 0;
+  padding:0;
+  flex: 1 1 100%;
+}
+nav a {
+  display: inline-block;
+  margin: 0;
+  width: 96%;
+  padding: 0.5em 2%;
+  text-decoration: none;
+  text-align: center;
+}
+
+footer {
+  display: flex;
+  flex-flow: row wrap;
+}
+footer * {
+  flex: 1 1 0%;
+  justify-content: space-between;
+}
+footer p:last-child {
+  text-align: right;
+}
+/* Smart Phones und Tablets mit mittlerer Auflösung */
+@media all and (min-width: 35em) {
+  header img {
+    margin-right: 50px;
+  }
+  nav ul {
+    flex-direction: row;
+  }
+  nav li {
+    flex: 1 1 0%;
+  }
+  article {
+    order: 2;
+  }
+
+  #news {
+    flex: 1 auto;
+    order: 3;
+  }
+
+  aside {
+    /* durch auto werden die beiden asides in eine Zeile gesetzt */
+    flex: 1 auto;
+    order: 4;
+  }
+
+  footer {
+    order: 5;
+  }
+}
+
+     /* Large screens */
+@media all and (min-width: 50em) {
+  article {
+    /* Der Article wird 2.5x so breit wie die beiden asides! */
+    order: 3;
+    flex: 5 1 0%;
+  }
+
+  aside {
+    flex: 2 1 0%;
+  }
+
+  #news {
+    flex: 2 1 0%;
+    order: 2;
+    align-self: center;
+    height: 12em;
+  }
+}
+
+button {
+	background-color: lightgreen
+  border: 1px solid green;
+  border-radius: 20px;
+  border-width: medium;
+  color: white;
+  cursor: pointer;
+}
+
+.btn-group button {
+  background-color: #04AA6D; /* Green background */
+  border: 1px solid green; /* Green border */
+  border-radius: 20px;
+  border-width: medium;
+  color: white; /* White text */
+  padding: 10px 24px; /* Some padding */
+  cursor: pointer; /* Pointer/hand icon */
+  width: 50%; /* Set a width if needed */
+  display: block; /* Make the buttons appear below each other */
+}
+
+.btn-group button:not(:last-child) {
+  border-bottom: none; /* Prevent double borders */
+}
+
+/* Add a background color on hover */
+.btn-group button:hover {
+  background-color: #3e8e41;
+}
+
+.status-field {
+  background-color: darkorange; /* Green background */
+  border: 2px solid green; /* Green border */
+  color: white; /* White text */
+  /* padding: 10px 24px; / * Some padding */
+  width: 50%; /* Set a width if needed */
+  text-align: center;
+}
+
+.tab-btn-group button {
+  background-color: #04AA6D; /* Green background */
+  border: 1px solid green; /* Green border */
+  border-radius: 20px;
+  border-width: medium;
+  color: white; /* White text */
+  padding: 10px 24px; /* Some padding */
+  cursor: pointer; /* Pointer/hand icon */
+  /*width: 50%; / * Set a width if needed */
+  display: inline-block;
+  margin: 2px 4px;
+}
+
+/*
+.tab-btn-group button:not(:last-child) {
+  border-bottom: none; / * Prevent double borders * /
+}
+*/
+
+/* Add a background color on hover */
+.tab-btn-group button:hover {
+  background-color: #3e8e41;
+}

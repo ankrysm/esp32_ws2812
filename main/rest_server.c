@@ -10,12 +10,12 @@
 
 #include "esp32_ws2812.h"
 
-//#define MDNS_INSTANCE "esp home web server"
-
 #define MAX_CONTENTLEN 10240
 
-extern T_DISPLAY_OBJECT *s_object_list;
 extern esp_vfs_spiffs_conf_t fs_conf;
+extern T_LOG_ENTRY logtable[];
+extern size_t sz_logtable;
+extern int log_write_idx;
 
 typedef struct rest_server_context {
     char base_path[ESP_VFS_PATH_MAX + 1];
@@ -31,6 +31,11 @@ static httpd_handle_t server = NULL;
 
 // from global_data.c
 extern T_HTTP_PROCCESSING_TYPE http_processing[];
+extern T_TRACK tracks[];
+extern T_DISPLAY_OBJECT *s_object_list;
+extern T_EVENT_GROUP *s_event_group_list;
+extern char last_loaded_file[];
+extern size_t sz_last_loaded_file;
 
 //static void httpd_resp_sendstr_chunk(httpd_req_t *req, char *resp_str) {
 //	httpd_resp_send_chunk(req, resp_str, HTTPD_RESP_USE_STRLEN);
@@ -51,32 +56,30 @@ static void http_help(httpd_req_t *req) {
 		httpd_resp_sendstr_chunk(req, resp_str);
 	}
 
-	/*
-	int pos =0;
-	httpd_resp_sendstr_chunk(req, "event syntax:\n");
-	while (print_event_config_r(&pos, resp_str, sizeof(resp_str))) {
-		httpd_resp_sendstr_chunk(req, resp_str);
-		httpd_resp_sendstr_chunk(req, "\n");
-	}
-	*/
 }
 
 static void add_system_informations(cJSON *root) {
 	esp_chip_info_t chip_info;
 	esp_chip_info(&chip_info);
 
+	const esp_app_desc_t *app_desc = esp_app_get_description();
+
 	size_t total,used;
 	storage_info(&total,&used);
 
-	cJSON *sysinfo = cJSON_AddObjectToObject(root,"system");
-	cJSON *fs_size = cJSON_AddObjectToObject(sysinfo,"filesystem");
+//	cJSON *sysinfo = cJSON_AddObjectToObject(root,"system");
+//	cJSON *fs_size = cJSON_AddObjectToObject(sysinfo,"filesystem");
 
-	cJSON_AddStringToObject(sysinfo, "version", IDF_VER);
-	cJSON_AddNumberToObject(sysinfo, "cores", chip_info.cores);
-	cJSON_AddNumberToObject(sysinfo, "free_heap_size",esp_get_free_heap_size());
-	cJSON_AddNumberToObject(sysinfo, "minimum_free_heap_size",esp_get_minimum_free_heap_size());
-	cJSON_AddNumberToObject(fs_size, "total", total);
-	cJSON_AddNumberToObject(fs_size, "used", used);
+	cJSON_AddStringToObject(root, "version", IDF_VER);
+	cJSON_AddNumberToObject(root, "cores", chip_info.cores);
+	cJSON_AddNumberToObject(root, "free_heap_size",esp_get_free_heap_size());
+	cJSON_AddNumberToObject(root, "minimum_free_heap_size",esp_get_minimum_free_heap_size());
+	cJSON_AddNumberToObject(root, "filesystem_total", total);
+	cJSON_AddNumberToObject(root, "filesystem_used", used);
+	cJSON_AddStringToObject(root, "compile_date", app_desc->date);
+	cJSON_AddStringToObject(root, "compile_time", app_desc->time);
+	cJSON_AddStringToObject(root, "app_version", app_desc->version);
+
 
 }
 
@@ -114,114 +117,186 @@ static T_HTTP_PROCCESSING_TYPE *get_http_processing(char *path) {
 	return NULL;
 }
 
-static void get_handler_list(httpd_req_t *req) {
+static void get_handler_list_err(httpd_req_t *req) {
+	char buf[512];
+
+	if( obtain_logsem_lock() != ESP_OK ) {
+		ESP_LOGE(__func__, "xSemaphoreTake failed");
+		return;
+	}
+
+	int pos=log_write_idx;
+	for ( int i=0; i < N_LOG_ENTRIES; i++) {
+		esp_err_t res = log_entry2text(pos, buf, sizeof(buf));
+		pos++;
+		if ( pos >= N_LOG_ENTRIES) {
+			pos=0;
+		}
+		if ( res == ESP_ERR_NOT_FOUND )
+			continue;
+
+		strlcat(buf, "\n", sizeof(buf));
+		httpd_resp_sendstr_chunk(req, buf);
+	}
+	release_logsem_lock();
+}
+
+
+static void get_handler_clear_err(httpd_req_t *req) {
+
+	if( obtain_logsem_lock() != ESP_OK ) {
+		ESP_LOGE(__func__, "xSemaphoreTake failed");
+		return;
+	}
+
+	log_write_idx = 0;
+	memset(logtable, 0, sz_logtable);
+
+	httpd_resp_sendstr_chunk(req, "done.\n");
+	release_logsem_lock();
+}
+
+
+void get_handler_list(httpd_req_t *req) {
 	// list events
 	char buf[255];
 	const size_t sz_buf = sizeof(buf);
 
-	extern T_SCENE *s_scene_list;
+	//extern T_SCENE *s_scene_list;
 	if (obtain_eventlist_lock() != ESP_OK) {
 		snprintf(buf, sz_buf, "%s couldn't get lock on eventlist\n", __func__);
 		httpd_resp_sendstr_chunk(req, buf);
 		return;
 	}
 
+	snprintf(buf, sz_buf, "\n*** objects ***\n");
+	httpd_resp_sendstr_chunk(req, buf);
+
 	if ( !s_object_list) {
-		snprintf(buf, sz_buf, "\nno objectst");
+		snprintf(buf, sz_buf, "   no objects\n");
 		httpd_resp_sendstr_chunk(req, buf);
+
 	} else {
 		for (T_DISPLAY_OBJECT *obj=s_object_list; obj; obj=obj->nxt) {
-			snprintf(buf, sz_buf, "\n   object '%s'", obj->oid);
+			snprintf(buf, sz_buf, "   object '%s'\n", obj->oid);
 			httpd_resp_sendstr_chunk(req, buf);
 			if (obj->data) {
 				for(T_DISPLAY_OBJECT_DATA *data = obj->data; data; data=data->nxt) {
 					if ( data->type == OBJT_BMP) {
-						snprintf(buf, sz_buf,"\n    id=%d, type=%d/%s, len=%d, url=%s",
+						snprintf(buf, sz_buf,"    id=%d, type=%d/%s, len=%d, url=%s\n",
 								data->id, data->type, object_type2text(data->type), data->len,
 								data->para.url
 						);
-					} else {
-						snprintf(buf, sz_buf,"\n    id=%d, type=%d/%s, len=%d",
+					} else if (data->type == OBJT_COLOR_TRANSITION) {
+						snprintf(buf, sz_buf,"    id=%d, type=%d/%s, len=%d hsv from=%d/%d/%d hsv to=%d/%d/%d\n",
+								data->id, data->type, object_type2text(data->type), data->len,
+								data->para.tr.hsv_from.h, data->para.tr.hsv_from.s, data->para.tr.hsv_from.v,
+								data->para.tr.hsv_to.h, data->para.tr.hsv_to.s, data->para.tr.hsv_to.v
+						);
+					} else if (data->type == OBJT_RAINBOW) {
+						snprintf(buf, sz_buf,"    id=%d, type=%d/%s, len=%d\n",
 								data->id, data->type, object_type2text(data->type), data->len
+						);
+					} else {
+						snprintf(buf, sz_buf,"    id=%d, type=%d/%s, len=%d hsv=%d/%d/%d\n",
+								data->id, data->type, object_type2text(data->type), data->len,
+								data->para.hsv.h, data->para.hsv.s, data->para.hsv.v
 						);
 					}
 					httpd_resp_sendstr_chunk(req, buf);
 
 				}
 			} else {
-				snprintf(buf, sz_buf, "\n   no data list in object");
+				snprintf(buf, sz_buf, "   no data list in object\n");
 				httpd_resp_sendstr_chunk(req, buf);
 			}
 
 		}
 	}
 
+	snprintf(buf, sz_buf, "\n*** events ***\n");
+	httpd_resp_sendstr_chunk(req, buf);
 
-	if ( !s_scene_list) {
-		snprintf(buf, sz_buf, "\nno scenes");
+	if ( !s_event_group_list) {
+		snprintf(buf, sz_buf, "   no events\n");
 		httpd_resp_sendstr_chunk(req, buf);
 
 	} else {
-		for (T_SCENE *scene = s_scene_list; scene; scene=scene->nxt) {
-			if ( !scene->event_groups) {
-				snprintf(buf, sz_buf, "\nno events");
+		for ( T_EVENT_GROUP *evtgrp= s_event_group_list; evtgrp; evtgrp = evtgrp->nxt) {
+			snprintf(buf, sz_buf, "   Event id='%s':\n", evtgrp->id);
+			httpd_resp_sendstr_chunk(req, buf);
+
+			// INIT events
+			if (evtgrp->evt_init_list) {
+				snprintf(buf, sz_buf,"    INIT events:\n");
 				httpd_resp_sendstr_chunk(req, buf);
-			} else {
-				for ( T_EVENT_GROUP *evtgrp= scene->event_groups; evtgrp; evtgrp = evtgrp->nxt) {
-					snprintf(buf, sz_buf, "\nEvent id='%s', repeats=%u:", evtgrp->id, evtgrp->t_repeats);
+
+				for (T_EVENT *evt = evtgrp->evt_init_list; evt; evt=evt->nxt) {
+					httpd_resp_sendstr_chunk(req,"     ");
+					event2text(evt, buf, sizeof(buf));
 					httpd_resp_sendstr_chunk(req, buf);
-
-					// INIT events
-					if (evtgrp->evt_init_list) {
-						snprintf(buf, sz_buf,"\n  INIT events:");
-						httpd_resp_sendstr_chunk(req, buf);
-
-						for (T_EVENT *evt = evtgrp->evt_init_list; evt; evt=evt->nxt) {
-							httpd_resp_sendstr_chunk(req,"\n  ");
-							event2text(evt, buf, sizeof(buf));
-							httpd_resp_sendstr_chunk(req, buf);
-
-						}
-					} else {
-						snprintf(buf, sz_buf,"\n  no INIT events.");
-						httpd_resp_sendstr_chunk(req, buf);
-					}
-
-					// WORK events
-					if (evtgrp->evt_work_list) {
-						snprintf(buf, sz_buf,"\n  WORK events:");
-						httpd_resp_sendstr_chunk(req, buf);
-
-						for (T_EVENT *evt = evtgrp->evt_work_list; evt; evt=evt->nxt) {
-							httpd_resp_sendstr_chunk(req,"\n  ");
-							event2text(evt, buf, sizeof(buf));
-							httpd_resp_sendstr_chunk(req, buf);
-
-						}
-					} else {
-						snprintf(buf, sz_buf,"\n  no WORK events.");
-						httpd_resp_sendstr_chunk(req, buf);
-					}
-
-					// FINAL events
-					if (evtgrp->evt_final_list) {
-						snprintf(buf, sz_buf,"\n  FINAL events:");
-						httpd_resp_sendstr_chunk(req, buf);
-
-						for (T_EVENT *evt = evtgrp->evt_final_list; evt; evt=evt->nxt) {
-							httpd_resp_sendstr_chunk(req,"\n  ");
-							event2text(evt, buf, sizeof(buf));
-							httpd_resp_sendstr_chunk(req, buf);
-
-						}
-					} else {
-						snprintf(buf, sz_buf,"\n  no FINAL events.");
-						httpd_resp_sendstr_chunk(req, buf);
-					}
+					httpd_resp_sendstr_chunk(req,"\n");
 				}
+			} else {
+				snprintf(buf, sz_buf,"    INIT events: none\n");
+				httpd_resp_sendstr_chunk(req, buf);
+			}
+
+			// WORK events
+			if (evtgrp->evt_work_list) {
+				snprintf(buf, sz_buf,"    WORK events:\n");
+				httpd_resp_sendstr_chunk(req, buf);
+
+				for (T_EVENT *evt = evtgrp->evt_work_list; evt; evt=evt->nxt) {
+					httpd_resp_sendstr_chunk(req,"     ");
+					event2text(evt, buf, sizeof(buf));
+					httpd_resp_sendstr_chunk(req, buf);
+					httpd_resp_sendstr_chunk(req,"\n");
+
+				}
+			} else {
+				snprintf(buf, sz_buf,"    WORK events: none\n.");
+				httpd_resp_sendstr_chunk(req, buf);
+			}
+
+			// FINAL events
+			if (evtgrp->evt_final_list) {
+				snprintf(buf, sz_buf,"    FINAL events:\n");
+				httpd_resp_sendstr_chunk(req, buf);
+
+				for (T_EVENT *evt = evtgrp->evt_final_list; evt; evt=evt->nxt) {
+					httpd_resp_sendstr_chunk(req,"     ");
+					event2text(evt, buf, sizeof(buf));
+					httpd_resp_sendstr_chunk(req, buf);
+					httpd_resp_sendstr_chunk(req,"\n");
+
+				}
+			} else {
+				snprintf(buf, sz_buf,"    FINAL events: none.\n");
+				httpd_resp_sendstr_chunk(req, buf);
 			}
 		}
 	}
+
+
+	snprintf(buf, sz_buf, "\n*** tracks: ***\n");
+	httpd_resp_sendstr_chunk(req, buf);
+
+	for (int i = 0; i < N_TRACKS; i++) {
+		T_TRACK *track = &(tracks[i]);
+		if ( ! track->element_list) {
+			snprintf(buf, sz_buf, "* track %2d is empty\n", i);
+			httpd_resp_sendstr_chunk(req, buf);
+			continue; // nothing to process
+		}
+		snprintf(buf, sz_buf, "* track %2d:\n", i);
+		httpd_resp_sendstr_chunk(req, buf);
+		for( T_TRACK_ELEMENT *ele = track->element_list; ele; ele = ele->nxt) {
+			snprintf(buf,sz_buf, "    id=%d, event='%s', repeat=%d\n", ele->id, ele->evtgrp ? ele->evtgrp->id : "", ele->repeats);
+			httpd_resp_sendstr_chunk(req, buf);
+		}
+	}
+
 	httpd_resp_sendstr_chunk(req, "\n");
 
 	release_eventlist_lock();
@@ -246,11 +321,14 @@ static esp_err_t get_handler_file_list(httpd_req_t *req) {
         return ESP_FAIL;
     }
 
-    httpd_resp_set_type(req, "plain/text");
+    httpd_resp_set_type(req, "application/json");
+    cJSON *root = cJSON_CreateObject();
+    cJSON *files = cJSON_CreateArray();
+    cJSON_AddItemToObject(root, "files", files);
 
     // Iterate over all files / folders and fetch their names and sizes
     while ((entry = readdir(dir)) != NULL) {
-        entrytype = (entry->d_type == DT_DIR ? "directory" : "file");
+        entrytype = (entry->d_type == DT_DIR ? "dir" : "file");
 
         snprintf(entrypath, sizeof(entrypath), "%s/%s",fs_conf.base_path, entry->d_name);
         if (stat(entrypath, &entry_stat) == -1) {
@@ -261,11 +339,28 @@ static esp_err_t get_handler_file_list(httpd_req_t *req) {
             httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, msg);
             return ESP_FAIL;
         }
-        snprintf(msg, sizeof(msg), "%s '%s' (%ld bytes)\n", entrytype, entry->d_name, entry_stat.st_size);
-        httpd_resp_sendstr_chunk(req, msg);
+        cJSON *fentry = cJSON_CreateObject();
+        cJSON_AddStringToObject(fentry,"type",  entrytype);
+        cJSON_AddStringToObject(fentry,"name",  entry->d_name);
+        cJSON_AddNumberToObject(fentry,"sz",entry_stat.st_size);
+        cJSON_AddItemToArray(files, fentry);
+
+        snprintf(msg, sizeof(msg), "%s '%s' (%ld bytes)", entrytype, entry->d_name, entry_stat.st_size);
+        //httpd_resp_sendstr_chunk(req, msg);
         ESP_LOGI(__func__, "%s", msg);
     }
     closedir(dir);
+
+    char *resp = cJSON_PrintUnformatted(root);
+    ESP_LOGI(__func__,"RESP=%s", resp?resp:"nix");
+
+    //httpd_resp_sendstr_chunk(req, "STATUS=");
+	httpd_resp_sendstr_chunk(req, resp);
+	httpd_resp_sendstr_chunk(req, "\n"); // response more readable
+
+    free((void *)resp);
+    cJSON_Delete(root);
+
     ESP_LOGI(__func__,"ended.");
     return ESP_OK;
 }
@@ -282,13 +377,19 @@ static void response_with_status(httpd_req_t *req, char *msg, run_status_type st
     cJSON_AddStringToObject(root, "status", RUN_STATUS_TYPE2TEXT(status));
     cJSON_AddNumberToObject(root, "scene_time", get_scene_time());
     cJSON_AddNumberToObject(root, "timer_period", get_event_timer_period());
-
+    if (strlen(last_loaded_file)) {
+    	cJSON_AddStringToObject(root, "last_loaded_file", last_loaded_file);
+    }
     add_system_informations(root);
+
+    char txt[64];
+    get_current_timestamp(txt, sizeof(txt));
+	cJSON_AddStringToObject(root, "current_time_stamp", txt);
 
     char *resp = cJSON_PrintUnformatted(root);
     ESP_LOGI(__func__,"RESP=%s", resp?resp:"nix");
 
-    httpd_resp_sendstr_chunk(req, "STATUS=");
+    //httpd_resp_sendstr_chunk(req, "STATUS=");
 	httpd_resp_sendstr_chunk(req, resp);
 	httpd_resp_sendstr_chunk(req, "\n"); // response more readable
 
@@ -300,12 +401,62 @@ static void get_handler_status_current(httpd_req_t *req) {
 	response_with_status(req, "", get_scene_status());
 }
 
+// run/pause/stop/blank
 static void get_handler_scene_new_status(httpd_req_t *req, run_status_type new_status) {
+
+	bool changed = false;
 	run_status_type old_status = get_scene_status();
-	if ( old_status != new_status) {
-		old_status = set_scene_status(new_status);
+
+	if ( new_status == RUN_STATUS_ASK) {
+		new_status = old_status;
+	} else {
+		// not ask, set it
+		if ( old_status != new_status) {
+			changed = true;
+			old_status = set_scene_status(new_status);
+		}
 	}
-	response_with_status(req, old_status != new_status ? "new status set" : "", new_status);
+	httpd_resp_set_type(req, "application/json");
+
+	cJSON *root = cJSON_CreateObject();
+
+	char txt[32];
+
+	switch (new_status) {
+	case RUN_STATUS_STOPPED:
+	case RUN_STATUS_STOP_AND_BLANK:
+		strlcpy(txt,"STOPPED", sizeof(txt));
+		break;
+	case RUN_STATUS_RUNNING:
+		if ( changed) {
+			if ( old_status == RUN_STATUS_PAUSED) {
+				strlcpy(txt, "CONTINUE", sizeof(txt));
+			} else {
+				strlcpy(txt, "STARTING", sizeof(txt));
+			}
+		} else {
+			strlcpy(txt, "RUNNING", sizeof(txt));
+		}
+		break;
+	case RUN_STATUS_PAUSED:
+		strlcpy(txt,"PAUSE", sizeof(txt));
+		break;
+	default:
+		strlcpy(txt,"UNKNOWN", sizeof(txt));
+	}
+	cJSON_AddStringToObject(root, "text", txt);
+	cJSON_AddNumberToObject(root, "scene_time", get_scene_time());
+	cJSON_AddStringToObject(root, "last_loaded_file", strlen(last_loaded_file) ? last_loaded_file :"");
+
+	char *resp = cJSON_PrintUnformatted(root);
+	ESP_LOGI(__func__,"RESP=%s", resp?resp:"nix");
+
+	httpd_resp_sendstr_chunk(req, resp);
+	httpd_resp_sendstr_chunk(req, "\n"); // response more readable
+
+	free((void *)resp);
+	cJSON_Delete(root);
+
 }
 
 static esp_err_t clear_data(char *msg, size_t sz_msg, run_status_type new_status) {
@@ -319,18 +470,24 @@ static esp_err_t clear_data(char *msg, size_t sz_msg, run_status_type new_status
 	}
 
 	bool hasError = false;
-	if (scene_list_free() == ESP_OK) {
-		snprintfapp(msg,sz_msg,"event list cleared");
+	if (clear_event_group_list() == ESP_OK) {
+		snprintfapp(msg,sz_msg,"event group list cleared");
 	} else {
 		hasError=true;
-		snprintfapp(msg,sz_msg,"clear event list failed");
+		snprintfapp(msg,sz_msg,"clear event group list failed");
 	}
 
-	if ( object_list_free() == ESP_OK) {
+	if ( clear_object_list() == ESP_OK) {
 		snprintfapp(msg, sz_msg,", object list cleared");
 	} else {
 		hasError = true;
 		snprintfapp(msg,sz_msg - strlen(msg),", clear object list failed");
+	}
+	if ( clear_tracks() == ESP_OK) {
+		snprintfapp(msg, sz_msg,", track list cleared");
+	} else {
+		hasError = true;
+		snprintfapp(msg,sz_msg - strlen(msg),", clear track list failed");
 	}
 	return hasError ? ESP_FAIL : ESP_OK;
 
@@ -345,8 +502,11 @@ static esp_err_t get_handler_clear(httpd_req_t *req) {
 	run_status_type new_status = RUN_STATUS_STOPPED;
 	esp_err_t res = clear_data(msg, sizeof(msg), new_status);
 
-	response_with_status(req, msg, new_status);
     LOG_MEM(2);
+
+    httpd_resp_set_type(req, "plain/text");
+ 	snprintf(msg,sizeof(msg), "clear data done");
+ 	httpd_resp_sendstr_chunk(req, msg);
 
 	return res;
 }
@@ -370,7 +530,7 @@ static void get_handler_reset(httpd_req_t *req) {
 
 	// clear nvs
 	nvs_flash_erase();
-	scenes_stop();
+	scenes_stop(true);
 
 	char resp_str[64];
 	snprintf(resp_str, sizeof(resp_str),"RESET done\n");
@@ -379,12 +539,14 @@ static void get_handler_reset(httpd_req_t *req) {
 	get_handler_restart(req);
 }
 
+/*
 static void get_handler_blank(httpd_req_t *req) {
 
 	scenes_blank();
 
 	response_with_status(req, "BLANK done", get_scene_status());
 }
+//*/
 
 static void get_handler_config(httpd_req_t *req, char *msg) {
     httpd_resp_set_type(req, "application/json");
@@ -395,9 +557,6 @@ static void get_handler_config(httpd_req_t *req, char *msg) {
 
     // configuration
     add_config_informations(root);
-
-    // some system informations
-    add_system_informations(root);
 
     char *resp = cJSON_PrintUnformatted(root);
     ESP_LOGI(__func__,"resp=%s", resp?resp:"nix");
@@ -422,22 +581,23 @@ static esp_err_t post_handler_load(httpd_req_t *req, char *content) {
 	run_status_type new_status = RUN_STATUS_STOPPED;
 	esp_err_t res = clear_data(msg, sizeof(msg), new_status);
 	if ( res != ESP_OK ) {
-		ESP_LOGW(__func__, "%s", msg);
+		log_warn(__func__, "%s", msg);
 		snprintfapp(msg, sizeof(msg), "\n");
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, msg);
         return ESP_FAIL;
 	}
 
 	if ( decode_json4event_root(content, msg, sizeof(msg)) != ESP_OK) {
-		ESP_LOGW(__func__, "%s", msg);
+		log_warn(__func__, "%s", msg);
 		snprintfapp(msg, sizeof(msg), "\n");
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, msg);
         return ESP_FAIL;
 	}
 
-	snprintf(msg,sizeof(msg), "data load done");
 	ESP_LOGI(__func__, "ended with '%s'", msg);
-	response_with_status(req, msg, new_status);
+    httpd_resp_set_type(req, "plain/text");
+	snprintf(msg,sizeof(msg), "data load done");
+	httpd_resp_sendstr_chunk(req, msg);
 
 	return res;
 
@@ -450,19 +610,24 @@ static esp_err_t post_handler_file_store(httpd_req_t *req, char *content, char *
 	char msg[255];
 	memset(msg, 0, sizeof(msg));
 
-    httpd_resp_set_type(req, "plain/text");
 
 	if ( store_events_to_file(fname, content, msg, sizeof(msg))!= ESP_OK) {
-		ESP_LOGW(__func__, "%s", msg);
+		log_err(__func__, "%s", msg);
 		snprintfapp(msg, sizeof(msg), "\n");
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, msg);
         return ESP_FAIL;
 	}
 
 	snprintf(msg,sizeof(msg), "content saved to %s",fname);
-	ESP_LOGI(__func__, "success: %s", msg);
+	log_info(__func__, "success: %s", msg);
 
-	response_with_status(req, msg, get_scene_status());
+	// successful
+    httpd_resp_set_type(req, "plain/text");
+    char resp_txt[256];
+	snprintf(resp_txt,sizeof(resp_txt), "content saved to %s",fname);
+	snprintfapp(msg,sizeof(msg), "Response: '%s'",resp_txt);
+	httpd_resp_sendstr_chunk(req, resp_txt);
+
 	return ESP_OK;
 }
 
@@ -481,7 +646,7 @@ static esp_err_t get_handler_file_load(httpd_req_t *req, char *fname, size_t sz_
 	// stop display program and clear data
 	run_status_type new_status = RUN_STATUS_STOPPED;
 	if ( clear_data(msg, sizeof(msg), new_status) != ESP_OK) {
-		ESP_LOGW(__func__, "clear_data failed, %s", msg);
+		log_warn(__func__, "clear_data failed, %s", msg);
 		snprintfapp(msg, sizeof(msg), "\n");
 		httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, msg);
 		return ESP_FAIL;
@@ -490,13 +655,16 @@ static esp_err_t get_handler_file_load(httpd_req_t *req, char *fname, size_t sz_
 	// load new data
 	if ( load_events_from_file(fname, errmsg, sizeof(errmsg)) != ESP_OK) {
 		snprintfapp(msg,sizeof(msg), ", load content from %s failed: %s",fname, errmsg);
-		ESP_LOGW(__func__, "load_events_from_file failed, %s", msg);
+		log_warn(__func__, "load_events_from_file failed, %s", msg);
 		snprintfapp(msg, sizeof(msg), "\n");
 		httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, msg);
 		return ESP_FAIL;
 	}
 
 	// successful
+	log_info(__func__,"content loaded from %s",fname);
+	snprintf(last_loaded_file, sz_last_loaded_file,"%s", fname);
+
 	snprintfapp(msg,sizeof(msg), ", content loaded from %s",fname);
 	httpd_resp_sendstr_chunk(req, msg);
 	return ESP_OK;
@@ -569,10 +737,11 @@ static esp_err_t post_handler_config_set(httpd_req_t *req, char *buf) {
 	esp_err_t res = decode_json4config_root(buf, errmsg, sizeof(errmsg));
 
 	if (res == ESP_OK) {
-		snprintfapp(msg, sizeof(msg), ", decoding data done: %s",errmsg);
+		snprintf(msg, sizeof(msg), "decoding data done: %s", errmsg);
+		log_info(__func__, "%s", msg);
 	} else {
-		snprintfapp(msg, sizeof(msg), ", decoding data failed: %s",errmsg);
-		ESP_LOGW(__func__, "error %s", msg);
+		snprintf(msg, sizeof(msg), "decoding data failed: %s", errmsg);
+		log_err(__func__, "%s", msg);
 		snprintfapp(msg, sizeof(msg),"\n");
 		httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, msg);
 		return ESP_FAIL;
@@ -712,16 +881,7 @@ static esp_err_t get_handler_main(httpd_req_t *req)
 	if (!pt ) {
 		// try web site
 		res = get_handler_html(req);
-		if ( res == ESP_OK) {
-			return res;
-		}
-
-        snprintf(resp_str,sizeof(resp_str),"nothing found");
-        ESP_LOGE(__func__, "%s", resp_str);
-		snprintfapp(resp_str, sizeof(resp_str), "\n");
-        httpd_resp_send_err(req, HTTPD_404_NOT_FOUND, resp_str);
-        return ESP_FAIL;
-
+		return res;
 	}
 
 	if (pt->flags & HPF_POST) {
@@ -761,6 +921,10 @@ static esp_err_t get_handler_main(httpd_req_t *req)
 		get_handler_list(req);
 		break;
 
+	case HP_LIST_ERR:
+		get_handler_list_err(req);
+		break;
+
 	case HP_FILE_LIST:
 		get_handler_file_list(req);
 		break;
@@ -794,7 +958,11 @@ static esp_err_t get_handler_main(httpd_req_t *req)
 		break;
 
 	case HP_BLANK:
-		get_handler_blank(req);
+		get_handler_scene_new_status(req, RUN_STATUS_STOP_AND_BLANK);
+		break;
+
+	case HP_ASK:
+		get_handler_scene_new_status(req, RUN_STATUS_ASK);
 		break;
 
 	case HP_CONFIG_GET:
@@ -807,6 +975,10 @@ static esp_err_t get_handler_main(httpd_req_t *req)
 
 	case HP_CFG_RESET:
 		get_handler_reset(req);
+		break;
+
+	case HP_CLEAR_ERR:
+		get_handler_clear_err(req);
 		break;
 
 	default:

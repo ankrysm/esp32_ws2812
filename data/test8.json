@@ -1,49 +1,30 @@
 {
 	 "objects" : [
-		 {  "id":"bmp",
-			"list" :[
-			 	{"type":"bmp", "len":30, "url":"https://kobe-files.de/test2_20x100.bmp"}
-			 ]
-		  },
-		 {  "id":"bmp1",
-			"list" :[
-			 	{"type":"bmp", "len":300, "url":"https://kobe-files.de/testbild.bmp"}
-			 ]
-		  },
-		 {  "id":"bmp2",
-			"list" :[
-			 	{"type":"bmp", "len":300, "url":"https://raw.githubusercontent.com/ankrysm/esp32_ws2812/main/data/testbild_300_300.bmp"}
-			 ]
-		  },
-		 {  "id":"bmp3",
-			"list" :[
-			 	{"type":"bmp", "len":300, "url":"https://kobe-files.de/testbild_not_found.bmp"}
-			 ]
-		  }
+		 {  "id":"bmp1", "list" :[{"type":"bmp", "len":300, "url":"https://kobe-files.de/testbild_300_300.bmp"}]},
+		 {  "id":"bmp2", "list" :[{"type":"bmp", "len":300, "url":"https://kobe-files.de/testbild.bmp"}]},
+		 {  "id":"bmp3", "list" :[{"type":"bmp", "len":300, "url":"https://kobe-files.de/cross.bmp"}]}
 	  ],
-	 "scenes" : [
+	"events": [
 	 	{
-	 		"id":"A",
-	 		"events": [
-			 	{
-			 	 "id":"A10",
-		 		 "repeats":3,
-			 	 "init": [
-		     	 	{"type":"object","value":"bmp2"},
-			 	 	{"type":"bmp_open"},
-			 	 	{"type":"brightness", "value":0.1},
-		     	 	{"type":"goto", "value":0},
-		     	 	{"type":"wait_first", "value":3000}
-			 	 ],
-		     	 "work": [
-			 	 	{"type":"bmp_read", "nixvalue":20},
-			 	 	{"type":"wait", "value":1000}
-				 ],
-				 "final":[
-				 	{"type":"clear"}
-				 ]
-			 	}
-			 ]
-	 	}
-	 ]
+	 	 "id":"A",
+	 	 "init": [
+     	 	{"type":"object","value":"bmp2"},
+	 	 	{"type":"bmp_open"},
+	 	 	{"type":"brightness", "value":0.1},
+     	 	{"type":"goto", "value":0},
+     	 	{"type":"wait_first", "value":2000}
+	 	 ],
+     	 "work": [
+	 	 	{"type":"bmp_read"}
+		 ]
+	 	},
+	 	{"id":"STOP","work":[{"type":"clear"}]}
+	 ],
+	 "tracks" : [
+		{"id":1, "elements":[
+			{"event":"A", "repeat":10},
+			{"event":"STOP"}
+		] }
+	]
+
 }

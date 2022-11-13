@@ -1,0 +1,81 @@
+{
+	 "objects" : [
+		 {  "id":"o1",
+			"list" :[
+			 	{"type":"color", "color":"green","len":2}
+			 ]
+		  },
+		 {  "id":"o2",
+			"list" :[
+			 	{"type":"color", "color":"blue","len":3}
+			 ]
+		  },
+		 {  "id":"o3",
+			"list" :[
+			 	{"type":"color", "color":"yellow","len":5}
+			 ]
+		  }
+	  ],
+	  "events": [
+	 	{
+	 	 "id":"A",
+	 	 "init": [
+	 	 	{"type":"brightness", "value":0.1},
+     	 	{"type":"goto", "value":10},
+		 	{"type":"speed", "value":0.5},
+     	 	{"type":"object","value":"o1"}
+	 	 ],
+     	 "work": [
+		 	{"type":"paint", "value":1000},
+		 	{"type":"bounce"},
+		 	{"type":"paint", "value":1000}
+		 ],
+		 "final":[
+		 	{"type":"clear"}
+		 ]
+	 	},
+	 	{
+	 	 "id":"B",
+	 	 "init": [
+	 	 	{"type":"brightness", "value":0.1},
+     	 	{"type":"goto", "value":100},
+		 	{"type":"speed", "value":5},
+     	 	{"type":"object","value":"o2"}
+	 	 ],
+     	 "work": [
+		 	{"type":"paint", "value":2000},
+		 	{"type":"bounce"},
+		 	{"type":"paint", "value":2000}
+		 ],
+		 "final":[
+		 	{"type":"clear"}
+		 ]
+	 	},
+	 	{
+		"id":"C",
+		"init": [
+	 	 	{"type":"brightness", "value":0.0},
+     	 	{"type":"goto", "value":52},
+     	 	{"type":"object","value":"o3"}
+		],
+     	 "work": [
+     	 	{"type":"brightness_delta", "value":0.01},
+		 	{"type":"paint", "value":2000},
+     	 	{"type":"brightness_delta", "value":-0.01},
+		 	{"type":"paint", "value":2000}
+		 ],
+		 "finalxx":[
+		 	{"type":"clear"}
+		 ]
+	 	},
+	 	{
+	 		"id":"W",
+	 		"work":[{"type":"wait", "value":1000}]
+	 	}
+	  ],
+	"tracks" : [
+		{"id":1, "elements":[{"repeat":2, "event":"A"},{"event":"B"},{"event":"A"}] },
+		{"id":2, "elements":[{"event":"W"},{"repeat":5, "event":"C"},{"event":"W"},{"event":"A"}] }
+	]
+
+}

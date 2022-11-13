@@ -1,0 +1,76 @@
+{
+	 "objects" : [
+		 {  "id":"gr",
+			"list" :[
+			 	{"type":"color", "color":"green","len":2}
+			 ]
+		  },
+		  {  "id":"bl",
+			"list" :[
+			 	{"type":"color", "color":"blue","len":3}
+			 ]
+		  },
+		  {  "id":"red",
+			"list" :[
+			 	{"type":"color", "color":"red","len":5}
+			 ]
+		  }
+
+	  ],
+	  "events": [
+	 	{
+	 	 "id":"A",
+	 	 "init": [
+	 	 	{"type":"brightness", "value":0.1},
+     	 	{"type":"goto", "value":10},
+		 	{"type":"speed", "value":0.5},
+     	 	{"type":"object","value":"gr"}
+	 	 ],
+     	 "work": [
+		 	{"type":"paint", "value":1000},
+		 	{"type":"bounce"},
+		 	{"type":"paint", "value":1000}
+		 ],
+		 "finalxx":[
+		 	{"type":"clear"}
+		 ]
+	 	},
+	 	{
+	 	 "id":"B",
+	 	 "init": [
+	 	 	{"type":"brightness", "value":0.1},
+     	 	{"type":"goto", "value":100},
+		 	{"type":"speed", "value":-2.5},
+     	 	{"type":"object","value":"bl"}
+	 	 ],
+     	 "work": [
+		 	{"type":"distance", "value":100},
+		 	{"type":"bounce"},
+		 	{"type":"distance", "value":100}
+		 ]
+	 	},
+	 	{ "id":"C",
+	 	 "init": [
+     	 	{"type":"goto", "value":50},
+     	 	{"type":"object","value":"red"}
+	 	 ],
+     	 "work": [
+     	 	{"type":"brightness", "value":0.1},
+		 	{"type":"paint", "value":500},
+     	 	{"type":"brightness", "value":0.0},
+		 	{"type":"paint", "value":500}
+		 ]
+	 	},
+	 	{"id":"STOP","work":[{"type":"clear"}]}
+	  ],
+	"tracks" : [
+		{"id":1, "elements":[
+			{"event":"A","repeat":3},
+			{"event":"B","repeat":300},
+			{"event":"A","repeat":3},
+			{"event":"STOP"}
+		] },
+		{"id":2, "elements":[{"event":"C","repeat":10}]}
+	]
+
+}

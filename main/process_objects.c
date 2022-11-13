@@ -10,24 +10,33 @@
 /**
  * paint objects
  */
-void process_object(T_EVENT_GROUP *evtgrp) {
+void process_object(T_TRACK_ELEMENT *ele) {
 
 	//if ( extended_logging)
 	//	ESP_LOGI(__func__, "startetd evtgrp '%s', flags 0x%x, sts=%d, pos=%d", evtgrp->id, evtgrp->w_flags, evtgrp->status, evtgrp->w_pos);
 
-	if ( evtgrp->w_flags & EVFL_WAIT) {
+	if ( ele->w_flags & EVFL_WAIT) {
 		return; // do nothing, wait
 	}
 
 	T_DISPLAY_OBJECT *obj = NULL;
 
-	if ( strlen(evtgrp->w_object_oid)) {
-		obj = find_object4oid(evtgrp->w_object_oid);
+	if ( strlen(ele->w_object_oid)) {
+		obj = find_object4oid(ele->w_object_oid);
 		if ( !obj) {
-			ESP_LOGW(__func__, "evt.id='%s', no object found for oid='%s'", evtgrp->id, evtgrp->w_object_oid);
+			ESP_LOGW(__func__, "ele.id='%s', no object found for oid='%s'", ele->id, ele->w_object_oid);
 		}
 	}
 	if (! obj) {
+		if ( ele->w_flags & EVFL_CLEARPIXEL) {
+			ele->w_flags &= ~EVFL_CLEARPIXEL; // reset the flag
+			uint32_t n = get_numleds();
+			ESP_LOGI(__func__,"clear pixel without object: whole strip: blank, numleds=%u", n);
+			T_COLOR_RGB bk={.r=0,.g=0,.b=0};
+			strip_set_range(0, n - 1, &bk);
+			return;
+		}
+
 		ESP_LOGI(__func__, "nothing to paint");
 		return;
 	}
@@ -43,16 +52,16 @@ void process_object(T_EVENT_GROUP *evtgrp) {
 	for (T_DISPLAY_OBJECT_DATA *data = obj->data; data; data=data->nxt) {
 		len += data->len;
 	}
-	double flen = len * evtgrp->w_len_factor;
+	double flen = len * ele->w_len_factor;
 
 	if ( flen < 1.0 ) {
 		return; // nothing left to display
 	}
 
-	if ( evtgrp->w_flags & EVFL_CLEARPIXEL) {
-		evtgrp->w_flags &= ~EVFL_CLEARPIXEL; // reset the flag
-		startpos = floor(evtgrp->w_pos);
-		endpos   = ceil(evtgrp->w_pos + len);
+	if ( ele->w_flags & EVFL_CLEARPIXEL) {
+		ele->w_flags &= ~EVFL_CLEARPIXEL; // reset the flag
+		startpos = floor(ele->w_pos);
+		endpos   = ceil(ele->w_pos + len);
 		strip_set_range(startpos, endpos, &rgb);
 		ESP_LOGI(__func__, "clear pixel %d .. %d", startpos, endpos);
 		return;
@@ -71,15 +80,15 @@ void process_object(T_EVENT_GROUP *evtgrp) {
 	// xxxxxxxxxx
 	//     XX
 
-	startpos = evtgrp->w_pos;
-	endpos   = evtgrp->w_pos + len;
+	startpos = ele->w_pos;
+	endpos   = ele->w_pos + len;
 	int pos = startpos;
-	if ( evtgrp->delta_pos > 0 ) {
+	if ( ele->delta_pos > 0 ) {
 		pos = startpos;
 	} else {
 		pos = endpos;
 	}
-	double f = evtgrp->w_brightness;
+	double f = ele->w_brightness;
 
 	int32_t dstart = startpos + floor(len - flen)/2.0;
 	int32_t dend = ceil(dstart + flen);
@@ -93,9 +102,9 @@ void process_object(T_EVENT_GROUP *evtgrp) {
 	bool ende = false;
 	for (T_DISPLAY_OBJECT_DATA *data = obj->data; data; data=data->nxt) {
 		if ( data->type == OBJT_BMP ) {
-			// special handling for bmp processing XXX
+			// special handling for bmp processing
 			process_object_bmp(pos, data->len, f);
-			pos += evtgrp->delta_pos * data->len;
+			pos += ele->delta_pos * data->len;
 			if ( pos < startpos || pos > endpos) {
 				ende = true;
 				break; // done.
@@ -184,7 +193,7 @@ void process_object(T_EVENT_GROUP *evtgrp) {
 					strip_set_pixel(pos, &rgb);
 				}
 
-				pos += evtgrp->delta_pos;
+				pos += ele->delta_pos;
 				if ( pos < startpos || pos > endpos) {
 					ende = true;
 					break; // done.

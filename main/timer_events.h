@@ -16,17 +16,6 @@
 #define LEN_EVT_ID 16
 
 
-typedef enum {
-	RES_OK,
-	RES_NOT_FOUND,
-	RES_NO_VALUE,
-	RES_NO_DATA,
-	RES_INVALID_DATA_TYPE,
-	RES_OUT_OF_RANGE,
-	RES_NOT_ACTIVE,
-	RES_FINISHED,
-	RES_FAILED
-} t_result;
 
 /**********************************************
  * status of a play list
@@ -35,14 +24,19 @@ typedef enum {
 	RUN_STATUS_NOT_SET,
 	RUN_STATUS_STOPPED,
 	RUN_STATUS_RUNNING,
-	RUN_STATUS_PAUSED
+	RUN_STATUS_PAUSED,
+	RUN_STATUS_STOP_AND_BLANK,
+	RUN_STATUS_ASK
 } run_status_type;
 
 #define RUN_STATUS_TYPE2TEXT(c) ( \
 	c == RUN_STATUS_NOT_SET ? "NOT SET" : \
 	c == RUN_STATUS_STOPPED ? "STOPPED" : \
 	c == RUN_STATUS_RUNNING ? "RUNNING" : \
-	c == RUN_STATUS_PAUSED  ? "PAUSED" : "???" )
+	c == RUN_STATUS_PAUSED  ? "PAUSED" : \
+	c == RUN_STATUS_STOP_AND_BLANK ? "STOPP AND BLANK" : \
+	c == RUN_STATUS_ASK ? "ASK" : \
+			"???" )
 
 
 /**********************************************
@@ -55,25 +49,6 @@ typedef enum {
 	EVT_STS_FINISHED  // event_finished
 } event_status_type;
 
-/*
-#define TEXT2OBJT(c) ( \
-	!strcasecmp(c,"clear") ? OBJT_CLEAR : \
-	!strcasecmp(c,"color") ? OBJT_COLOR : \
-	!strcasecmp(c,"color_transition") ? OBJT_COLOR_TRANSITION : \
-	!strcasecmp(c,"rainbow") ? OBJT_RAINBOW : \
-	!strcasecmp(c,"sparkle") ? OBJT_SPARKLE : \
-	!strcasecmp(c,"bmp") ? OBJT_BMP : OBJT_UNKNOWN \
-)
-
-#define OBJT2TEXT(c) ( \
-	c==OBJT_CLEAR ? "clear" : \
-	c==OBJT_COLOR ? "color" : \
-	c==OBJT_COLOR_TRANSITION ? "color_transition" : \
-	c==OBJT_RAINBOW ? "rainbow" : \
-	c==OBJT_SPARKLE ? "sparkle" : \
-	c==OBJT_BMP ? "bmp" : "unknown" \
-)
-*/
 
 //************* object and event definitions **************
 
@@ -103,17 +78,12 @@ typedef struct EVT_OBJECT {
 	struct EVT_OBJECT *nxt;
 } T_DISPLAY_OBJECT;
 
-//typedef struct {
-//	uint64_t time; // initial duration, when 0 execute immediately
-//	int64_t w_time; // working time, count doun from 'time'
-//} T_EVENT_PARA_WAIT;
 
 typedef struct EVENT {
 	uint32_t id;
 	event_type type; // what to do
-	event_status_type status;
+	//event_status_type status;
 	union {
-//		T_EVENT_PARA_WAIT wait;
 		char svalue[32];
 		double value;
 	} para;
@@ -147,9 +117,21 @@ typedef enum {
 typedef struct EVENT_GROUP {
 	char id[LEN_EVT_ID];
 
+	T_EVENT *evt_init_list;
+	T_EVENT *evt_work_list;
+	T_EVENT *evt_final_list;
+
+
+	struct EVENT_GROUP *nxt;
+} T_EVENT_GROUP;
+
+typedef struct TRACK_ELEMENT {
+	uint32_t id;
+	int repeats;
+	int64_t time; // event time
 	event_status_type status;
 
-	int64_t time; // event time
+	uint32_t w_repeats;
 	uint32_t w_flags;
 	double w_pos;
 	double w_distance;
@@ -163,28 +145,20 @@ typedef struct EVENT_GROUP {
 	int64_t w_bmp_remaining_lines;
 	int32_t delta_pos; // +1 or -1
 	char w_object_oid[LEN_EVT_OID];
+	event_status_type evt_grp_current_status;
+	T_EVENT_GROUP *evtgrp;
+	T_EVENT *evt_work_current;
 
-	// time dependend events,
-	uint32_t t_repeats; // 0=for evener
-	uint32_t w_t_repeats;
+	struct TRACK_ELEMENT *nxt;
+} T_TRACK_ELEMENT;
 
-	T_EVENT *evt_init_list;
-	T_EVENT *evt_work_list;
-	T_EVENT *evt_final_list;
-
-
-	struct EVENT_GROUP *nxt;
-} T_EVENT_GROUP;
-
-typedef struct SCENE {
-	char id[LEN_EVT_ID];
+typedef struct TRACK {
+	int id;
 	event_status_type status;
+	T_TRACK_ELEMENT *current_element;
+	T_TRACK_ELEMENT *element_list;
+} T_TRACK;
 
-	//uint32_t flags;
-	T_EVENT_GROUP *event_group; // actual working event
-	T_EVENT_GROUP *event_groups;
-	struct SCENE *nxt;
-} T_SCENE;
 
 
 #endif /* MAIN_TIMER_EVENTS_H_ */

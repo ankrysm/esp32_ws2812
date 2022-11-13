@@ -25,16 +25,8 @@ static const int EVENT_BITS_ALL = 0xFF;
 static volatile run_status_type s_run_status = RUN_STATUS_STOPPED;
 static volatile uint64_t s_scene_time = 0;
 
-extern T_SCENE *s_scene_list;
-//extern T_EVT_OBJECT *s_object_list;
-//extern T_CONFIG gConfig;
-
 extern uint32_t cfg_flags;
 extern uint32_t cfg_trans_flags;
-//extern uint32_t cfg_numleds;
-//extern uint32_t cfg_cycle;
-//extern char *cfg_autoplayfile;
-
 
 static void show_status() {
 	if ( cfg_flags & CFG_SHOW_STATUS) {
@@ -144,31 +136,19 @@ static void periodic_timer_callback(void* arg) {
 
 	if ( do_reset) {
 		s_scene_time = 0;
-		// reset all event data + repeat data
-		if ( s_scene_list) {
-			for ( T_SCENE *scene= s_scene_list; scene; scene = scene->nxt) {
-				// process_scene will do the init
-				scene->status = EVT_STS_READY;
-			}
-		} else {
-			// clear the strip
-			uint32_t n = get_numleds();
-			ESP_LOGI(__func__,"do reset: blank, numleds=%u", n);
-			T_COLOR_RGB bk={.r=0,.g=0,.b=0};
-			strip_set_range(0, n - 1, &bk);
-		}
+
+		// clear the strip
+		uint32_t n = get_numleds();
+		ESP_LOGI(__func__,"do reset: blank, numleds=%u", n);
+		T_COLOR_RGB bk={.r=0,.g=0,.b=0};
+		strip_set_range(0, n - 1, &bk);
+
+		reset_tracks();
 	}
 
 	// paint scenes
-	bool finished = true;
-	if ( s_scene_list) {
-		for ( T_SCENE *scene= s_scene_list; scene; scene = scene->nxt) {
-			process_scene(scene, s_scene_time, s_timer_period);
-			if (scene->status != EVT_STS_FINISHED) {
-				finished = false;
-			}
-		}
-	}
+	int active_tracks=process_tracks(s_scene_time, s_timer_period);
+	bool finished = active_tracks == 0;
 
 	strip_show(false);
 	show_status();
@@ -189,7 +169,7 @@ static void periodic_timer_callback(void* arg) {
 
 // start playing by starting the periodic timer
 void scenes_start() {
-	ESP_LOGI(__func__, "start, periodic time %d ms(old: %d)", s_timer_period_new, s_timer_period);
+	log_info(__func__, "execution START, periodic time %d ms(old: %d)", s_timer_period_new, s_timer_period);
 	logcnt = 10;
 
 	xEventGroupClearBits(s_timer_event_group, EVENT_BITS_ALL);
@@ -217,36 +197,33 @@ void scenes_start() {
         xEventGroupSetBits(s_timer_event_group, EVENT_BIT_START);
 
     } else {
-    	ESP_LOGE(__func__, "cannot start timer (rc=%d)", rc);
+    	log_err(__func__, "cannot start timer (rc=%d)", rc);
     }
 
     s_timer_period = s_timer_period_new;
 }
 
-void scenes_stop() {
+void scenes_stop(bool flag_blank) {
 	// timer stops by themselves
-	ESP_LOGI(__func__, "start");
+	log_info(__func__, "execution STOP");
 	xEventGroupClearBits(s_timer_event_group, EVENT_BITS_ALL);
-    xEventGroupSetBits(s_timer_event_group, EVENT_BIT_STOP);
-}
-
-void scenes_blank() {
-	// timer stops by themselves
-	ESP_LOGI(__func__, "start");
-	xEventGroupClearBits(s_timer_event_group, EVENT_BITS_ALL);
-    xEventGroupSetBits(s_timer_event_group, EVENT_BIT_STOP|EVENT_BIT_BLANK);
-    make_it_blank();
-    bmp_stop_processing();
+	if ( flag_blank) {
+		xEventGroupSetBits(s_timer_event_group, EVENT_BIT_STOP|EVENT_BIT_BLANK);
+		make_it_blank();
+	} else {
+		xEventGroupSetBits(s_timer_event_group, EVENT_BIT_STOP);
+	}
+	bmp_stop_processing();
 }
 
 void scenes_pause() {
-	ESP_LOGI(__func__, "start");
+	log_info(__func__, "execution PAUSE");
 	xEventGroupClearBits(s_timer_event_group, EVENT_BITS_ALL);
     xEventGroupSetBits(s_timer_event_group, EVENT_BIT_PAUSE);
 }
 
 void scenes_autostart() {
-	ESP_LOGI(__func__, "start");
+	log_info(__func__, "execution AUTOSTART");
 	if ( (cfg_trans_flags & CFG_AUTOPLAY_LOADED) && (cfg_flags & CFG_AUTOPLAY)) {
 		cfg_trans_flags |= CFG_AUTOPLAY_STARTED;
 		ESP_LOGI(__func__, "autostart processed");
@@ -262,14 +239,13 @@ uint64_t get_scene_time() {
 	return s_scene_time;
 }
 
-
-
 // sets the new scene status, returnes the old one
 run_status_type set_scene_status(run_status_type new_status) {
 	ESP_LOGI(__func__, "start %d",new_status);
 	run_status_type ret = s_run_status;
 	switch(new_status) {
-	case RUN_STATUS_STOPPED: scenes_stop(); break;
+	case RUN_STATUS_STOPPED: scenes_stop(false); break;
+	case RUN_STATUS_STOP_AND_BLANK: scenes_stop(true); break;
 	case RUN_STATUS_RUNNING: scenes_start(); break;
 	case RUN_STATUS_PAUSED:  scenes_pause(); break;
 	default:
@@ -297,7 +273,6 @@ void init_timer_events() {
 	// initialize eventlist handling
 	init_eventlist_utils();
 
-	//s_timer_period = delta_ms;
 	s_timer_event_group = xEventGroupCreate();
 	xEventGroupClearBits(s_timer_event_group, EVENT_BITS_ALL);
 

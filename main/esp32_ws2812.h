@@ -13,10 +13,8 @@
 
 #include "config.h"
 #include "color.h"
-//#include "led_strip.h"
 #include "wifi_config.h"
 #include "timer_events.h"
-#include "paint_pixel.h"
 
 // useful definitions
 #ifndef MIN

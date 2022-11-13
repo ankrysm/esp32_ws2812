@@ -307,6 +307,45 @@ t_result decode_json_getcolor(cJSON *element, object_attr_type attr4colorname, o
 	return rc;
 }
 
+t_result decode_object_attr_string(cJSON *element, object_attr_type attr_type, char *sval, size_t sz_sval, char *errmsg, size_t sz_errmsg) {
+	memset(sval, 0, sz_sval);
+	memset(errmsg, 0, sz_errmsg);
+	t_result res = RES_OK;
+
+	char lerrmsg[64];
+	T_OBJECT_ATTR_CONFIG *obj_attr_cfg = object_attr4type_id(attr_type);
+	if ( !obj_attr_cfg) {
+		ESP_LOGE(__func__, "object attribute 0x%08x not found", attr_type);
+		snprintf(errmsg, sz_errmsg,"internal error in %s", __func__);
+		return RES_FAILED;
+	}
+
+	if ((res = evt_get_string(element, obj_attr_cfg->name, sval, sz_sval, lerrmsg, sizeof(lerrmsg))) != RES_OK) {
+		snprintf(errmsg, sz_errmsg,"attribute %s: could not decocde data: '%s'", obj_attr_cfg->name, lerrmsg);
+	}
+
+	return res;
+}
+
+t_result decode_object_attr_numeric(cJSON *element, object_attr_type attr_type, double *val, char *errmsg, size_t sz_errmsg) {
+	memset(errmsg, 0, sz_errmsg);
+	t_result res = RES_OK;
+
+	char lerrmsg[64];
+	T_OBJECT_ATTR_CONFIG *obj_attr_cfg = object_attr4type_id(attr_type);
+	if ( !obj_attr_cfg) {
+		ESP_LOGE(__func__, "object attribute 0x%08x not found", attr_type);
+		snprintf(errmsg, sz_errmsg,"internal error in %s", __func__);
+		return RES_FAILED;
+	}
+
+	if ( (res = evt_get_number(element, obj_attr_cfg->name, val, lerrmsg, sizeof(lerrmsg))) != RES_OK) {
+		snprintf(errmsg, sz_errmsg,"attribute %s: could not decocde data: '%s'", obj_attr_cfg->name, lerrmsg);
+	}
+
+	return res;
+}
+
 void cJSON_addBoolean(cJSON *element, char *attribute_name, bool flag) {
 	if ( flag ) {
 		cJSON_AddTrueToObject(element, attribute_name);

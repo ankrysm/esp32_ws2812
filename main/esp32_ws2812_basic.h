@@ -27,7 +27,6 @@
 #include "cJSON.h"
 #include "esp_chip_info.h"
 #include "driver/gpio.h"
-//#include "driver/rmt.h"
 #include "esp_system.h"
 #include "esp_vfs_semihost.h"
 #include "esp_vfs_fat.h"
@@ -39,17 +38,17 @@
 #include "esp_log.h"
 #include "esp_random.h"
 #include "bootloader_random.h"
+#include "esp_app_desc.h"
 
-
-//#include "mdns.h"
 #include "esp_smartconfig.h"
-//#include "mdns.h"
 #include "lwip/apps/netbiosns.h"
 
 #include "time_sync.h"
 #include "bmp.h"
 #include "https_get.h"
+#include "logger.h"
 
 #define LEN_PATH_MAX (ESP_VFS_PATH_MAX+128)
+#define N_TRACKS 16
 
 #endif /* MAIN_ESP32_WS2812_BASIC_H_ */

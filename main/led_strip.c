@@ -8,17 +8,10 @@
 
 #include "esp32_ws2812.h"
 
-//#define STRIP_DEMO
 extern uint32_t cfg_flags;
 
-
-//extern size_t s_size_led_strip_pixels;
-//extern uint8_t *led_strip_pixels;
-
 static uint32_t last_hash = 0;
-
 static bool is_dirty = false;
-
 
 static void do_set_pixel(int32_t idx, T_COLOR_RGB *rgb) {
 
@@ -32,7 +25,6 @@ static void do_set_pixel(int32_t idx, T_COLOR_RGB *rgb) {
 		led_strip_set_pixel(idx, 0, 0, 0);
 	is_dirty = true;
 }
-
 
 /**
  * sets the color for a pixel range
@@ -83,11 +75,14 @@ void strip_show(bool forced) {
 	if (!forced && !is_dirty && hash == last_hash)
 		return;
 
+	/*
 	if (cfg_flags & CFG_STRIP_DEMO) {
 		char msg[32];
 		snprintf(msg,sizeof(msg),"%s%u->%u", (forced?"(f)":""), last_hash, hash);
 		led_strip_demo(msg);
 	}
+	*/
+
 	// send data to strip
 	led_strip_refresh();
 

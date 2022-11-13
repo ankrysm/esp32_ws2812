@@ -1,0 +1,142 @@
+	<article>
+		<h2>Home</h2>
+		<h3>start / stop</h3>
+		<div id="runstatus" class="status-field"><p>......</p></div>
+		<br>
+		<div class="btn-group">
+		  	<button type="button" onclick="getRunStatus('r')">PLAY...</button>
+  			<button type="button" onclick="getRunStatus('p')">PAUSE...</button>
+  			<button type="button" onclick="getRunStatus('s')">STOP...</button>
+  			<button type="button" onclick="getRunStatus('b')">STOP &amp; BLANK ...</button>
+			<button type="button" onclick="getRunStatus('i')">refresh status</button>
+		</div>
+
+		<h3>last loaded file</h3>
+		<div id="lastloadedfile" ><p>......</p></div>
+		<button type="button" onclick="load_llfcontent()">show loaded content</button>
+		<button type="button" onclick="clear_llfcontent()">clear content list</button>
+		<pre id="llfcontent">
+		<code>
+		</code>
+		</pre>
+
+	</article>
+
+<script>
+var timerIsRunning=false;
+var timerVar;
+var scene_time=0;
+var status_text="";
+var status_color="black";
+var status_bg_color="";
+const timer_interval = 1000;
+
+function getRunStatus(url) {
+	var xhttp = new XMLHttpRequest();
+	xhttp.onreadystatechange = function() {
+	    if (this.readyState == 4 ){
+	    	if (this.status == 200) {
+	    		getRunStatusFunction(this);
+	    	} else {
+	    		alert(this.statusText);
+	    	}
+	    }
+  	};
+  	xhttp.open("GET", url, true);
+  	xhttp.send();
+}
+
+function setRunStatusInfo() {
+  var runstatusDiv = document.getElementById("runstatus");
+  runstatusDiv.innerHTML = status_text + " - " + (scene_time/1000).toFixed(1) + " sec";
+  runstatusDiv.style.color = status_color;
+  runstatusDiv.style.backgroundColor = status_bg_color;
+}
+
+function getRunStatusFunction(json) {
+  var jsonDoc = JSON.parse(json.responseText);
+  var text = jsonDoc.text;
+  scene_time =jsonDoc.scene_time;
+  status_color="black";
+  if ( text == "STARTING") {
+	  status_text = "Running";
+	  status_bg_color = "green";
+	  scene_time = 0;
+	  if ( !timerIsRunning) {
+		  timerVar = setInterval(refreshStatus, timer_interval);
+		  timerIsRunning=true;
+	  }
+  } else if ( text == "RUNNING") {
+	  status_text = "Running";
+	  status_bg_color = "green";
+	  // should be running
+	  if ( !timerIsRunning) {
+		  timerVar = setInterval(refreshStatus, timer_interval);
+		  timerIsRunning=true;
+	  }
+  } else if (text == "CONTINUE" ) {
+	  status_text = "Running";
+	  status_bg_color = "green";
+	  if ( !timerIsRunning) {
+		  timerVar = setInterval(refreshStatus, timer_interval);
+		  timerIsRunning=true;
+	  }
+  } else if (text == "STOPPED") {
+	  status_text = "Stopped";
+	  status_bg_color = "red";
+	  scene_time =0;
+	  if ( timerIsRunning) {
+		  clearInterval(timerVar);
+		  timerIsRunning=false;
+	  }
+  } else if (text == "PAUSE" ) {
+	  status_text = "Pause";
+	  status_bg_color = "yellow";
+	  if ( timerIsRunning) {
+		  clearInterval(timerVar);
+		  timerIsRunning=false;
+	  }
+  } else {
+	  status_text = "unexpected '" + text + "'";
+	  status_bg_color = "white";
+  }
+  //text = text + " - " + (scene_time/1000).toFixed(1) + " sec";
+  setRunStatusInfo();
+
+  var lastloadedfile = jsonDoc.last_loaded_file;
+  document.getElementById("lastloadedfile").innerHTML = "<p>last loaded file: <strong>"+ lastloadedfile+ "</strong></p>";
+}
+
+function refreshStatus() {
+	  //getRunStatus('i'); // too much traffic
+	  scene_time += timer_interval;
+	  setRunStatusInfo();
+}
+function onBodyLoad() {
+  //refreshStatus();
+	getRunStatus('i');
+}
+
+function load_llfcontent() {
+	var xhttp = new XMLHttpRequest();
+	xhttp.onreadystatechange = function() {
+	    if (this.readyState == 4 ){
+	    	if (this.status == 200) {
+	    		document.getElementById("llfcontent").innerHTML = this.responseText;
+	    	} else {
+	    		alert(this.statusText);
+	    	}
+	    }
+  	};
+  	xhttp.open("GET", "li", true);
+  	xhttp.send();
+}
+
+function clear_llfcontent() {
+	document.getElementById("llfcontent").innerHTML ="";
+}
+
+</script>
+<noscript>
+	<p>no script</p>
+</noscript>
