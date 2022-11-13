@@ -155,7 +155,6 @@ esp_err_t load_config() {
         	nvs_get_str(my_handle, CFG_KEY_TIMEZONE, cfg_timezone, &len); // call for value
             ESP_LOGI(__func__, "retrieve '%s' successful: '%s'", CFG_KEY_TIMEZONE, cfg_timezone?cfg_timezone:"");
 
-            set_timezone(cfg_timezone);
     	} else if (ret == ESP_ERR_NVS_NOT_FOUND) {
     		// it is ok missing it
             ESP_LOGI(__func__, "retrieve '%s' not found", CFG_KEY_TIMEZONE);

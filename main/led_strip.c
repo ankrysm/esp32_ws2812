@@ -75,11 +75,14 @@ void strip_show(bool forced) {
 	if (!forced && !is_dirty && hash == last_hash)
 		return;
 
+	/*
 	if (cfg_flags & CFG_STRIP_DEMO) {
 		char msg[32];
 		snprintf(msg,sizeof(msg),"%s%u->%u", (forced?"(f)":""), last_hash, hash);
 		led_strip_demo(msg);
 	}
+	*/
+
 	// send data to strip
 	led_strip_refresh();
 

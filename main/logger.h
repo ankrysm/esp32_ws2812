@@ -27,5 +27,6 @@ esp_err_t release_logsem_lock();
 esp_err_t log_entry2text(int idx, char *text, size_t sz_text);
 void log_entry_basics4buffer(T_LOG_ENTRY *buf, char *text, size_t sz_text);
 void log_entry2text4buffer(T_LOG_ENTRY *buf, char *text, size_t sz_text);
+void log_current_time();
 
 #endif /* MAIN_LOGGER_H_ */

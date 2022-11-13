@@ -187,9 +187,20 @@ void get_handler_list(httpd_req_t *req) {
 								data->id, data->type, object_type2text(data->type), data->len,
 								data->para.url
 						);
-					} else {
+					} else if (data->type == OBJT_COLOR_TRANSITION) {
+						snprintf(buf, sz_buf,"    id=%d, type=%d/%s, len=%d hsv from=%d/%d/%d hsv to=%d/%d/%d\n",
+								data->id, data->type, object_type2text(data->type), data->len,
+								data->para.tr.hsv_from.h, data->para.tr.hsv_from.s, data->para.tr.hsv_from.v,
+								data->para.tr.hsv_to.h, data->para.tr.hsv_to.s, data->para.tr.hsv_to.v
+						);
+					} else if (data->type == OBJT_RAINBOW) {
 						snprintf(buf, sz_buf,"    id=%d, type=%d/%s, len=%d\n",
 								data->id, data->type, object_type2text(data->type), data->len
+						);
+					} else {
+						snprintf(buf, sz_buf,"    id=%d, type=%d/%s, len=%d hsv=%d/%d/%d\n",
+								data->id, data->type, object_type2text(data->type), data->len,
+								data->para.hsv.h, data->para.hsv.s, data->para.hsv.v
 						);
 					}
 					httpd_resp_sendstr_chunk(req, buf);
@@ -370,6 +381,10 @@ static void response_with_status(httpd_req_t *req, char *msg, run_status_type st
     	cJSON_AddStringToObject(root, "last_loaded_file", last_loaded_file);
     }
     add_system_informations(root);
+
+    char txt[64];
+    get_current_timestamp(txt, sizeof(txt));
+	cJSON_AddStringToObject(root, "current_time_stamp", txt);
 
     char *resp = cJSON_PrintUnformatted(root);
     ESP_LOGI(__func__,"RESP=%s", resp?resp:"nix");
@@ -722,10 +737,10 @@ static esp_err_t post_handler_config_set(httpd_req_t *req, char *buf) {
 	esp_err_t res = decode_json4config_root(buf, errmsg, sizeof(errmsg));
 
 	if (res == ESP_OK) {
-		snprintfapp(msg, sizeof(msg), ", decoding data done: %s", errmsg);
+		snprintf(msg, sizeof(msg), "decoding data done: %s", errmsg);
 		log_info(__func__, "%s", msg);
 	} else {
-		snprintfapp(msg, sizeof(msg), ", decoding data failed: %s", errmsg);
+		snprintf(msg, sizeof(msg), "decoding data failed: %s", errmsg);
 		log_err(__func__, "%s", msg);
 		snprintfapp(msg, sizeof(msg),"\n");
 		httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, msg);

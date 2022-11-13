@@ -63,6 +63,7 @@ function getStatusFunction(json) {
     table +="<tr><td>compile_date</td><td>" + j.compile_date +"</td></tr>\n";
     table +="<tr><td>compile_time</td><td>" + j.compile_time +"</td></tr>\n";
     table +="<tr><td>app_version</td><td>" + j.app_version +"</td></tr>\n";
+    table +="<tr><td>current time stamp</td><td>" + j.current_time_stamp +"</td></tr>\n";
     document.getElementById("settings").innerHTML = table;
 }
 
@@ -119,10 +120,15 @@ function storeConfig() {
 		}
 		//alert("store " + JSON.stringify(newJ));
 		setConfig(newJ);
+
+		getStatus();
+		getConfig();
+
 	} catch(err) {
 		alert('storeConfig failed:' + err);
     	fillConfigValues();
 	}
+    //location.reload();
 }
 
 function fillConfigValues() {
@@ -131,6 +137,7 @@ function fillConfigValues() {
 	document.getElementById("timezone").value = j.timezone;
 	document.getElementById("autoplay").checked = j.autoplay;
 	document.getElementById("show_status").checked = j.show_status;
+	
 }
 
 function getConfig() {
@@ -157,7 +164,7 @@ function setConfig(newJ) {
 	 	    	j = JSON.parse(this.responseText);
 	 	    	fillConfigValues();
 	 		} else {
-	 			alert("setConfig failed: " + this.statustext);
+	 			alert("setConfig failed: ''" + this.status + "/" + this.statustext + "'");
 	 		}
 	 	}
 	};

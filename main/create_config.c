@@ -142,6 +142,7 @@ esp_err_t decode_json4config_root(char *content, char *errmsg, size_t sz_errmsg)
 				cfg_timezone = strlen(sval) ? strdup(sval) : NULL;
 				store_it = true;
 				set_timezone(cfg_timezone);
+				log_current_time();
 			}
 		} else if ( lrc != RES_NOT_FOUND) {
 			ESP_LOGE(__func__, "parse attribute '%s' failed: %s", attr, errmsg);

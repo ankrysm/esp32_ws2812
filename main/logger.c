@@ -160,3 +160,14 @@ esp_err_t log_entry2text(int idx, char *text, size_t sz_text) {
 	return ESP_OK;
 }
 
+void log_current_time() {
+	time_t now;
+	struct tm timeinfo;
+	char strftime_buf[64];
+
+	char *tz = getenv("TZ");
+	time(&now);
+	localtime_r(&now, &timeinfo);
+	strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
+	log_info(__func__, "The current date/time for '%s' is: %s", tz, strftime_buf);
+}

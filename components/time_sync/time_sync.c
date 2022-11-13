@@ -192,26 +192,40 @@ esp_err_t init_time_service(char *storage_namespace) {
 	return ESP_OK;
 }
 
+
 void get_current_timestamp(char *tbuf, size_t sz_tbuf) {
-	char tformat[32];
+	time_t now;
+	struct tm timeinfo;
+	//char strftime_buf[64];
+	char tformat[64];
 
-	struct timeval tv;
-    struct tm timeinfo = { 0 };
-
-	gettimeofday(&tv, NULL);
-    localtime_r(&tv.tv_sec, &timeinfo);
-	snprintf(tformat, sizeof(tformat), "%%Y-%%m-%%d %%H:%%M:%%S.%06ld", tv.tv_usec);
+	char *tz = getenv("TZ");
+	snprintf(tformat, sizeof(tformat),"%s/%%A, %%F %%T", tz?tz:"not set");
+	time(&now);
+	localtime_r(&now, &timeinfo);
 	strftime(tbuf, sz_tbuf, tformat, &timeinfo);
+	ESP_LOGI(__func__, "The current date/time is: %s", tbuf);
 }
 
 /*
  * examples
  *  Berlin: CET-1CEST,M3.5.0,M10.5.0/3
- *  Japan: JST
+ *  Japan: JST-9
  *
  */
 void set_timezone(char *tz) {
+
 	ESP_LOGI(__func__, "new tz is '%s'", tz);
     setenv("TZ", tz, 1);
     tzset();
+
+    time_t now;
+    struct tm timeinfo;
+    char strftime_buf[64];
+
+    time(&now);
+    localtime_r(&now, &timeinfo);
+    strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
+    ESP_LOGI(__func__, "The current date/time for '%s' is: %s", tz, strftime_buf);
+
 }

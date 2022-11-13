@@ -19,6 +19,7 @@ static volatile bool is_bmp_reading = false;
 static int bufno=0; // which buffer has data 1 or 2, depends on HAS_DATA-bit
 
 static uint8_t buf[LEN_RD_BUF]; // TODO with calloc
+static uint8_t last_buf[LEN_RD_BUF]; // TODO with calloc
 static int32_t bytes_per_line = -1;
 
 static uint32_t bmp_cnt=0;
@@ -39,6 +40,7 @@ void process_object_bmp(int32_t pos, int32_t len, double brightness) {
 		if ( bytes_per_line < 0 )
 			bytes_per_line = get_bytes_per_line();
 		led_strip_memcpy(pos, buf, MIN(bytes_per_line, (3*len)));
+		memcpy(last_buf, buf, sizeof(last_buf));
 
 	} else if ( res == RES_FINISHED ) {
 		ESP_LOGI(__func__,"bmp_read_data: all lines read, connection closed");
@@ -46,6 +48,9 @@ void process_object_bmp(int32_t pos, int32_t len, double brightness) {
 	} else {
 		bmp_missing_lines++;
 		ESP_LOGW(__func__, "unexpected result %d, bmp_cnt=%d, bmp_missing_lines=%d",res, bmp_cnt, bmp_missing_lines);
+		memcpy(buf, last_buf, sizeof(buf));
+
+		/*
 		// GRB
 		uint8_t r,g,b;
 		r = 32; g=0; b=0;
@@ -53,6 +58,7 @@ void process_object_bmp(int32_t pos, int32_t len, double brightness) {
 			// GRB
 			buf[i++] = g;  buf[i++] = r; buf[i++] = b;
 		}
+		// */
 		led_strip_memcpy(pos, buf, 3*len);
 	}
 }
@@ -63,6 +69,8 @@ static void bmp_data_reset() {
 	read_buffer = NULL;
 	rd_mempos = 0;
 	bufno = 0;
+	memset(buf, 0, sizeof(buf));
+	memset(last_buf, 0, sizeof(last_buf));
 }
 
 

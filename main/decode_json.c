@@ -97,7 +97,7 @@ esp_err_t load_events_from_file(char *filename, char *errmsg, size_t sz_errmsg) 
 	do {
 		struct stat st;
 		if (stat(fname, &st) != 0) {
-			ESP_LOGI(__func__,"could not load '%s'", filename);
+			log_err(__func__,"could not load '%s'", filename);
 			rc = ESP_ERR_NOT_FOUND;
 			break;
 		}
@@ -106,7 +106,7 @@ esp_err_t load_events_from_file(char *filename, char *errmsg, size_t sz_errmsg) 
 
 		FILE *f = fopen(fname, "r");
 		if (f == NULL) {
-			ESP_LOGE(__func__, "Failed to open file for reading");
+			log_err(__func__, "Failed to open file for reading");
 			rc = ESP_FAIL;
 			break;
 		}
@@ -119,13 +119,13 @@ esp_err_t load_events_from_file(char *filename, char *errmsg, size_t sz_errmsg) 
 	} while(0);
 
 	if ( rc == ESP_OK ) {
-		ESP_LOGI(__func__, "decode '%s' successfull", filename);
+		log_info(__func__, "decode '%s' successfull", filename);
 		cfg_trans_flags |=CFG_AUTOPLAY_LOADED;
 
 		strlcpy(last_loaded_file, filename, LEN_PATH_MAX);
 
 	} else {
-		ESP_LOGE(__func__, "could not decode '%s': %s", filename, errmsg);
+		log_err(__func__, "could not decode '%s': %s", filename, errmsg);
 	}
 
 	if ( content)
@@ -142,7 +142,11 @@ esp_err_t load_autostart_file() {
 	}
 	char errmsg[128];
 
-	return load_events_from_file(cfg_autoplayfile, errmsg, sizeof(errmsg));
-
+	log_info(__func__, "load file %s", cfg_autoplayfile);
+	esp_err_t res = load_events_from_file(cfg_autoplayfile, errmsg, sizeof(errmsg));
+	if (res != ESP_OK) {
+		log_err(__func__, "load autostart file %s failed:%s", cfg_autoplayfile, errmsg);
+	}
+	return res;
 }
 

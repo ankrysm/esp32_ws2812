@@ -169,7 +169,7 @@ static void periodic_timer_callback(void* arg) {
 
 // start playing by starting the periodic timer
 void scenes_start() {
-	ESP_LOGI(__func__, "start, periodic time %d ms(old: %d)", s_timer_period_new, s_timer_period);
+	log_info(__func__, "execution START, periodic time %d ms(old: %d)", s_timer_period_new, s_timer_period);
 	logcnt = 10;
 
 	xEventGroupClearBits(s_timer_event_group, EVENT_BITS_ALL);
@@ -197,7 +197,7 @@ void scenes_start() {
         xEventGroupSetBits(s_timer_event_group, EVENT_BIT_START);
 
     } else {
-    	ESP_LOGE(__func__, "cannot start timer (rc=%d)", rc);
+    	log_err(__func__, "cannot start timer (rc=%d)", rc);
     }
 
     s_timer_period = s_timer_period_new;
@@ -205,7 +205,7 @@ void scenes_start() {
 
 void scenes_stop(bool flag_blank) {
 	// timer stops by themselves
-	ESP_LOGI(__func__, "start");
+	log_info(__func__, "execution STOP");
 	xEventGroupClearBits(s_timer_event_group, EVENT_BITS_ALL);
 	if ( flag_blank) {
 		xEventGroupSetBits(s_timer_event_group, EVENT_BIT_STOP|EVENT_BIT_BLANK);
@@ -217,13 +217,13 @@ void scenes_stop(bool flag_blank) {
 }
 
 void scenes_pause() {
-	ESP_LOGI(__func__, "start");
+	log_info(__func__, "execution PAUSE");
 	xEventGroupClearBits(s_timer_event_group, EVENT_BITS_ALL);
     xEventGroupSetBits(s_timer_event_group, EVENT_BIT_PAUSE);
 }
 
 void scenes_autostart() {
-	ESP_LOGI(__func__, "start");
+	log_info(__func__, "execution AUTOSTART");
 	if ( (cfg_trans_flags & CFG_AUTOPLAY_LOADED) && (cfg_flags & CFG_AUTOPLAY)) {
 		cfg_trans_flags |= CFG_AUTOPLAY_STARTED;
 		ESP_LOGI(__func__, "autostart processed");
