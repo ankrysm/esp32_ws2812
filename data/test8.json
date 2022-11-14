@@ -8,6 +8,19 @@
 	 	{
 	 	 "id":"A",
 	 	 "init": [
+     	 	{"type":"object","value":"bmp1"},
+	 	 	{"type":"bmp_open"},
+	 	 	{"type":"brightness", "value":0.1},
+     	 	{"type":"goto", "value":0},
+     	 	{"type":"wait_first", "value":2000}
+	 	 ],
+     	 "work": [
+	 	 	{"type":"bmp_read"}
+		 ]
+	 	},
+	 	{
+	 	 "id":"B",
+	 	 "init": [
      	 	{"type":"object","value":"bmp2"},
 	 	 	{"type":"bmp_open"},
 	 	 	{"type":"brightness", "value":0.1},
@@ -22,7 +35,9 @@
 	 ],
 	 "tracks" : [
 		{"id":1, "elements":[
-			{"event":"A", "repeat":10},
+			{"event":"A", "repeat":1},
+			{"event":"B", "repeat":1},
+			{"event":"A", "repeat":1},
 			{"event":"STOP"}
 		] }
 	]

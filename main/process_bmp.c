@@ -48,7 +48,6 @@ void process_object_bmp(int32_t pos, int32_t len, double brightness) {
 	} else {
 		bmp_missing_lines++;
 		ESP_LOGW(__func__, "unexpected result %d, bmp_cnt=%d, bmp_missing_lines=%d",res, bmp_cnt, bmp_missing_lines);
-		memcpy(buf, last_buf, sizeof(buf));
 
 		/*
 		// GRB
@@ -59,7 +58,7 @@ void process_object_bmp(int32_t pos, int32_t len, double brightness) {
 			buf[i++] = g;  buf[i++] = r; buf[i++] = b;
 		}
 		// */
-		led_strip_memcpy(pos, buf, 3*len);
+		led_strip_memcpy(pos, last_buf, 3*len);
 	}
 }
 
@@ -69,8 +68,6 @@ static void bmp_data_reset() {
 	read_buffer = NULL;
 	rd_mempos = 0;
 	bufno = 0;
-	memset(buf, 0, sizeof(buf));
-	memset(last_buf, 0, sizeof(last_buf));
 }
 
 
@@ -152,7 +149,7 @@ t_result bmp_work(uint8_t *buf, size_t sz_buf, double brightness) {
 
 	if ( read_buffer_len == 0 ) {
 		// more data needed
-		EventBits_t uxBits=get_ux_bits(10); // wait max. 10 ms
+		EventBits_t uxBits=get_ux_bits(1000); // wait max. 10 ms
 		if ( uxBits & BMP_BIT_BUFFER1_HAS_DATA ) {
 			bufno = 1;
 		} else if ( uxBits & BMP_BIT_BUFFER2_HAS_DATA ) {
@@ -174,7 +171,7 @@ t_result bmp_work(uint8_t *buf, size_t sz_buf, double brightness) {
 		rd_mempos = 0;
 		read_buffer_len = get_read_length();
 		read_buffer = get_read_buffer(bufno);
-		//ESP_LOGI(__func__, "buffer %d has %d bytes", bufno, read_buffer_len);
+		ESP_LOGI(__func__, "buffer %d has %d bytes", bufno, read_buffer_len);
 	}
 
 	if ( read_buffer_len > 0 ) {
@@ -224,6 +221,8 @@ static esp_err_t bmp_open_connection(char *url) {
 
 	bmp_data_reset();
 	clear_ux_bits();
+	memset(buf, 0, sizeof(buf));
+	memset(last_buf, 0, sizeof(last_buf));
 
 	res = https_get(url, https_callback_bmp_processing);
 

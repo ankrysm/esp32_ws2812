@@ -25,7 +25,7 @@ esp_err_t fetch_and_store_time_in_nvs(void*);
 /**
  * @brief init time service
  */
-esp_err_t init_time_service(char *storage_namespace);
+esp_err_t init_time_service();
 
 /**
  * @brief get current date string

@@ -123,6 +123,8 @@ static void do_https_get() {
 
 		do {
 			// wait until expected amount read
+			int64_t t_start = esp_timer_get_time();
+			int64_t t_end = t_start;
 			n_read = 0;
 			while (n_read < expected_len ) {
 				read_len = esp_http_client_read(client, (char *) buf, expected_len);
@@ -148,6 +150,9 @@ static void do_https_get() {
 			int rc;
 			if ( read_len <=0) {
 				if ( n_read > 0) {
+					t_end = esp_timer_get_time();
+					ESP_LOGI(__func__,"last read %d bytes in %lld ms", expected_len, (t_end-t_start)/1000);
+
 					// there's something remaining in the buffer
 					rc = s_callback(HCT_READING, &buf, &expected_len);
 					if ( rc < 0)
@@ -155,6 +160,10 @@ static void do_https_get() {
 				}
 				break; // EOF or Error
 			}
+
+			t_end = esp_timer_get_time();
+			ESP_LOGI(__func__,"read %d bytes in %lld ms", expected_len, (t_end-t_start)/1000);
+
 			// all read; n_read == expected_len
 			rc = s_callback(HCT_READING, &buf, &expected_len);
 			if ( rc < 0 )
@@ -165,6 +174,7 @@ static void do_https_get() {
 
 			// continue with next loop
 		} while(1);
+
 
 		expected_len = 0;
 		s_callback(HCT_FINISH, &buf, &expected_len);

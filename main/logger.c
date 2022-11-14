@@ -169,5 +169,5 @@ void log_current_time() {
 	time(&now);
 	localtime_r(&now, &timeinfo);
 	strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
-	log_info(__func__, "The current date/time for '%s' is: %s", tz, strftime_buf);
+	log_info(__func__, "The current date/time for TZ '%s' is: %s", tz?tz:"not set", strftime_buf);
 }

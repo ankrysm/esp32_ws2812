@@ -24,7 +24,7 @@
 #include "bmp.h"
 #include "https_get.h"
 
-#define SZ_BUFFER 4096
+#define SZ_BUFFER 8192
 
 typedef enum {
 	BRP_GOT_FILE_HEADER, // 0

@@ -161,7 +161,7 @@ static void periodic_timer_callback(void* arg) {
 		s_scene_time = 0; // stop resets the time
 		// stop this timer
 		esp_timer_stop(s_handle_periodic_timer);
-		ESP_LOGI(__func__, "finished -> STOP");
+		log_info(__func__, "execution finished -> STOP");
 	}
     //int64_t time_since_boot = esp_timer_get_time();
     //ESP_LOGI(__func__, "Periodic timer called, time since boot: %lld us", time_since_boot);

@@ -33,14 +33,12 @@
 /* Timer interval once every day (24 Hours) */
 #define TIME_PERIOD (86400000000ULL)
 
-//static char *s_storage_namespace=NULL; // "storage"
-
 void initialize_sntp(void)
 {
     ESP_LOGI(__func__, "Initializing SNTP");
     sntp_setoperatingmode(SNTP_OPMODE_POLL);
-    sntp_setservername(0, "time.windows.com");
-    sntp_setservername(1, "pool.ntp.org");
+    //sntp_setservername(0, "time.windows.com");
+    sntp_setservername(0, "pool.ntp.org");
 #ifdef CONFIG_SNTP_TIME_SYNC_METHOD_SMOOTH
     sntp_set_sync_mode(SNTP_SYNC_MODE_SMOOTH);
 #endif
@@ -59,7 +57,7 @@ static esp_err_t obtain_time(void)
 
     // wait for time to be set
     int retry = 0;
-    const int retry_count = 10;
+    const int retry_count = 30;
     while (sntp_get_sync_status() == SNTP_SYNC_STATUS_RESET && ++retry < retry_count) {
         ESP_LOGI(__func__, "Waiting for system time to be set... (%d/%d)", retry, retry_count);
         vTaskDelay(2000 / portTICK_PERIOD_MS);
@@ -79,101 +77,13 @@ esp_err_t fetch_and_store_time_in_nvs(void *args)
     return ESP_OK;
 }
 
-/*
-esp_err_t fetch_and_store_time_in_nvs(void *args)
-{
+
+esp_err_t init_time_service() {
     initialize_sntp();
     if (obtain_time() != ESP_OK) {
         return ESP_FAIL;
     }
 
-    nvs_handle_t my_handle;
-    esp_err_t err;
-
-    time_t now;
-    time(&now);
-
-    //Open
-    err = nvs_open(s_storage_namespace, NVS_READWRITE, &my_handle);
-    if (err != ESP_OK) {
-        goto exit;
-    }
-
-    //Write
-    err = nvs_set_i64(my_handle, "timestamp", now);
-    if (err != ESP_OK) {
-        goto exit;
-    }
-
-    err = nvs_commit(my_handle);
-    if (err != ESP_OK) {
-        goto exit;
-    }
-
-    nvs_close(my_handle);
-    sntp_stop();
-
-exit:
-    if (err != ESP_OK) {
-        ESP_LOGE(__func__, "Error updating time in nvs");
-    } else {
-        ESP_LOGI(__func__, "Updated time in NVS");
-    }
-    return err;
-}
-*/
-
-/*
-esp_err_t update_time_from_nvs(void)
-{
-    nvs_handle_t my_handle;
-    esp_err_t err;
-
-    err = nvs_open(s_storage_namespace, NVS_READWRITE, &my_handle);
-    if (err != ESP_OK) {
-        ESP_LOGE(__func__, "Error opening NVS");
-        goto exit;
-    }
-
-    int64_t timestamp = 0;
-
-    err = nvs_get_i64(my_handle, "timestamp", &timestamp);
-    if (err == ESP_ERR_NVS_NOT_FOUND) {
-        ESP_LOGI(__func__, "Time not found in NVS. Syncing time from SNTP server.");
-        if (fetch_and_store_time_in_nvs(NULL) != ESP_OK) {
-            err = ESP_FAIL;
-        } else {
-            err = ESP_OK;
-        }
-    } else if (err == ESP_OK) {
-        struct timeval get_nvs_time;
-        get_nvs_time.tv_sec = timestamp;
-        settimeofday(&get_nvs_time, NULL);
-    }
-
-exit:
-    nvs_close(my_handle);
-    return err;
-}
-*/
-
-esp_err_t init_time_service(char *storage_namespace) {
-    initialize_sntp();
-    if (obtain_time() != ESP_OK) {
-        return ESP_FAIL;
-    }
-
-    /*
-	s_storage_namespace = strdup(storage_namespace);
-
-	if (esp_reset_reason() == ESP_RST_POWERON) {
-		ESP_LOGI(__func__, "Updating time from NVS");
-		if ( (res=update_time_from_nvs()) != ESP_OK) {
-			ESP_LOGE(__func__, "Updating time from NVS failed");
-			return res;
-		}
-	}
-	*/
 	esp_err_t res;
 	const esp_timer_create_args_t nvs_update_timer_args = {
 			.callback = (void *)&fetch_and_store_time_in_nvs,
@@ -215,6 +125,10 @@ void get_current_timestamp(char *tbuf, size_t sz_tbuf) {
  */
 void set_timezone(char *tz) {
 
+	if ( tz == NULL|| !strlen(tz)) {
+		ESP_LOGW(__func__, "no time zone specified");
+		return;
+	}
 	ESP_LOGI(__func__, "new tz is '%s'", tz);
     setenv("TZ", tz, 1);
     tzset();
