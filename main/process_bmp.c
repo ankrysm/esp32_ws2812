@@ -209,10 +209,10 @@ static esp_err_t bmp_open_connection(char *url) {
 		return ESP_FAIL;
 	}
 
-	if ( is_http_client_task_active()) {
-		ESP_LOGE(__func__, "is_https_connection_active() should not be true here");
-		return ESP_FAIL;
-	}
+//	if ( is_http_client_task_active()) {
+//		ESP_LOGE(__func__, "is_https_connection_active() should not be true here");
+//		return ESP_FAIL;
+//	}
 
 	ESP_LOGI(__func__,"start");
 

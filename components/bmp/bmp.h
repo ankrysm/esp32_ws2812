@@ -28,6 +28,25 @@ typedef int32_t LONG;
 #define BMP_BIT_BUFFER2_HAS_DATA   0x20
 #define BMP_BIT_NO_MORE_DATA       0x40
 
+typedef enum {
+	BRP_GOT_FILE_HEADER, // 0
+	BRP_GOT_INFO_HEADER, // 1
+	BRP_GOT_SKIPPED_DATA, // 2
+	BRP_GOT_FIRST_DATA_BUFFER1, // 3
+	BRP_GOT_DATA_BUFFER1, // 4
+	BRP_GOT_DATA_BUFFER2 // 5
+} t_bmp_read_phase;
+
+#define BRP2TXT(c) ( \
+		c==BRP_GOT_FILE_HEADER ? "GOT_FILE_HEADER" :  \
+		c==BRP_GOT_INFO_HEADER ? "GOT_INFO_HEADER" : \
+		c==BRP_GOT_SKIPPED_DATA ? "GOT_SKIPPED_DATA" : \
+		c==BRP_GOT_FIRST_DATA_BUFFER1 ? "GOT_FIRST_DATA_BUFFER1" : \
+		c==BRP_GOT_DATA_BUFFER1 ? "GOT_DATA_BUFFER1" : \
+		c==BRP_GOT_DATA_BUFFER2 ? "GOT_DATA_BUFFER2" : "UNKNOWN" )
+
+
+
 // header must be packed to map the read data exactly to the memory
 // we had to check the byte order but ESP32 matches, no byte swap needed
 
@@ -62,18 +81,38 @@ typedef struct tagBITMAPINFOHEADER {
 
 // third block: data
 
+typedef struct {
+	// FreeRTOS event group to signal when something is read or something is processed
+	EventGroupHandle_t s_bmp_event_group_for_reader; // read process (it's me) waits for ...PROCESSED or STOP_WORKING
+	EventGroupHandle_t s_bmp_event_group_for_worker; // worker process waits for ...HAS_DATA, ...NO_MORE_DATA
+	BITMAPFILEHEADER bmpFileHeader;
+	BITMAPINFOHEADER bmpInfoHeader;
+	uint8_t *read_buffer1;
+	uint8_t *read_buffer2;
+	uint8_t *buffer;
+	size_t sz_read_buffer;
+	uint32_t total_length;
+	t_bmp_read_phase bmp_read_phase;
+	uint32_t buf_len_expected;
+	uint32_t read_buffer_length;
+
+} T_BMP_WORKING;
+
+
+
 // prototypes
 // from bmp.c
 void bmp_init();
-uint32_t get_bytes_per_pixel();
-uint32_t get_bytes_per_line();
-void clear_ux_bits();
+uint32_t get_bytes_per_pixel(T_BMP_WORKING *data);
+uint32_t get_bytes_per_line(T_BMP_WORKING *data);
+void clear_ux_bits(T_BMP_WORKING *data);
 
-EventBits_t get_ux_bits(TickType_t xTicksToWait);
-void set_ux_quit_bits(EventBits_t uxQuitBits);
+EventBits_t get_ux_bits(T_BMP_WORKING *data, TickType_t xTicksToWait);
+void set_ux_quit_bits(T_BMP_WORKING *data, EventBits_t uxQuitBits);
 
-uint32_t get_read_length();
-uint8_t *get_read_buffer(int bufnr);
-int https_callback_bmp_processing(t_https_callback_todo todo, uint8_t **buf, uint32_t *buf_len);
+uint32_t get_read_length(T_BMP_WORKING *data);
+uint8_t *get_read_buffer(T_BMP_WORKING *data, int bufnr);
+
+int https_callback_bmp_processing(T_HTTPS_CLIENT_SLOT *slot, uint8_t **buf, uint32_t *buf_len);
 
 #endif /* COMPONENTS_BMP_BMP_H_ */
