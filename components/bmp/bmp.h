@@ -29,15 +29,17 @@ typedef int32_t LONG;
 #define BMP_BIT_NO_MORE_DATA       0x40
 
 typedef enum {
-	BRP_GOT_FILE_HEADER, // 0
-	BRP_GOT_INFO_HEADER, // 1
-	BRP_GOT_SKIPPED_DATA, // 2
-	BRP_GOT_FIRST_DATA_BUFFER1, // 3
-	BRP_GOT_DATA_BUFFER1, // 4
-	BRP_GOT_DATA_BUFFER2 // 5
+	BRP_IDLE, // 0
+	BRP_GOT_FILE_HEADER, // 1
+	BRP_GOT_INFO_HEADER, // 2
+	BRP_GOT_SKIPPED_DATA, // 3
+	BRP_GOT_FIRST_DATA_BUFFER1, // 4
+	BRP_GOT_DATA_BUFFER1, // 5
+	BRP_GOT_DATA_BUFFER2 // 6
 } t_bmp_read_phase;
 
 #define BRP2TXT(c) ( \
+		c==BRP_IDLE ? "IDLE" :  \
 		c==BRP_GOT_FILE_HEADER ? "GOT_FILE_HEADER" :  \
 		c==BRP_GOT_INFO_HEADER ? "GOT_INFO_HEADER" : \
 		c==BRP_GOT_SKIPPED_DATA ? "GOT_SKIPPED_DATA" : \
@@ -82,27 +84,32 @@ typedef struct tagBITMAPINFOHEADER {
 // third block: data
 
 typedef struct {
+	//bool active;
 	// FreeRTOS event group to signal when something is read or something is processed
 	EventGroupHandle_t s_bmp_event_group_for_reader; // read process (it's me) waits for ...PROCESSED or STOP_WORKING
 	EventGroupHandle_t s_bmp_event_group_for_worker; // worker process waits for ...HAS_DATA, ...NO_MORE_DATA
+
 	BITMAPFILEHEADER bmpFileHeader;
 	BITMAPINFOHEADER bmpInfoHeader;
-	uint8_t *read_buffer1;
+
+	uint8_t *read_buffer1; // alternated used read buffer
 	uint8_t *read_buffer2;
-	uint8_t *buffer;
-	size_t sz_read_buffer;
-	uint32_t total_length;
-	t_bmp_read_phase bmp_read_phase;
-	uint32_t buf_len_expected;
-	uint32_t read_buffer_length;
+	size_t sz_read_buffer; // size of read buffers
+	uint32_t read_buffer_length; // read data len
+
+	uint8_t *buffer; // buffer for skipped data
+	uint32_t total_length; // total length of read data
+	t_bmp_read_phase bmp_read_phase; // working phase
+	uint32_t buf_len_expected; // amount of expected data from webserver
 
 } T_BMP_WORKING;
 
 
 
 // prototypes
-// from bmp.c
 void bmp_init();
+void bmp_init_data(T_BMP_WORKING *data);
+//T_BMP_WORKING *get_bmp_slot();
 uint32_t get_bytes_per_pixel(T_BMP_WORKING *data);
 uint32_t get_bytes_per_line(T_BMP_WORKING *data);
 void clear_ux_bits(T_BMP_WORKING *data);

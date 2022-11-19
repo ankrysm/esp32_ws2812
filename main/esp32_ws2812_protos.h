@@ -99,11 +99,12 @@ void firstled(int red, int green, int blue);
 
 
 // from process_bmp.c
-t_result bmp_work(uint8_t *buf, size_t sz_buf, double brightness);
-bool get_is_bmp_reading();
+//t_result bmp_work(uint8_t *buf, size_t sz_buf, double brightness);
+//bool get_is_bmp_reading();
+t_result get_is_bmp_reading(T_TRACK_ELEMENT *ele);
 void bmp_stop_processing();
-t_result bmp_open_url(char *id);
-void process_object_bmp(int32_t pos, int32_t len, double brightness);
+t_result bmp_open_url(T_TRACK_ELEMENT *ele);
+void process_object_bmp(int32_t pos, T_TRACK_ELEMENT *ele, double brightness);
 
 // from process_events.c
 int process_tracks(uint64_t scene_time, uint64_t timer_period);

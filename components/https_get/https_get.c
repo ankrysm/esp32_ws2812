@@ -36,16 +36,10 @@
 
 #include "https_get.h"
 
-//static https_get_callback slot->callback;
-//static esp_http_client_config_t request_config;
-//static volatile bool http_client_task_active = false;
-
 static T_HTTPS_CLIENT_SLOT https_get_slots[N_HTTPS_CLIENTS];
 static bool init_needed=true;
 
-static int64_t t_task_start;
-
-//static TaskHandle_t xHandle = NULL;
+//static int64_t t_task_start;
 
 esp_err_t _http_event_handler(esp_http_client_event_t *evt){
     switch(evt->event_id) {
@@ -145,9 +139,9 @@ static void do_https_get(T_HTTPS_CLIENT_SLOT *slot) {
 				if ( n_read < expected_len) {
 					ESP_LOGI(__func__, "%d bytes read (%d/%d)",  read_len, n_read , expected_len);
 				}
-				if ( t_task_start > 0 ) {
-					ESP_LOGI(__func__,"first %d bytes after %lld ms", read_len, (esp_timer_get_time() - t_task_start) /1000);
-					t_task_start = -1;
+				if ( slot->logflag ) {
+					ESP_LOGI(__func__,"first %d bytes after %lld ms", read_len, (esp_timer_get_time() - slot->t_task_start) /1000);
+					slot->logflag = false;
 				}
 			}
 
@@ -204,13 +198,17 @@ static void http_main_task(void *pvParameters)
 {
     T_HTTPS_CLIENT_SLOT *slot = (T_HTTPS_CLIENT_SLOT*) pvParameters;
     ESP_LOGI(__func__, "*** (%s) start ***", slot->name);
-    t_task_start = esp_timer_get_time();
+    slot->t_task_start = esp_timer_get_time();
 
     do_https_get(slot);
 
-    ESP_LOGI(__func__, "*** (%s) finished ****", slot->name);
+    slot->t_task_end = esp_timer_get_time();
+
+    ESP_LOGI(__func__, "*** (%s) finished, duration %lld ms ****",
+    		slot->name, (slot->t_task_end - slot->t_task_start)/1000);
     slot->status = HSS_EMPTY;
     //http_client_task_active = false;
+
     vTaskDelete(NULL);
     // no statements here, task deleted
 }
@@ -221,7 +219,7 @@ static void http_main_task(void *pvParameters)
  *  - ESP_OK if client slot could started
  *  - ESP_FAIL if not slot is free
  */
-esp_err_t https_get(char *url, https_get_callback callback, void *user_args) {
+T_HTTPS_CLIENT_SLOT *https_get(char *url, https_get_callback callback, void *user_args) {
 	if ( init_needed) {
 		memset(https_get_slots, 0, sizeof(https_get_slots));
 		for ( int i=0; i < N_HTTPS_CLIENTS; i++) {
@@ -240,13 +238,14 @@ esp_err_t https_get(char *url, https_get_callback callback, void *user_args) {
 			slot->status = HSS_ACTIVE;
 			slot->callback = callback;
 			slot->user_args = user_args;
+			slot->logflag = true;
 			memset(slot->errmsg, 0, LEN_HTTPS_CLIENT_ERRMSG);
 			break;
 		}
 	}
 	if ( idx < 0) {
 		ESP_LOGE(__func__, "there's no free slot for request '%s'", url);
-		return ESP_FAIL;
+		return NULL;
 	}
 	//  if ( http_client_task_active ) {
 	//    ESP_LOGW(__func__, "there's an open connection url='%s'", url);
@@ -262,7 +261,7 @@ esp_err_t https_get(char *url, https_get_callback callback, void *user_args) {
 
 	xTaskCreate(&http_main_task, slot->name, 16384, (void*) slot, 5, &(slot->xHandle));
 	ESP_LOGI(__func__, "'http_main_task' started");
-	return ESP_OK;
+	return slot;
 
 }
 

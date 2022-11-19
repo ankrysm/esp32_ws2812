@@ -26,7 +26,7 @@
 
 #define SZ_BUFFER 8192
 
-static T_BMP_WORKING bmp_working_data[N_HTTPS_CLIENTS];
+//static T_BMP_WORKING bmp_working_data[N_HTTPS_CLIENTS];
 
 /* FreeRTOS event group to signal when something is read or something is processed */
 /*
@@ -56,17 +56,31 @@ uint32_t lines_read_buffer = 0;
 static const TickType_t xTicksToWait = 30000 / portTICK_PERIOD_MS;
 static int extended_log = 0;
 
+void bmp_init_data(T_BMP_WORKING *data) {
+	memset(data, 0, sizeof(T_BMP_WORKING));
+	//data->active = false;
+	data->bmp_read_phase = BRP_IDLE;
+	data->s_bmp_event_group_for_reader = xEventGroupCreate();
+	data->s_bmp_event_group_for_worker = xEventGroupCreate();
+	xEventGroupClearBits(data->s_bmp_event_group_for_reader, 0xFFFF);
+	xEventGroupClearBits(data->s_bmp_event_group_for_worker, 0xFFFF);
+}
+
 
 void bmp_init() {
 	ESP_LOGI(__func__, "started");
+
+	/*
 	for(int i=0; i< N_HTTPS_CLIENTS; i++) {
 		T_BMP_WORKING *data = &(bmp_working_data[i]);
 		memset(data, 0, sizeof(T_BMP_WORKING));
+		data->active = false;
 		data->s_bmp_event_group_for_reader = xEventGroupCreate();
 		data->s_bmp_event_group_for_worker = xEventGroupCreate();
 		xEventGroupClearBits(data->s_bmp_event_group_for_reader, 0xFFFF);
 		xEventGroupClearBits(data->s_bmp_event_group_for_worker, 0xFFFF);
 	}
+	*/
 }
 
 uint32_t get_bytes_per_pixel(T_BMP_WORKING *data) {
@@ -103,8 +117,9 @@ static void free_buffers(T_BMP_WORKING *data) {
 	}
 	data->sz_read_buffer = 0;
 	data->total_length = 0;
-
+	data->bmp_read_phase = BRP_IDLE;
 }
+
 /**
  * callback for https_get
  *  to do: init, reading or finished
@@ -129,6 +144,7 @@ int https_callback_bmp_processing(T_HTTPS_CLIENT_SLOT *slot, uint8_t **buf, uint
 		memset(&(data->bmpFileHeader), 0, sizeof(data->bmpFileHeader));
 		memset(&(data->bmpInfoHeader), 0, sizeof(data->bmpInfoHeader));
 		free_buffers(data);
+		//data->active = true;
 
 		data->bmp_read_phase = BRP_GOT_FILE_HEADER;
 		*buf_len = data->buf_len_expected = sizeof(data->bmpFileHeader);
@@ -150,6 +166,10 @@ int https_callback_bmp_processing(T_HTTPS_CLIENT_SLOT *slot, uint8_t **buf, uint
 		}
 
 		switch(data->bmp_read_phase) {
+		case BRP_IDLE:
+			ESP_LOGE(__func__, "unexpected phase IDLE");
+			return -1;
+			break;
 
 		case BRP_GOT_FILE_HEADER: // got file header
 			ESP_LOGI(__func__, "got file header: bfType='%c%c', bfSize=0x%08x, bfOffBits=0x%08x",
@@ -333,7 +353,7 @@ int https_callback_bmp_processing(T_HTTPS_CLIENT_SLOT *slot, uint8_t **buf, uint
 		xEventGroupSetBits(data->s_bmp_event_group_for_worker, BMP_BIT_NO_MORE_DATA);
 
         free_buffers(data);
-    	//ESP_LOGI(__func__,"todo=%d(finish), buf_len=%u", to_do, *buf_len);
+   	//ESP_LOGI(__func__,"todo=%d(finish), buf_len=%u", to_do, *buf_len);
 
 	} else if ( slot->todo==HCT_FAILED ) {
 		ESP_LOGI(__func__,"failed");
@@ -386,3 +406,23 @@ uint8_t *get_read_buffer(T_BMP_WORKING *data, int bufnr) {
 	}
 	return NULL;
 }
+
+void bmp_finished(T_BMP_WORKING *data) {
+	ESP_LOGI(__func__, "start");
+	data->bmp_read_phase = BRP_IDLE;
+}
+
+/*
+T_BMP_WORKING *get_bmp_slot() {
+
+	for (int i=0; i < N_HTTPS_CLIENTS; i++) {
+		T_BMP_WORKING *slot = &(bmp_working_data[i]);
+		if ( !slot->active) {
+			ESP_LOGI(__func__, "found slot %d", i);
+			return slot;
+		}
+	}
+	ESP_LOGW(__func__, "no free slot");
+	return NULL; // no free slot
+}
+*/

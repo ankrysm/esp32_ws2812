@@ -185,7 +185,7 @@ void get_handler_list(httpd_req_t *req) {
 					if ( data->type == OBJT_BMP) {
 						snprintf(buf, sz_buf,"    id=%d, type=%d/%s, len=%d, url=%s\n",
 								data->id, data->type, object_type2text(data->type), data->len,
-								data->para.url
+								data->para.bmp.url
 						);
 					} else if (data->type == OBJT_COLOR_TRANSITION) {
 						snprintf(buf, sz_buf,"    id=%d, type=%d/%s, len=%d hsv from=%d/%d/%d hsv to=%d/%d/%d\n",

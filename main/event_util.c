@@ -327,6 +327,9 @@ T_TRACK_ELEMENT *create_track_element(int tidx, int id) {
 	return ele;
 }
 
+// #################### Free data structures ########################################
+
+
 esp_err_t clear_tracks() {
 	if (obtain_eventlist_lock() != ESP_OK) {
 		ESP_LOGE(__func__, "couldn't get lock");
@@ -342,6 +345,9 @@ esp_err_t clear_tracks() {
 		T_TRACK_ELEMENT *t, *d = track->element_list;
 		while(d) {
 			t = d->nxt;
+			if ( d->w_bmp) {
+				free(d->w_bmp);
+			}
 			free(d);
 			d=t;
 		}
@@ -351,7 +357,6 @@ esp_err_t clear_tracks() {
 	return release_eventlist_lock();
 }
 
-// #################### Free data structures ########################################
 
 
 void delete_object(T_DISPLAY_OBJECT *obj) {
@@ -363,8 +368,8 @@ void delete_object(T_DISPLAY_OBJECT *obj) {
 		while(obj_data) {
 			t = obj_data->nxt;
 			if ( obj_data->type == OBJT_BMP ) {
-				if (obj_data->para.url)
-					free(obj_data->para.url);
+				if (obj_data->para.bmp.url)
+					free(obj_data->para.bmp.url);
 			}
 
 			free(obj_data);

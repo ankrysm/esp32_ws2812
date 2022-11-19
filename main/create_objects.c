@@ -62,8 +62,9 @@ static esp_err_t decode_json4event_object_data(cJSON *element, T_DISPLAY_OBJECT 
 				snprintf(errmsg, sz_errmsg,"oid=%s, id=%d: error decoding attribute: %s", obj->oid, id, lerrmsg);
 				break;
 			}
-			object_data->para.url = strdup(sval);
-			ESP_LOGI(__func__,"oid=%s, id=%d: url='%s'", obj->oid, id, object_data->para.url);
+			//bmp_init_data(&(object_data->para.bmp.w_data));
+			object_data->para.bmp.url = strdup(sval);
+			ESP_LOGI(__func__,"oid=%s, id=%d: url='%s'", obj->oid, id, object_data->para.bmp.url);
 
 		} else if ( object_data->type == OBJT_COLOR_TRANSITION) {
 			// a "color from" needed

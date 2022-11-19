@@ -48,11 +48,16 @@ struct HTTPS_CLIENT_SLOT {
 	esp_http_client_handle_t client;
 	esp_http_client_config_t request_config;
 	https_get_callback callback;
-	void *user_args;
 	char errmsg[LEN_HTTPS_CLIENT_ERRMSG];
+
+	void *user_args;
+
+	bool logflag;
+	int64_t t_task_start;
+	int64_t t_task_end;
 };
 
-esp_err_t https_get(char *url, https_get_callback callback, void *user_args);
+T_HTTPS_CLIENT_SLOT *https_get(char *url, https_get_callback callback, void *user_args);
 //bool is_http_client_task_active();
 
 #endif /* COMPONENTS_HTTPS_GET_HTTPS_GET_H_ */
