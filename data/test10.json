@@ -1,0 +1,28 @@
+{
+	 "objects" : [
+		 {  "id":"bmp", "list" :[{"type":"bmp", "len":300, "url":"https://kobe-files.de/testbild.bmp"}]}
+	  ],
+	"events": [
+	 	{
+	 	 "id":"A",
+	 	 "init": [
+     	 	{"type":"object","value":"bmp"},
+	 	 	{"type":"bmp_open"},
+	 	 	{"type":"brightness", "value":0.1},
+     	 	{"type":"goto", "value":0},
+     	 	{"type":"wait_first", "value":2000}
+	 	 ],
+     	 "work": [
+	 	 	{"type":"bmp_read", "value":5000}
+		 ]
+	 	},
+	 	{"id":"STOP","work":[{"type":"clear"}]}
+	 ],
+	 "tracks" : [
+		{"id":1, "elements":[
+			{"event":"A", "repeat":1},
+			{"event":"STOP"}
+		] }
+	]
+
+}
