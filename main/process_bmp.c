@@ -189,6 +189,7 @@ void process_object_bmp(int32_t pos, T_TRACK_ELEMENT *ele, double brightness) {
 		return;
 	}
 
+	ESP_LOGI(__func__, "id=%d, line=%d", ele->id, p_data->line_count);
 	t_result res = bmp_work(ele, /*obj_data, p_data->buf, sizeof(p_data->buf),*/ brightness);
 
 	(p_data->line_count)++; //bmp_cnt++;
@@ -348,7 +349,11 @@ t_result bmp_open_url(T_TRACK_ELEMENT *ele) {
 void bmp_stop_processing(T_TRACK_ELEMENT *ele) {
 	ESP_LOGI(__func__,"start");
 	//is_bmp_reading = false;
-	set_ux_quit_bits(&(ele->w_bmp->w_data), BMP_BIT_STOP_WORKING); // request for stop working
+	if ( ele->w_bmp) {
+		set_ux_quit_bits(&(ele->w_bmp->w_data), BMP_BIT_STOP_WORKING); // request for stop working
+	} else {
+		ESP_LOGW(__func__, "already stopped");
+	}
 }
 
 
