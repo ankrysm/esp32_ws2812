@@ -10,9 +10,10 @@
 			<tr><td>time zone</td><td><input type="text" id="timezone"></td><td>Timezone for example 'CET-1CEST,M3.5.0,M10.5.0/3'</td></tr>
 			<tr><td>autoplay</td><td><input type="checkbox" id="autoplay"></td><td>play autoplay file after startup</td></tr>
 			<tr><td>show status</td><td><input type="checkbox" id="show_status"></td><td>first led shows status</td></tr>
+			<tr><td>extended log</td><td><input type="text" id="extended_log"></td><td>0 .. 10</td></tr>
 			<tr><td><button id="restart" type="button" onclick="restart()">restart</button></td><td><button id="store_config" type="button" onclick="storeConfig()">store</button><br></td><td></td></tr>
 		</table>
-		
+
 		<h3>last messages</h3>
 		<button type="button" onclick="load_messages()">load messages</button>
 		<button type="button" onclick="clear_messages()">clear messages</button>
@@ -113,7 +114,12 @@ function storeConfig() {
 			newJ.timezone = str;
 			changed = true;
 		}
-		
+		n = checkNumber("extended_log", 0, 10);
+		if ( n != j.extended_log) {
+			newJ.extended_log = n;
+			changed = true;
+		}
+
 		if ( !changed) {
 			alert("no changes");
 			return;
@@ -137,7 +143,8 @@ function fillConfigValues() {
 	document.getElementById("timezone").value = j.timezone;
 	document.getElementById("autoplay").checked = j.autoplay;
 	document.getElementById("show_status").checked = j.show_status;
-	
+	document.getElementById("extended_log").value = j.extended_log;
+
 }
 
 function getConfig() {

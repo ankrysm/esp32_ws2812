@@ -26,40 +26,19 @@
 
 #define SZ_BUFFER 8192
 
-//static T_BMP_WORKING bmp_working_data[N_HTTPS_CLIENTS];
-
-/* FreeRTOS event group to signal when something is read or something is processed */
-/*
-static EventGroupHandle_t s_bmp_event_group_for_reader; // read process (it's me) waits for ...PROCESSED or STOP_WORKING
-static EventGroupHandle_t s_bmp_event_group_for_worker; // worker process waits for ...HAS_DATA, ...NO_MORE_DATA
-
-BITMAPFILEHEADER bmpFileHeader;
-BITMAPINFOHEADER bmpInfoHeader;
-static t_bmp_read_phase bmp_read_phase = BRP_GOT_FILE_HEADER;
-
-static uint32_t buf_len_expected = 0;
-static uint32_t total_length = 0;
-
-static uint8_t *read_buffer1 = NULL;
-static uint8_t *read_buffer2 = NULL;
-
-
-// data amount
-static uint32_t read_buffer_length = 0;
-
-static uint8_t *buffer = NULL;
-
-size_t sz_read_buffer = 0;
-uint32_t lines_read_buffer = 0;
-*/
 
 static const TickType_t xTicksToWait = 30000 / portTICK_PERIOD_MS;
-static int extended_log = 0;
+static int extended_log = 1;  // TODO
+
+void bmp_set_extended_log(int p_extended_log) {
+	extended_log=p_extended_log;
+	ESP_LOGI(__func__, "%s", (extended_log ? "on": "off"));
+}
 
 void bmp_init_data(T_BMP_WORKING *data) {
 	memset(data, 0, sizeof(T_BMP_WORKING));
 	//data->active = false;
-	data->bmp_read_phase = BRP_IDLE;
+	data->bmp_read_phase = BRP_CONNECT;
 	data->s_bmp_event_group_for_reader = xEventGroupCreate();
 	data->s_bmp_event_group_for_worker = xEventGroupCreate();
 	xEventGroupClearBits(data->s_bmp_event_group_for_reader, 0xFFFF);
@@ -69,18 +48,6 @@ void bmp_init_data(T_BMP_WORKING *data) {
 
 void bmp_init() {
 	ESP_LOGI(__func__, "started");
-
-	/*
-	for(int i=0; i< N_HTTPS_CLIENTS; i++) {
-		T_BMP_WORKING *data = &(bmp_working_data[i]);
-		memset(data, 0, sizeof(T_BMP_WORKING));
-		data->active = false;
-		data->s_bmp_event_group_for_reader = xEventGroupCreate();
-		data->s_bmp_event_group_for_worker = xEventGroupCreate();
-		xEventGroupClearBits(data->s_bmp_event_group_for_reader, 0xFFFF);
-		xEventGroupClearBits(data->s_bmp_event_group_for_worker, 0xFFFF);
-	}
-	*/
 }
 
 uint32_t get_bytes_per_pixel(T_BMP_WORKING *data) {
@@ -98,7 +65,11 @@ uint32_t get_bytes_per_pixel(T_BMP_WORKING *data) {
 }
 
 uint32_t get_bytes_per_line(T_BMP_WORKING *data) {
-	return data->bmpInfoHeader.biWidth * get_bytes_per_pixel(data);
+	uint32_t res = data->bmpInfoHeader.biWidth * get_bytes_per_pixel(data);
+
+	// filled up with 00 bytes up to a 4-byte boundery
+	res = res%4 == 0 ? res : (res/4)*4+4;
+	return res;
 }
 
 
@@ -134,8 +105,6 @@ static void free_buffers(T_BMP_WORKING *data) {
  */
 int https_callback_bmp_processing(T_HTTPS_CLIENT_SLOT *slot, uint8_t **buf, uint32_t *buf_len) {
 
-	//ESP_LOGI(__func__,"todo=%d, phase=%d(%s), buf_len=%u", to_do, bmp_read_phase, BRP2TXT(bmp_read_phase), *buf_len);
-
 	T_BMP_WORKING *data = (T_BMP_WORKING *) slot->user_args;
 	EventBits_t uxBits;
 
@@ -167,7 +136,8 @@ int https_callback_bmp_processing(T_HTTPS_CLIENT_SLOT *slot, uint8_t **buf, uint
 
 		switch(data->bmp_read_phase) {
 		case BRP_IDLE:
-			ESP_LOGE(__func__, "unexpected phase IDLE");
+		case BRP_CONNECT:
+			ESP_LOGE(__func__, "unexpected phase %s", BRP2TXT(data->bmp_read_phase));
 			return -1;
 			break;
 
@@ -187,7 +157,6 @@ int https_callback_bmp_processing(T_HTTPS_CLIENT_SLOT *slot, uint8_t **buf, uint
 
 			*buf_len = data->buf_len_expected = sizeof(data->bmpInfoHeader);
 			*buf = (uint8_t *) &(data->bmpInfoHeader);
-			//ESP_LOGI(__func__,"todo=%d, phase=%d(%s), buf_len=%u", to_do, bmp_read_phase, BRP2TXT(bmp_read_phase), *buf_len);
 			return 1;
 
 		case BRP_GOT_INFO_HEADER:
@@ -266,11 +235,11 @@ int https_callback_bmp_processing(T_HTTPS_CLIENT_SLOT *slot, uint8_t **buf, uint
 
 		case BRP_GOT_FIRST_DATA_BUFFER1:
 			// buffer 1 is filled, can be processes, try to fill buffer 2 immediately
-			ESP_LOG_BUFFER_HEXDUMP(__func__, data->read_buffer1, 32, ESP_LOG_INFO);
 			data->total_length += *buf_len;
-			if ( extended_log)
+			if ( extended_log) {
 				ESP_LOGI(__func__, "read first data to buffer 1 len=%lu, total = %lu", *buf_len, data->total_length);
-
+				ESP_LOG_BUFFER_HEXDUMP(__func__, data->read_buffer1, MAX(64, *buf_len), ESP_LOG_INFO);
+			}
 			data->read_buffer_length = *buf_len;
 
 			*buf_len = data->buf_len_expected = data->sz_read_buffer;

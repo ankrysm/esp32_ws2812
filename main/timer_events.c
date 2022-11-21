@@ -104,6 +104,7 @@ static void periodic_timer_callback(void* arg) {
 			s_scene_time = 0; // stop resets the time
 			// stop this timer
 			esp_timer_stop(s_handle_periodic_timer);
+			process_stop_all_tracks();
 			if ( uxBits & EVENT_BIT_BLANK) {
 				make_it_blank();
 			}
@@ -213,7 +214,7 @@ void scenes_stop(bool flag_blank) {
 	} else {
 		xEventGroupSetBits(s_timer_event_group, EVENT_BIT_STOP);
 	}
-	bmp_stop_processing();
+	//bmp_stop_processing();
 }
 
 void scenes_pause() {

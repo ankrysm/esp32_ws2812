@@ -207,7 +207,6 @@ static void http_main_task(void *pvParameters)
     ESP_LOGI(__func__, "*** (%s) finished, duration %lld ms ****",
     		slot->name, (slot->t_task_end - slot->t_task_start)/1000);
     slot->status = HSS_EMPTY;
-    //http_client_task_active = false;
 
     vTaskDelete(NULL);
     // no statements here, task deleted

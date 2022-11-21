@@ -8,7 +8,9 @@
 
 #include "esp32_ws2812.h"
 
-extern uint32_t cfg_flags;
+//extern uint32_t cfg_flags;
+
+extern int extended_log;
 
 static uint32_t last_hash = 0;
 static bool is_dirty = false;
@@ -77,6 +79,7 @@ void strip_show(bool forced) {
 
 
 	//if (cfg_flags & CFG_STRIP_DEMO)
+	if ( extended_log > 1)
 	{
 		char msg[32];
 		snprintf(msg,sizeof(msg),"%s%u->%u", (forced?"(f)":""), last_hash, hash);

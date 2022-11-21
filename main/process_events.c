@@ -272,7 +272,7 @@ static void  process_track_element_work(T_TRACK_ELEMENT *ele, uint64_t scene_tim
 				ele->evt_grp_current_status = EVT_STS_RUNNING;
 				break;
 			case ET_BMP_CLOSE:
-				bmp_stop_processing();
+				bmp_stop_processing(ele);
 				//ele->w_bmp_remaining_lines = 0;
 				ele->w_wait_time = 0;
 				break;
@@ -342,15 +342,15 @@ static void  process_track_element_work(T_TRACK_ELEMENT *ele, uint64_t scene_tim
 			ele->evt_grp_current_status = EVT_STS_FINISHED;
 
 			// if remaining lines < 0 wait for EOF
-//			if (ele->w_bmp_remaining_lines > 0) {
-//				ESP_LOGI(__func__,"remaining lines %lld",ele->w_bmp_remaining_lines);
-//				(ele->w_bmp_remaining_lines)--;
-//				if ( ele->w_bmp_remaining_lines == 0) {
-//					ESP_LOGI(__func__,"bmp_read_data: all lines read");
-//					bmp_stop_processing();
-//					ele->evt_grp_current_status = EVT_STS_FINISHED;
-//				}
-//			}
+			//			if (ele->w_bmp_remaining_lines > 0) {
+			//				ESP_LOGI(__func__,"remaining lines %lld",ele->w_bmp_remaining_lines);
+			//				(ele->w_bmp_remaining_lines)--;
+			//				if ( ele->w_bmp_remaining_lines == 0) {
+			//					ESP_LOGI(__func__,"bmp_read_data: all lines read");
+			//					bmp_stop_processing();
+			//					ele->evt_grp_current_status = EVT_STS_FINISHED;
+			//				}
+			//			}
 			break;
 		default:
 			// should not happen here
@@ -491,4 +491,53 @@ int process_tracks(uint64_t scene_time, uint64_t timer_period) {
 	}
 	return active_tracks;
 }
+
+// ######################################## STOP TRACKS ####################################
+
+void process_stop_track(T_TRACK *track) {
+	t_result res;
+
+	if ( track->status ==  EVT_STS_FINISHED) {
+		return; // all elements finished, track completed, nothing to do anymore
+	}
+
+	for (T_TRACK_ELEMENT *ele= track->element_list; ele; ele=ele->nxt) {
+		if ( ele->status == EVT_STS_FINISHED) {
+			continue;
+		}
+		if ( ele->status == EVT_STS_RUNNING) {
+			if ( ele->evt_work_current) {
+				switch(ele->evt_work_current->type) {
+				case ET_BMP_READ:
+					res = get_is_bmp_reading(ele);
+					if (res == RES_OK) {
+						ESP_LOGI(__func__, "stop bmp processing id=", ele->id);
+						bmp_stop_processing(ele);
+					}
+					break;
+				default:
+					break;
+				}
+			}
+		}
+		ele->status = EVT_STS_FINISHED;
+	}
+	track->status =  EVT_STS_FINISHED;
+	ESP_LOGI(__func__, "track %d done", track->id);
+}
+
+
+
+void process_stop_all_tracks() {
+	for ( int i=0; i < N_TRACKS; i++) {
+		ESP_LOGI(__func__,"stop track %d", i);
+		T_TRACK *track = &(tracks[i]);
+		if ( ! track->element_list)
+			continue; // nothing to process
+		process_stop_track(track);
+	}
+}
+
+
+
 

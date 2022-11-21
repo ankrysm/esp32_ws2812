@@ -14,7 +14,7 @@
 // persistent flag values
 #define CFG_AUTOPLAY         0x0001
 #define CFG_SHOW_STATUS      0x0002 // first led will show status, not include in scenes
-#define CFG_STRIP_DEMO       0x0004
+//#define CFG_STRIP_DEMO       0x0004
 
 // transient flags
 #define CFG_WITH_WIFI        0x0100
@@ -28,6 +28,11 @@
 #define CFG_KEY_AUTOPLAY_FILE "autoplayfile"
 #define CFG_KEY_CYCLE "cycle"
 #define CFG_KEY_TIMEZONE "timezone"
+#define CFG_KEY_EXTENDED_LOG "extended_log"
+
+// from global_data.c
+void global_data_init();
+void global_set_extended_log(uint32_t p_extended_log);
 
 
 #endif /* CONFIG_H_ */

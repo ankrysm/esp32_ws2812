@@ -73,8 +73,6 @@ T_DISPLAY_OBJECT *create_object(char *oid) ;
 T_DISPLAY_OBJECT_DATA *create_object_data(T_DISPLAY_OBJECT *obj, uint32_t id);
 esp_err_t object_list_add(T_DISPLAY_OBJECT *obj);
 
-// from global_data.c
-void global_data_init();
 
 // from json_util.c
 t_result evt_get_bool(cJSON *element, char *attr, bool *val, char *errmsg, size_t sz_errmsg);
@@ -102,13 +100,14 @@ void firstled(int red, int green, int blue);
 //t_result bmp_work(uint8_t *buf, size_t sz_buf, double brightness);
 //bool get_is_bmp_reading();
 t_result get_is_bmp_reading(T_TRACK_ELEMENT *ele);
-void bmp_stop_processing();
+void bmp_stop_processing(T_TRACK_ELEMENT *ele);
 t_result bmp_open_url(T_TRACK_ELEMENT *ele);
 void process_object_bmp(int32_t pos, T_TRACK_ELEMENT *ele, double brightness);
 
 // from process_events.c
 int process_tracks(uint64_t scene_time, uint64_t timer_period);
 void reset_tracks();
+void process_stop_all_tracks();
 
 // from process_objects.c
 void process_object(T_TRACK_ELEMENT *ele);

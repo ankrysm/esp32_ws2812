@@ -18,7 +18,7 @@
 
 #include "esp_http_client.h"
 
-#define N_HTTPS_CLIENTS 2
+#define N_HTTPS_CLIENTS 10
 #define LEN_HTTPS_CLIENT_SLOT_NAME 16
 #define LEN_HTTPS_CLIENT_ERRMSG 64
 

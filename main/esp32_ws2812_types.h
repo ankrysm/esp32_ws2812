@@ -46,6 +46,7 @@ typedef enum {
 	HP_HELP,
 	HP_LOAD,
 	HP_CLEAR_ERR,
+	HP_TEST,
 	// End of list
 	HP_END_OF_LIST
 } t_http_processing;

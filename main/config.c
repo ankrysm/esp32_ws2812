@@ -14,6 +14,7 @@ extern uint32_t cfg_numleds;
 extern uint32_t cfg_cycle;
 extern char *cfg_autoplayfile;
 extern char *cfg_timezone;
+extern uint32_t extended_log;
 extern char last_loaded_file[];
 
 
@@ -58,6 +59,8 @@ esp_err_t store_config() {
 	nvs_set_str(my_handle, CFG_KEY_AUTOPLAY_FILE, cfg_autoplayfile ? cfg_autoplayfile : "");
 	nvs_set_str(my_handle, CFG_KEY_TIMEZONE, cfg_timezone ? cfg_timezone : "");
 
+	nvs_set_u32(my_handle, CFG_KEY_EXTENDED_LOG, extended_log);
+
 	ret = nvs_commit(my_handle);
 	if (ret != ESP_OK) {
 		ESP_LOGE(__func__, "nvs_commit() failed (%s)", esp_err_to_name(ret));
@@ -89,7 +92,7 @@ esp_err_t load_config() {
             ESP_LOGI(__func__, "retrieve '%s' successful: 0x%04x", CFG_KEY_FLAGS, cfg_flags);
     	} else if (ret == ESP_ERR_NVS_NOT_FOUND) {
     		store_needed = true;
-    		cfg_flags = CFG_SHOW_STATUS | CFG_STRIP_DEMO;
+    		cfg_flags = CFG_SHOW_STATUS;
             ESP_LOGI(__func__, "retrieve '%s' not found, initial value: 0x%04x", CFG_KEY_FLAGS, cfg_flags);
     	} else {
             ESP_LOGI(__func__, "retrieve '%s' failed, ret=%d", CFG_KEY_FLAGS, ret);
@@ -163,6 +166,20 @@ esp_err_t load_config() {
     		break;
     	}
 
+    	// ********** extended_log ******************************
+       	ret = nvs_get_u32(my_handle, CFG_KEY_EXTENDED_LOG, &extended_log);
+        	if (ret == ESP_OK) {
+                ESP_LOGI(__func__, "retrieve '%s' successful: %d", CFG_KEY_EXTENDED_LOG, extended_log);
+        		global_set_extended_log(extended_log);
+        	} else if (ret == ESP_ERR_NVS_NOT_FOUND) {
+        		store_needed = true;
+        		global_set_extended_log(0);
+                ESP_LOGI(__func__, "retrieve '%s' not found, initial value: %d", CFG_KEY_EXTENDED_LOG, extended_log);
+        	} else {
+                ESP_LOGI(__func__, "retrieve '%s' failed, ret=%d", CFG_KEY_EXTENDED_LOG, ret);
+        		break;
+        	}
+
     } while(0);
 
     // close handle immediately, if it's necessary to open it again, it will be done later
@@ -189,24 +206,24 @@ char *config2txt(char *txt, size_t sz) {
 			"cfg_flags=0x%04x\n" \
 			"  autoplay=%s\n" \
 			"  showstatus=%s\n" \
-			"  strip_demo=%s\n" \
 			"cfg_trans_flags=0x%04x\n" \
 			"  with_wifi=%s\n" \
 			"  autoplay file loaded=%s\n" \
 			"  autoplay started=%s\n" \
-			"cycle=%d\n" ,
+			"cycle=%d\n" \
+			"extended_log=%d\n",
 			cfg_numleds,
 			cfg_autoplayfile ? cfg_autoplayfile:"",
 			cfg_timezone ? cfg_timezone:"",
 			cfg_flags,
 			(cfg_flags & CFG_AUTOPLAY ? "true" : "false"),
 			(cfg_flags & CFG_SHOW_STATUS ? "true" : "false"),
-			(cfg_flags & CFG_STRIP_DEMO ? "true" : "false"),
 			cfg_trans_flags,
 			(cfg_trans_flags & CFG_WITH_WIFI ? "true" : "false"),
 			(cfg_trans_flags & CFG_AUTOPLAY_LOADED ? "true" : "false" ),
 			(cfg_trans_flags & CFG_AUTOPLAY_STARTED ? "true" : "false" ),
-			cfg_cycle
+			cfg_cycle,
+			extended_log
 	);
 	return txt;
 }
@@ -221,12 +238,9 @@ void add_config_informations(cJSON *root) {
 	cJSON_AddNumberToObject(root, "cycle", cfg_cycle);
 	cJSON_AddStringToObject(root, "autoplay_file", cfg_autoplayfile && strlen(cfg_autoplayfile) ? cfg_autoplayfile : "");
 	cJSON_AddStringToObject(root, "timezone", cfg_timezone && strlen(cfg_timezone) ? cfg_timezone : "");
-
 	cJSON_addBoolean(root,  "autoplay", cfg_flags & CFG_AUTOPLAY );
-
 	cJSON_addBoolean(root, "show_status", cfg_flags & CFG_SHOW_STATUS);
-
-	cJSON_addBoolean(root, "strip_demo",  cfg_flags & CFG_STRIP_DEMO);
+	cJSON_AddNumberToObject(root, "extended_log", extended_log);
 
 	// transient data
 	cJSON *var = cJSON_AddObjectToObject(root,"work");

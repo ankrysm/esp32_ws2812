@@ -27,13 +27,19 @@ char *cfg_timezone = NULL;
 char last_loaded_file[LEN_PATH_MAX];
 size_t sz_last_loaded_file = sizeof(last_loaded_file);
 
+uint32_t extended_log=0;
 
+void global_set_extended_log(uint32_t p_extended_log) {
+	extended_log = p_extended_log;
+	bmp_set_extended_log(extended_log);
+}
 
 void global_data_init() {
 	memset(last_loaded_file, 0, sizeof(last_loaded_file));
 	memset(tracks, 0, sizeof(tracks));
 	memset(logtable, 0, sizeof(logtable));
 	log_write_idx=0;
+	global_set_extended_log(0);
 }
 
 T_HTTP_PROCCESSING_TYPE http_processing[] = {
@@ -57,6 +63,7 @@ T_HTTP_PROCCESSING_TYPE http_processing[] = {
 		{"/cfg/set",   HPF_POST,                   HP_CONFIG_SET,  "set config"},
 		{"/cfg/restart", 0,                        HP_RESET,       "restart the controller"},
 		{"/cfg/tabula_rasa", 0,                    HP_CFG_RESET,   "reset all data to default"},
+		{"/test/",     HPF_PATH_FROM_URL,          HP_TEST,        "set leds to color, values via path <r>/<g>/<b>/[len]/[pos]"},
 		{"/help",      0,                          HP_HELP,        "API help"},
 		{"",           0,                          HP_END_OF_LIST, ""}
 };

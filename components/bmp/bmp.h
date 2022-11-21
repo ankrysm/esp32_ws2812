@@ -30,12 +30,13 @@ typedef int32_t LONG;
 
 typedef enum {
 	BRP_IDLE, // 0
-	BRP_GOT_FILE_HEADER, // 1
-	BRP_GOT_INFO_HEADER, // 2
-	BRP_GOT_SKIPPED_DATA, // 3
-	BRP_GOT_FIRST_DATA_BUFFER1, // 4
-	BRP_GOT_DATA_BUFFER1, // 5
-	BRP_GOT_DATA_BUFFER2 // 6
+	BRP_CONNECT, // 1
+	BRP_GOT_FILE_HEADER, // 2
+	BRP_GOT_INFO_HEADER, // 3
+	BRP_GOT_SKIPPED_DATA, // 4
+	BRP_GOT_FIRST_DATA_BUFFER1, // 5
+	BRP_GOT_DATA_BUFFER1, // 6
+	BRP_GOT_DATA_BUFFER2 // 7
 } t_bmp_read_phase;
 
 #define BRP2TXT(c) ( \
@@ -84,7 +85,6 @@ typedef struct tagBITMAPINFOHEADER {
 // third block: data
 
 typedef struct {
-	//bool active;
 	// FreeRTOS event group to signal when something is read or something is processed
 	EventGroupHandle_t s_bmp_event_group_for_reader; // read process (it's me) waits for ...PROCESSED or STOP_WORKING
 	EventGroupHandle_t s_bmp_event_group_for_worker; // worker process waits for ...HAS_DATA, ...NO_MORE_DATA
@@ -107,9 +107,9 @@ typedef struct {
 
 
 // prototypes
+void bmp_set_extended_log(int p_extended_log);
 void bmp_init();
 void bmp_init_data(T_BMP_WORKING *data);
-//T_BMP_WORKING *get_bmp_slot();
 uint32_t get_bytes_per_pixel(T_BMP_WORKING *data);
 uint32_t get_bytes_per_line(T_BMP_WORKING *data);
 void clear_ux_bits(T_BMP_WORKING *data);

@@ -7,25 +7,7 @@
 
 #include "esp32_ws2812.h"
 
-//#define LEN_RD_BUF 3*1000 // 3 bytes for n leds
-
-/*
-static uint32_t read_buffer_len = 0; // data length in read_buffer
-static uint8_t *read_buffer = NULL;
-static uint32_t rd_mempos = 0;
-
-
-//static volatile bool is_bmp_reading = false;
-
-static int bufno=0; // which buffer has data 1 or 2, depends on HAS_DATA-bit
-
-static uint8_t buf[LEN_RD_BUF]; // TODO with calloc
-static uint8_t last_buf[LEN_RD_BUF]; // TODO with calloc
-static int32_t bytes_per_line = -1;
-
-static uint32_t bmp_cnt=0;
-static uint32_t bmp_missing_lines=0;
-*/
+extern uint32_t extended_log;
 
 static void bmp_data_reset(T_PROCESS_BMP *p_data) {
 	p_data->read_buffer_len = 0;
@@ -56,14 +38,19 @@ static size_t bmp_show_data( T_TRACK_ELEMENT *ele, /*uint8_t *buf, size_t sz_buf
 	uint32_t bytes_per_pixel = get_bytes_per_pixel(w_data);
 	uint32_t bytes_per_line = get_bytes_per_line(w_data); //bgr_idx_max * bmpInfoHeader.biWidth;
 
+	if (extended_log) {
+		ESP_LOGI(__func__,"bytes per pixel=%d, bytes per line =%d", bytes_per_pixel, bytes_per_line);
+	}
+	p_data->bytes_per_line = bytes_per_line;
+
 	uint32_t wr_mempos = 0;
-	uint32_t wr_max_mempos = MAX(0,sizeof(p_data->buf)-3); // -3 because check once before write
+	uint32_t wr_max_mempos = MAX(0,sizeof(p_data->buf)-3); // -3 because check mempos before write
 
 	int bgr_idx = 0;
 
 	for ( int i=0; i < bytes_per_line; i++ ) {
 
-		bgr[bgr_idx++] = p_data->read_buffer[p_data->rd_mempos++] * brightness;
+		bgr[bgr_idx++] = p_data->read_buffer[p_data->rd_mempos++]; //TODO * brightness;
 		if ( bgr_idx < bytes_per_pixel)
 			continue;
 
@@ -111,12 +98,7 @@ static t_result bmp_work( T_TRACK_ELEMENT *ele, /*uint8_t *buf, size_t sz_buf,*/
 	T_BMP_WORKING *w_data = &(ele->w_bmp->w_data );
 	T_PROCESS_BMP *p_data = &(ele->w_bmp->p_data);
 
-	//p_data->buf, sizeof(p_data->buf)
 	memset(p_data->buf, 0,  sizeof(p_data->buf));
-//	if (!is_bmp_reading) {
-//		ESP_LOGW(__func__, "is_bmp_reading not active");
-//		return RES_FINISHED;
-//	}
 
 	t_result res =RES_OK;
 
@@ -146,7 +128,10 @@ static t_result bmp_work( T_TRACK_ELEMENT *ele, /*uint8_t *buf, size_t sz_buf,*/
 		p_data->rd_mempos = 0;
 		p_data->read_buffer_len = get_read_length(w_data);
 		p_data->read_buffer = get_read_buffer(w_data, p_data->bufno);
-		ESP_LOGI(__func__, "buffer %d has %d bytes", p_data->bufno, p_data->read_buffer_len);
+		if ( extended_log) {
+			ESP_LOGI(__func__, "buffer %d has %d bytes", p_data->bufno, p_data->read_buffer_len);
+			ESP_LOG_BUFFER_HEXDUMP(__func__, p_data->read_buffer, 32, ESP_LOG_INFO);
+		}
 	}
 
 	if ( p_data->read_buffer_len > 0 ) {
@@ -189,14 +174,14 @@ void process_object_bmp(int32_t pos, T_TRACK_ELEMENT *ele, double brightness) {
 		return;
 	}
 
-	ESP_LOGI(__func__, "id=%d, line=%d", ele->id, p_data->line_count);
 	t_result res = bmp_work(ele, /*obj_data, p_data->buf, sizeof(p_data->buf),*/ brightness);
 
-	(p_data->line_count)++; //bmp_cnt++;
 
 	if ( res == RES_OK) {
-		if ( p_data->bytes_per_line < 0 )
-			p_data->bytes_per_line = get_bytes_per_line(w_data);
+		if ( extended_log) {
+			ESP_LOGI(__func__, "id=%d, line=%d", ele->id, p_data->line_count);
+			ESP_LOG_BUFFER_HEXDUMP(__func__, p_data->buf, 32, ESP_LOG_INFO);
+		}
 		led_strip_memcpy(pos, p_data->buf, MIN(p_data->bytes_per_line, 3*ele->w_object->data->len));
 		memcpy(p_data->last_buf, p_data->buf, sizeof(p_data->last_buf));
 
@@ -218,18 +203,13 @@ void process_object_bmp(int32_t pos, T_TRACK_ELEMENT *ele, double brightness) {
 		// */
 		led_strip_memcpy(pos, p_data->last_buf, 3*ele->w_object->data->len);
 	}
+	(p_data->line_count)++; //bmp_cnt++;
 }
 
 
 
 t_result get_is_bmp_reading(T_TRACK_ELEMENT *ele) {
 
-//	T_DISPLAY_OBJECT *obj = find_object4oid(id);
-//	if  ( !obj ) {
-//		log_err(__func__, "no object '%s' found", id ? id : "");
-//		return false;
-//	}
-//
 	if ( !ele->w_object) {
 		log_err(__func__, "element %d has no object", ele->id);
 		return RES_FAILED;
@@ -239,56 +219,14 @@ t_result get_is_bmp_reading(T_TRACK_ELEMENT *ele) {
 		log_err(__func__, "object '%d' has no data", ele->id);
 		return RES_FAILED;
 	}
-//
-//	if ( data->type != OBJT_BMP) {
-//		log_err(__func__, "object '%s' isn't a bmp object", id?id:"");
-//		return false;
-//	}
 
-	T_BMP_WORKING *w_data = &(data->w_data); // get_bmp_slot();
+	T_BMP_WORKING *w_data = &(data->w_data);
 
 	return w_data->bmp_read_phase == BRP_IDLE ? RES_FINISHED : RES_OK;
 }
 
-/*
-static esp_err_t bmp_open_connection(char *url) {
-	if ( !url || !strlen(url)) {
-		ESP_LOGE(__func__, "missing url");
-		return ESP_FAIL;
-	}
-
-	if (is_bmp_reading ) {
-		ESP_LOGE(__func__, "is_bmp_reading should not be true here");
-		return ESP_FAIL;
-	}
-
-//	if ( is_http_client_task_active()) {
-//		ESP_LOGE(__func__, "is_https_connection_active() should not be true here");
-//		return ESP_FAIL;
-//	}
-
-	ESP_LOGI(__func__,"start");
-
-	is_bmp_reading = true;
-	esp_err_t res;
-
-	bmp_data_reset();
-	clear_ux_bits();
-	memset(buf, 0, sizeof(buf));
-	memset(last_buf, 0, sizeof(last_buf));
-
-	T_HTTPS_CLIENT_SLOT *slot = https_get(url, https_callback_bmp_processing);
-
-	return res;
-}
-*/
-
 t_result bmp_open_url(T_TRACK_ELEMENT *ele) {
-//	T_DISPLAY_OBJECT *obj = find_object4oid(ele->w_object);
-//	if  ( !obj ) {
-//		log_err(__func__, "no object '%s' found", ele->w_object_oid ? ele->w_object_oid : "");
-//		return RES_NOT_FOUND;
-//	}
+
 	if ( !ele->w_object) {
 		log_err(__func__, "element %d has no w_object", ele->id);
 		return RES_FAILED;
@@ -316,19 +254,11 @@ t_result bmp_open_url(T_TRACK_ELEMENT *ele) {
 			log_err(__func__, "element %d_ bmp object already in use", ele->id);
 			return RES_FAILED;
 		}
-		free(ele->w_bmp);
-		ele->w_bmp = NULL;
+		memset(ele->w_bmp, 0, sizeof(T_W_BMP));
+	} else {
+		// create new bmp data
+		ele->w_bmp = calloc(1, sizeof(T_W_BMP));
 	}
-
-	// create new bmp data
-	ele->w_bmp = calloc(1, sizeof(T_W_BMP));
-
-	// T_BMP_WORKING *bmp_data = &(data->para.bmp.w_data); // get_bmp_slot();
-//	if ( bmp_open_connection(data->para.url) != ESP_OK) {
-//		ESP_LOGE(__func__,"bmp_open_connection FAILED, url='%s'", data->para.url);
-//		return RES_FAILED;
-//	}
-
 	// initialise data for bmp handling
 	bmp_data_reset(&(ele->w_bmp->p_data));
 	memset(ele->w_bmp->p_data.buf, 0, sizeof(ele->w_bmp->p_data.buf));
@@ -339,7 +269,6 @@ t_result bmp_open_url(T_TRACK_ELEMENT *ele) {
 	bmp_init_data(&(ele->w_bmp->w_data));
 	// not necesssary: clear_ux_bits(ele->w_bmp->w_data);
 
-	//T_HTTPS_CLIENT_SLOT *slot =
 	https_get(data->para.bmp.url, https_callback_bmp_processing, (void*)&(ele->w_bmp->w_data));
 
 	ESP_LOGI(__func__,"bmp_open_connection success, url='%s'", data->para.bmp.url);

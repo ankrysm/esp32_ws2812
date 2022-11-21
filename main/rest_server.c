@@ -754,6 +754,66 @@ static esp_err_t post_handler_config_set(httpd_req_t *req, char *buf) {
 }
 
 /**
+ * isn't a file name
+ * is <r>/<g>/<b>/[len]/[start]
+ * len default = 10
+ * start default=0
+ */
+static esp_err_t get_handler_test(httpd_req_t *req, char *fname, size_t sz_fname) {
+	char msg[256];
+	memset(msg,0,sizeof(msg));
+
+	char *sR, *sG, *sB, *sLen, *sStart, *l, *s;
+	unsigned long lR, lG, lB, lLen,lStart;
+	lR=lG=lB=0;
+	lLen=10;
+	lStart=0;
+	sR=sG=sB=sLen=sStart=NULL;
+
+	T_COLOR_RGB rgb= {.r=0, .g=0, .b=0};
+	if ( strlen(fname)) {
+		s = strdup(fname);
+		do {
+			sR = strtok_r(s, "/", &l);
+			lR = strtoul(sR, NULL, 0);
+
+			if ( !(sG = strtok_r(NULL, "/", &l))) break;
+			lG = strtoul(sG, NULL, 0);
+
+			if ( !(sB = strtok_r(NULL, "/", &l))) break;
+			lB = strtoul(sB, NULL, 0);
+
+			if ( !(sLen = strtok_r(NULL, "/", &l))) break;
+			lLen = strtoul(sLen, NULL, 0);
+			if ( lLen < 1) lLen=1;
+			if ( lLen > 1000) lLen = 1000;
+
+			if ( !(sStart = strtok_r(NULL, "/", &l))) break;
+			lStart = strtoul(sStart, NULL, 0);
+			if ( lStart > 1000 ) lStart = 1000;
+
+		} while(0);
+		free(s);
+	}
+	rgb.r=lR & 0xFF;
+	rgb.g=lG & 0xFF;
+	rgb.b=lB & 0xFF;
+
+	strip_set_range(lStart, lStart+lLen-1, &rgb);
+	strip_show(true);
+
+	snprintf(msg, sizeof(msg),", '%s' processed, set pixel pos=%d, len=%d, RGB=[%d,%d,%d]=[%x,%x,%x]",
+			fname, lStart, lLen,
+			rgb.r, rgb.g, rgb.b,
+			rgb.r, rgb.g, rgb.b);
+	ESP_LOGI(__func__, "%s", msg);
+
+	httpd_resp_sendstr_chunk(req, msg);
+	return ESP_OK;
+}
+
+
+/**
  * uri should be data/add or data/set with POST-data
  * /set?id=<id> - replaces event with this id
  * /add - adds event
@@ -979,6 +1039,10 @@ static esp_err_t get_handler_main(httpd_req_t *req)
 
 	case HP_CLEAR_ERR:
 		get_handler_clear_err(req);
+		break;
+
+	case HP_TEST:
+		get_handler_test(req, fname, sizeof(fname));
 		break;
 
 	default:
