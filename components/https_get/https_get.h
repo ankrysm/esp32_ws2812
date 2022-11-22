@@ -17,8 +17,9 @@
 #include "sdkconfig.h"
 
 #include "esp_http_client.h"
+#include "common_util.h"
 
-#define N_HTTPS_CLIENTS 10
+#define N_HTTPS_CLIENTS 5
 #define LEN_HTTPS_CLIENT_SLOT_NAME 16
 #define LEN_HTTPS_CLIENT_ERRMSG 64
 

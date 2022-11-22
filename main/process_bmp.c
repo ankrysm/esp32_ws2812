@@ -26,7 +26,7 @@ static void bmp_data_reset(T_PROCESS_BMP *p_data) {
  *
  * returns bytes per line
  */
-static size_t bmp_show_data( T_TRACK_ELEMENT *ele, /*uint8_t *buf, size_t sz_buf,*/ double brightness ) {
+static size_t bmp_show_data( T_TRACK_ELEMENT *ele, double brightness ) {
 	// 24 bit data: B,G,R
 	// 32 bit data: B,G,R,x
 
@@ -36,7 +36,7 @@ static size_t bmp_show_data( T_TRACK_ELEMENT *ele, /*uint8_t *buf, size_t sz_buf
 	uint8_t bgr[4];
 
 	uint32_t bytes_per_pixel = get_bytes_per_pixel(w_data);
-	uint32_t bytes_per_line = get_bytes_per_line(w_data); //bgr_idx_max * bmpInfoHeader.biWidth;
+	uint32_t bytes_per_line = get_bytes_per_line(w_data);
 
 	if (extended_log) {
 		ESP_LOGI(__func__,"bytes per pixel=%d, bytes per line =%d", bytes_per_pixel, bytes_per_line);
@@ -50,7 +50,7 @@ static size_t bmp_show_data( T_TRACK_ELEMENT *ele, /*uint8_t *buf, size_t sz_buf
 
 	for ( int i=0; i < bytes_per_line; i++ ) {
 
-		bgr[bgr_idx++] = p_data->read_buffer[p_data->rd_mempos++]; //TODO * brightness;
+		bgr[bgr_idx++] = p_data->read_buffer[(p_data->rd_mempos)++];
 		if ( bgr_idx < bytes_per_pixel)
 			continue;
 
@@ -78,14 +78,23 @@ static size_t bmp_show_data( T_TRACK_ELEMENT *ele, /*uint8_t *buf, size_t sz_buf
 		}
 
 		if ( wr_mempos < wr_max_mempos ) {
-			p_data->buf[wr_mempos++] = g;
-			p_data->buf[wr_mempos++] = r;
-			p_data->buf[wr_mempos++] = b;
+			if ( g < 5 && r < 5 && b<5 ) {
+				g=r=b=0;
+			}
+			p_data->buf[wr_mempos++] = g * brightness;
+			p_data->buf[wr_mempos++] = r * brightness;
+			p_data->buf[wr_mempos++] = b * brightness;
 		}
 	}
 	return bytes_per_line;
 }
 
+static void check4bmp_errmsg(T_BMP_WORKING *w_data) {
+	if ( w_data->has_new_errmsg) {
+		log_err(__func__, "open bmp data failed: %s", w_data->errmsg);
+		w_data->has_new_errmsg=false;
+	}
+}
 
 /**
  * function checks if more data needed, if true, check the
@@ -93,18 +102,23 @@ static size_t bmp_show_data( T_TRACK_ELEMENT *ele, /*uint8_t *buf, size_t sz_buf
  *
  * if a buffer is processed, the http client task will be informed by setting a bit
  */
-static t_result bmp_work( T_TRACK_ELEMENT *ele, /*uint8_t *buf, size_t sz_buf,*/ double brightness) {
+static t_result bmp_work( T_TRACK_ELEMENT *ele, double brightness) {
 
 	T_BMP_WORKING *w_data = &(ele->w_bmp->w_data );
 	T_PROCESS_BMP *p_data = &(ele->w_bmp->p_data);
 
 	memset(p_data->buf, 0,  sizeof(p_data->buf));
 
+	check4bmp_errmsg(w_data);
+
 	t_result res =RES_OK;
 
 	if ( p_data->read_buffer_len == 0 ) {
 		// more data needed
-		EventBits_t uxBits=get_ux_bits(w_data, 1000); // wait max. 1s
+		EventBits_t uxBits=get_ux_bits(w_data, 10000); // wait max. 10s
+
+		check4bmp_errmsg(w_data);
+
 		if ( uxBits & BMP_BIT_BUFFER1_HAS_DATA ) {
 			p_data->bufno = 1;
 
@@ -116,8 +130,6 @@ static t_result bmp_work( T_TRACK_ELEMENT *ele, /*uint8_t *buf, size_t sz_buf,*/
 			// finished
 			ESP_LOGI(__func__, "finished");
 			bmp_data_reset(p_data);
-			//is_bmp_reading = false;
-			//set_ux_quit_bits(BMP_BIT_FINISH_PROCESSED);
 			return RES_FINISHED;
 		} else {
 			// no new data
@@ -129,14 +141,16 @@ static t_result bmp_work( T_TRACK_ELEMENT *ele, /*uint8_t *buf, size_t sz_buf,*/
 		p_data->read_buffer_len = get_read_length(w_data);
 		p_data->read_buffer = get_read_buffer(w_data, p_data->bufno);
 		if ( extended_log) {
-			ESP_LOGI(__func__, "buffer %d has %d bytes", p_data->bufno, p_data->read_buffer_len);
-			ESP_LOG_BUFFER_HEXDUMP(__func__, p_data->read_buffer, 32, ESP_LOG_INFO);
+			ESP_LOGI(__func__, "buffer %d has %d bytes as BGR", p_data->bufno, p_data->read_buffer_len);
+			ESP_LOG_BUFFER_HEXDUMP(__func__, p_data->read_buffer, MIN(192,p_data->read_buffer_len), ESP_LOG_INFO);
 		}
 	}
 
 	if ( p_data->read_buffer_len > 0 ) {
+		check4bmp_errmsg(w_data);
+
 		// has more data
-		bmp_show_data(ele, /*p_data->buf, sizeof(p_data->buf),*/ brightness);
+		bmp_show_data(ele, brightness);
 
 		// buffer processed ?
 		if ( p_data->rd_mempos < p_data->read_buffer_len) {
@@ -165,6 +179,7 @@ void process_object_bmp(int32_t pos, T_TRACK_ELEMENT *ele, double brightness) {
 		ESP_LOGE(__func__,"no object data");
 		return;
 	}
+	LOG_MEM(__func__, 1);
 
 	T_BMP_WORKING *w_data = &(ele->w_bmp->w_data);
 	T_PROCESS_BMP *p_data = &(ele->w_bmp->p_data);
@@ -174,19 +189,22 @@ void process_object_bmp(int32_t pos, T_TRACK_ELEMENT *ele, double brightness) {
 		return;
 	}
 
-	t_result res = bmp_work(ele, /*obj_data, p_data->buf, sizeof(p_data->buf),*/ brightness);
+	t_result res = bmp_work(ele,  brightness);
 
 
 	if ( res == RES_OK) {
+		size_t len=MIN(p_data->bytes_per_line, 3*ele->w_object->data->len);
 		if ( extended_log) {
-			ESP_LOGI(__func__, "id=%d, line=%d", ele->id, p_data->line_count);
-			ESP_LOG_BUFFER_HEXDUMP(__func__, p_data->buf, 32, ESP_LOG_INFO);
+			ESP_LOGI(__func__, "id=%d, line=%d, buffer as GRB", ele->id, p_data->line_count);
+			ESP_LOG_BUFFER_HEXDUMP(__func__, p_data->buf, len, ESP_LOG_INFO);
 		}
-		led_strip_memcpy(pos, p_data->buf, MIN(p_data->bytes_per_line, 3*ele->w_object->data->len));
+		led_strip_memcpy(pos, p_data->buf, len);
 		memcpy(p_data->last_buf, p_data->buf, sizeof(p_data->last_buf));
 
 	} else if ( res == RES_FINISHED ) {
 		ESP_LOGI(__func__,"bmp_read_data: all lines read, connection closed");
+		bmp_free_buffers(w_data);
+		LOG_MEM(__func__, 2);
 
 	} else {
 		(p_data->missing_lines_count)++;
@@ -202,6 +220,7 @@ void process_object_bmp(int32_t pos, T_TRACK_ELEMENT *ele, double brightness) {
 		}
 		// */
 		led_strip_memcpy(pos, p_data->last_buf, 3*ele->w_object->data->len);
+		LOG_MEM(__func__, 3);
 	}
 	(p_data->line_count)++; //bmp_cnt++;
 }
@@ -248,6 +267,7 @@ t_result bmp_open_url(T_TRACK_ELEMENT *ele) {
 		return ESP_FAIL;
 	}
 
+	LOG_MEM(__func__, 1);
 	// normally there's no w_bmp data
 	if ( ele->w_bmp) {
 		if ( ele->w_bmp->w_data.bmp_read_phase != BRP_IDLE) {
@@ -258,7 +278,9 @@ t_result bmp_open_url(T_TRACK_ELEMENT *ele) {
 	} else {
 		// create new bmp data
 		ele->w_bmp = calloc(1, sizeof(T_W_BMP));
+		ESP_LOGI(__func__, "calloc %lu bytes",sizeof(T_W_BMP));
 	}
+	LOG_MEM(__func__, 2);
 	// initialise data for bmp handling
 	bmp_data_reset(&(ele->w_bmp->p_data));
 	memset(ele->w_bmp->p_data.buf, 0, sizeof(ele->w_bmp->p_data.buf));
@@ -268,6 +290,7 @@ t_result bmp_open_url(T_TRACK_ELEMENT *ele) {
 	// init data for web client
 	bmp_init_data(&(ele->w_bmp->w_data));
 	// not necesssary: clear_ux_bits(ele->w_bmp->w_data);
+	LOG_MEM(__func__, 3);
 
 	https_get(data->para.bmp.url, https_callback_bmp_processing, (void*)&(ele->w_bmp->w_data));
 
@@ -283,6 +306,8 @@ void bmp_stop_processing(T_TRACK_ELEMENT *ele) {
 	} else {
 		ESP_LOGW(__func__, "already stopped");
 	}
+	LOG_MEM(__func__, 1);
+
 }
 
 

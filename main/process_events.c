@@ -30,15 +30,14 @@ static void reset_track_element(T_TRACK_ELEMENT *ele) {
 	ele->w_brightness_delta = 0.0;
 	ele->w_distance = 0.0;
 	ele->w_wait_time = 0;
-	//ele->w_bmp_remaining_lines = 0;
 	if ( ele->w_bmp ) {
+		bmp_free_buffers(&(ele->w_bmp->w_data));
 		free(ele->w_bmp);
 		ele->w_bmp = NULL;
 	}
 	ele->time = 0;
 	ele->delta_pos = 1;
 	ele->evt_work_current = ele->evtgrp ? ele->evtgrp->evt_work_list : NULL;
-	//memset(ele->w_object_oid,0, LEN_EVT_OID);
 	ele->w_object = NULL;
 }
 
@@ -324,6 +323,11 @@ static void  process_track_element_work(T_TRACK_ELEMENT *ele, uint64_t scene_tim
 		case ET_BMP_READ:
 			res = get_is_bmp_reading(ele);
 			if (res == RES_OK) {
+				if ( ele->w_wait_time <= 0) {
+					// until end of bitmap
+					break;
+				}
+
 				ele->w_wait_time -= timer_period;
 				if (ele->w_wait_time <=0) {
 					// timer ends
@@ -340,17 +344,6 @@ static void  process_track_element_work(T_TRACK_ELEMENT *ele, uint64_t scene_tim
 			}
 			ESP_LOGI(__func__,"bmp_read_data(%d): failed", ele->id);
 			ele->evt_grp_current_status = EVT_STS_FINISHED;
-
-			// if remaining lines < 0 wait for EOF
-			//			if (ele->w_bmp_remaining_lines > 0) {
-			//				ESP_LOGI(__func__,"remaining lines %lld",ele->w_bmp_remaining_lines);
-			//				(ele->w_bmp_remaining_lines)--;
-			//				if ( ele->w_bmp_remaining_lines == 0) {
-			//					ESP_LOGI(__func__,"bmp_read_data: all lines read");
-			//					bmp_stop_processing();
-			//					ele->evt_grp_current_status = EVT_STS_FINISHED;
-			//				}
-			//			}
 			break;
 		default:
 			// should not happen here
@@ -411,8 +404,8 @@ static void process_track(T_TRACK *track, uint64_t scene_time, uint64_t timer_pe
 			process_track_element_final(track->current_element);
 			process_object(track->current_element);
 
-			// check for repeat TODO
-			ESP_LOGI(__func__, "track %d, ele.id=%d, repeate %d/%d",
+			// check for repeat
+			ESP_LOGI(__func__, "track %d, ele.id=%d, repeats %d/%d",
 					track->id, track->current_element->id,
 					track->current_element->w_repeats, track->current_element->repeats);
 			bool doit_again = false;

@@ -39,8 +39,6 @@
 static T_HTTPS_CLIENT_SLOT https_get_slots[N_HTTPS_CLIENTS];
 static bool init_needed=true;
 
-//static int64_t t_task_start;
-
 esp_err_t _http_event_handler(esp_http_client_event_t *evt){
     switch(evt->event_id) {
         case HTTP_EVENT_ERROR:
@@ -155,7 +153,7 @@ static void do_https_get(T_HTTPS_CLIENT_SLOT *slot) {
 					slot->todo = HCT_READING;
 					rc = slot->callback(slot, &buf, &expected_len);
 					if ( rc < 0) {
-						ESP_LOGW(__func__,"callback after EOF or error failed %s", slot->errmsg);
+						ESP_LOGW(__func__,"callback after EOF or error failed");
 					}
 				}
 				break; // EOF or Error
@@ -168,7 +166,7 @@ static void do_https_get(T_HTTPS_CLIENT_SLOT *slot) {
 			slot->todo = HCT_READING;
 			rc = slot->callback(slot, &buf, &expected_len);
 			if ( rc < 0 ) {
-				ESP_LOGW(__func__,"callback failed: %s", slot->errmsg);
+				ESP_LOGW(__func__,"callback failed.");
 			}
 			if ( rc < 0 )
 				break; // failure or want to stop connection
@@ -182,6 +180,8 @@ static void do_https_get(T_HTTPS_CLIENT_SLOT *slot) {
 		slot->callback(slot, &buf, &expected_len);
 
 	} else {
+		snprintf(slot->errmsg, sizeof(slot->errmsg), "Failed to open URL, status code is %d", status_code);
+
 		expected_len = 0;
 		slot->todo = HCT_FAILED;
 		slot->callback(slot, &buf, &expected_len);
@@ -200,6 +200,8 @@ static void http_main_task(void *pvParameters)
     ESP_LOGI(__func__, "*** (%s) start ***", slot->name);
     slot->t_task_start = esp_timer_get_time();
 
+    LOG_MEM(__func__, 1);
+
     do_https_get(slot);
 
     slot->t_task_end = esp_timer_get_time();
@@ -207,6 +209,7 @@ static void http_main_task(void *pvParameters)
     ESP_LOGI(__func__, "*** (%s) finished, duration %lld ms ****",
     		slot->name, (slot->t_task_end - slot->t_task_start)/1000);
     slot->status = HSS_EMPTY;
+	LOG_MEM(__func__, 2);
 
     vTaskDelete(NULL);
     // no statements here, task deleted
@@ -246,11 +249,6 @@ T_HTTPS_CLIENT_SLOT *https_get(char *url, https_get_callback callback, void *use
 		ESP_LOGE(__func__, "there's no free slot for request '%s'", url);
 		return NULL;
 	}
-	//  if ( http_client_task_active ) {
-	//    ESP_LOGW(__func__, "there's an open connection url='%s'", url);
-	//    return ESP_FAIL;
-	//  }
-	//  http_client_task_active = true;
 
 	esp_http_client_config_t *request_config = &(slot->request_config);
 	memset(request_config, 0, sizeof(esp_http_client_config_t));
@@ -258,12 +256,12 @@ T_HTTPS_CLIENT_SLOT *https_get(char *url, https_get_callback callback, void *use
 	request_config->event_handler = _http_event_handler;
 	request_config->crt_bundle_attach = esp_crt_bundle_attach;
 
-	xTaskCreate(&http_main_task, slot->name, 16384, (void*) slot, 5, &(slot->xHandle));
+	LOG_MEM(__func__, 1);
+	const uint32_t sz_stack = 8192; // 16384
+	xTaskCreate(&http_main_task, slot->name, sz_stack, (void*) slot, 0, &(slot->xHandle));
+	LOG_MEM(__func__, 2);
 	ESP_LOGI(__func__, "'http_main_task' started");
 	return slot;
 
 }
 
-//bool is_http_client_task_active() {
-//  return http_client_task_active;
-//}

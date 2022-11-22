@@ -23,11 +23,8 @@ typedef struct rest_server_context {
 
 #define CHECK_FILE_EXTENSION(filename, ext) (strcasecmp(&filename[strlen(filename) - strlen(ext)], ext) == 0)
 
-#define LOG_MEM(c) {ESP_LOGI(__func__, "MEMORY(%d): free_heap_size=%lu, minimum_free_heap_size=%lu", c, esp_get_free_heap_size(), esp_get_minimum_free_heap_size());}
 
 static httpd_handle_t server = NULL;
-
-
 
 // from global_data.c
 extern T_HTTP_PROCCESSING_TYPE http_processing[];
@@ -36,10 +33,6 @@ extern T_DISPLAY_OBJECT *s_object_list;
 extern T_EVENT_GROUP *s_event_group_list;
 extern char last_loaded_file[];
 extern size_t sz_last_loaded_file;
-
-//static void httpd_resp_sendstr_chunk(httpd_req_t *req, char *resp_str) {
-//	httpd_resp_send_chunk(req, resp_str, HTTPD_RESP_USE_STRLEN);
-//}
 
 static void http_help(httpd_req_t *req) {
 	char resp_str[255];
@@ -79,8 +72,6 @@ static void add_system_informations(cJSON *root) {
 	cJSON_AddStringToObject(root, "compile_date", app_desc->date);
 	cJSON_AddStringToObject(root, "compile_time", app_desc->time);
 	cJSON_AddStringToObject(root, "app_version", app_desc->version);
-
-
 }
 
 
@@ -343,9 +334,13 @@ static esp_err_t get_handler_file_list(httpd_req_t *req) {
         cJSON_AddStringToObject(fentry,"type",  entrytype);
         cJSON_AddStringToObject(fentry,"name",  entry->d_name);
         cJSON_AddNumberToObject(fentry,"sz",entry_stat.st_size);
+        char tbuf[64];
+        get_shorttime4(entry_stat.st_mtime, tbuf, sizeof(tbuf));
+        cJSON_AddStringToObject(fentry,"mtime",  tbuf);
+
         cJSON_AddItemToArray(files, fentry);
 
-        snprintf(msg, sizeof(msg), "%s '%s' (%ld bytes)", entrytype, entry->d_name, entry_stat.st_size);
+        snprintf(msg, sizeof(msg), "%s '%s' (%ld bytes, mtime %s)", entrytype, entry->d_name, entry_stat.st_size, tbuf);
         //httpd_resp_sendstr_chunk(req, msg);
         ESP_LOGI(__func__, "%s", msg);
     }
@@ -497,12 +492,12 @@ static esp_err_t clear_data(char *msg, size_t sz_msg, run_status_type new_status
 static esp_err_t get_handler_clear(httpd_req_t *req) {
 	char msg[255];
 
-    LOG_MEM(1);
+    LOG_MEM(__func__,1);
 	// stop display program, clear data
 	run_status_type new_status = RUN_STATUS_STOPPED;
 	esp_err_t res = clear_data(msg, sizeof(msg), new_status);
 
-    LOG_MEM(2);
+    LOG_MEM(__func__,2);
 
     httpd_resp_set_type(req, "plain/text");
  	snprintf(msg,sizeof(msg), "clear data done");
@@ -538,15 +533,6 @@ static void get_handler_reset(httpd_req_t *req) {
 
 	get_handler_restart(req);
 }
-
-/*
-static void get_handler_blank(httpd_req_t *req) {
-
-	scenes_blank();
-
-	response_with_status(req, "BLANK done", get_scene_status());
-}
-//*/
 
 static void get_handler_config(httpd_req_t *req, char *msg) {
     httpd_resp_set_type(req, "application/json");
@@ -864,7 +850,7 @@ static esp_err_t post_handler_main(httpd_req_t *req)
     char *buf = calloc(req->content_len+1, sizeof(char));
     int received;
 
-    LOG_MEM(1);
+    LOG_MEM(__func__,1);
     while (remaining > 0) {
 
         ESP_LOGI(__func__, "Remaining size : %d", remaining);
@@ -888,7 +874,7 @@ static esp_err_t post_handler_main(httpd_req_t *req)
         remaining -= received;
     }
 
-    LOG_MEM(2);
+    LOG_MEM(__func__,2);
 
     esp_err_t res = ESP_FAIL;
 
@@ -923,7 +909,7 @@ static esp_err_t post_handler_main(httpd_req_t *req)
     	httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, resp_str);
     }
 
-	LOG_MEM(3);
+	LOG_MEM(__func__,3);
 	return res;
 }
 
@@ -1129,25 +1115,8 @@ void init_restservice() {
 
 }
 
-void initialise_mdns(void)
-{
- /*   mdns_init();
-    mdns_hostname_set(CONFIG_EXAMPLE_MDNS_HOST_NAME);
-    mdns_instance_name_set(MDNS_INSTANCE);
-
-    mdns_txt_item_t serviceTxtData[] = {
-        {"board", "esp32"},
-        {"path", "/"}
-    };
-
-    ESP_ERROR_CHECK(mdns_service_add("ESP32-WebServer", "_http", "_tcp", 80, serviceTxtData,
-                                     sizeof(serviceTxtData) / sizeof(serviceTxtData[0])));
- */
+void initialise_mdns(void) {
 }
 
 void initialise_netbios() {
-	/*
-	netbiosns_init();
-	netbiosns_set_name(CONFIG_EXAMPLE_MDNS_HOST_NAME);
-	*/
 }

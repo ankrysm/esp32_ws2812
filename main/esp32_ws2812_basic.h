@@ -51,4 +51,5 @@
 #define LEN_PATH_MAX (ESP_VFS_PATH_MAX+128)
 #define N_TRACKS 16
 
+
 #endif /* MAIN_ESP32_WS2812_BASIC_H_ */

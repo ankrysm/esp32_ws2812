@@ -105,16 +105,24 @@ esp_err_t init_time_service() {
 
 void get_current_timestamp(char *tbuf, size_t sz_tbuf) {
 	time_t now;
-	struct tm timeinfo;
-	//char strftime_buf[64];
-	char tformat[64];
+	time(&now);
+	get_time4(now, tbuf, sz_tbuf);
+	ESP_LOGI(__func__, "The current date/time is: %s", tbuf);
+}
 
+void get_time4(time_t now, char *tbuf, size_t sz_tbuf) {
+	struct tm timeinfo;
+	char tformat[64];
 	char *tz = getenv("TZ");
 	snprintf(tformat, sizeof(tformat),"%s/%%A, %%F %%T", tz?tz:"not set");
-	time(&now);
 	localtime_r(&now, &timeinfo);
 	strftime(tbuf, sz_tbuf, tformat, &timeinfo);
-	ESP_LOGI(__func__, "The current date/time is: %s", tbuf);
+}
+
+void get_shorttime4(time_t now, char *tbuf, size_t sz_tbuf) {
+	struct tm timeinfo;
+	localtime_r(&now, &timeinfo);
+	strftime(tbuf, sz_tbuf, "%F %T", &timeinfo);
 }
 
 /*

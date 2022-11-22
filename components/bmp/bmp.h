@@ -14,10 +14,20 @@
 
 #include "https_get.h"
 
+#ifndef MAX
+#define MAX(a,b) ((a)>(b)?(a):(b))
+#endif
+
+#ifndef MIN
+#define MIN(a,b) ((a)<(b)?(a):(b))
+#endif
+
 // instead windows.h
 typedef uint16_t WORD;
 typedef uint32_t DWORD;
 typedef int32_t LONG;
+
+#define SZ_BUFFER 4096 //8192
 
 // sets by working process
 #define BMP_BIT_BUFFER_PROCESSED   0x01
@@ -102,6 +112,10 @@ typedef struct {
 	t_bmp_read_phase bmp_read_phase; // working phase
 	uint32_t buf_len_expected; // amount of expected data from webserver
 
+	char errmsg[256];
+	bool has_new_errmsg;
+
+
 } T_BMP_WORKING;
 
 
@@ -110,6 +124,7 @@ typedef struct {
 void bmp_set_extended_log(int p_extended_log);
 void bmp_init();
 void bmp_init_data(T_BMP_WORKING *data);
+void bmp_free_buffers(T_BMP_WORKING *data);
 uint32_t get_bytes_per_pixel(T_BMP_WORKING *data);
 uint32_t get_bytes_per_line(T_BMP_WORKING *data);
 void clear_ux_bits(T_BMP_WORKING *data);

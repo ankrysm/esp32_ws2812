@@ -24,11 +24,19 @@
 #include "bmp.h"
 #include "https_get.h"
 
-#define SZ_BUFFER 8192
 
 
 static const TickType_t xTicksToWait = 30000 / portTICK_PERIOD_MS;
 static int extended_log = 1;  // TODO
+
+static void bmp_log_err(T_BMP_WORKING *data, const char *func, const char *fmt, ...) {
+	va_list		ap;
+	va_start(ap, fmt);
+	vsnprintf(data->errmsg, sizeof(data->errmsg), fmt, ap);
+	va_end(ap);
+	ESP_LOGE(func, ">> %s", data->errmsg);
+	data->has_new_errmsg = true;
+}
 
 void bmp_set_extended_log(int p_extended_log) {
 	extended_log=p_extended_log;
@@ -37,7 +45,6 @@ void bmp_set_extended_log(int p_extended_log) {
 
 void bmp_init_data(T_BMP_WORKING *data) {
 	memset(data, 0, sizeof(T_BMP_WORKING));
-	//data->active = false;
 	data->bmp_read_phase = BRP_CONNECT;
 	data->s_bmp_event_group_for_reader = xEventGroupCreate();
 	data->s_bmp_event_group_for_worker = xEventGroupCreate();
@@ -59,7 +66,7 @@ uint32_t get_bytes_per_pixel(T_BMP_WORKING *data) {
 	} else if (data->bmpInfoHeader.biBitCount == 32) {
 		bytes_per_pixel = 4;
 	} else {
-		ESP_LOGE(__func__, "biBitCount %d NYI", data->bmpInfoHeader.biBitCount);
+		bmp_log_err(data, __func__, "biBitCount %d NYI", data->bmpInfoHeader.biBitCount);
 	}
 	return bytes_per_pixel;
 }
@@ -73,7 +80,8 @@ uint32_t get_bytes_per_line(T_BMP_WORKING *data) {
 }
 
 
-static void free_buffers(T_BMP_WORKING *data) {
+void bmp_free_buffers(T_BMP_WORKING *data) {
+	ESP_LOGI(__func__, "start");
 	if (data->read_buffer1) {
 		free(data->read_buffer1);
 		data->read_buffer1 = NULL;
@@ -89,6 +97,8 @@ static void free_buffers(T_BMP_WORKING *data) {
 	data->sz_read_buffer = 0;
 	data->total_length = 0;
 	data->bmp_read_phase = BRP_IDLE;
+	data->has_new_errmsg = false;
+	memset(data->errmsg, 0, sizeof(data->errmsg));
 }
 
 /**
@@ -110,10 +120,12 @@ int https_callback_bmp_processing(T_HTTPS_CLIENT_SLOT *slot, uint8_t **buf, uint
 
 	if (slot->todo == HCT_INIT) {
 		// init
+		LOG_MEM(__func__, 1);
 		memset(&(data->bmpFileHeader), 0, sizeof(data->bmpFileHeader));
 		memset(&(data->bmpInfoHeader), 0, sizeof(data->bmpInfoHeader));
-		free_buffers(data);
-		//data->active = true;
+		bmp_free_buffers(data);
+		LOG_MEM(__func__, 2);
+
 
 		data->bmp_read_phase = BRP_GOT_FILE_HEADER;
 		*buf_len = data->buf_len_expected = sizeof(data->bmpFileHeader);
@@ -130,14 +142,14 @@ int https_callback_bmp_processing(T_HTTPS_CLIENT_SLOT *slot, uint8_t **buf, uint
 
 		// read data
 		if ( data->buf_len_expected > 0 &&  *buf_len > data->buf_len_expected) {
-			ESP_LOGW(__func__,"buf_len_received(%ld) > buf_len_expected(%ld)", *buf_len, data->buf_len_expected);
+			bmp_log_err(data, __func__,"buf_len_received(%ld) > buf_len_expected(%ld)", *buf_len, data->buf_len_expected);
 			return -1;
 		}
 
 		switch(data->bmp_read_phase) {
 		case BRP_IDLE:
 		case BRP_CONNECT:
-			ESP_LOGE(__func__, "unexpected phase %s", BRP2TXT(data->bmp_read_phase));
+			bmp_log_err(data, __func__, "unexpected phase %s", BRP2TXT(data->bmp_read_phase));
 			return -1;
 			break;
 
@@ -148,7 +160,7 @@ int https_callback_bmp_processing(T_HTTPS_CLIENT_SLOT *slot, uint8_t **buf, uint
 			ESP_LOG_BUFFER_HEXDUMP(__func__, &(data->bmpFileHeader), sizeof(data->bmpFileHeader), ESP_LOG_INFO);
 
 			if ( data->bmpFileHeader.bfType1 != 'B' || data->bmpFileHeader.bfType2 != 'M') {
-				ESP_LOGE(__func__, "is not a bitmap file, first bytes have to be 'BM'");
+				bmp_log_err(data, __func__, "is not a bitmap file, first bytes have to be 'BM'");
 				return -1;
 			}
 
@@ -166,18 +178,15 @@ int https_callback_bmp_processing(T_HTTPS_CLIENT_SLOT *slot, uint8_t **buf, uint
 
 			ESP_LOG_BUFFER_HEXDUMP(__func__, &(data->bmpInfoHeader), sizeof(data->bmpInfoHeader), ESP_LOG_INFO);
 			if ( data->bmpInfoHeader.biCompression != 0 ) {
-				snprintf(slot->errmsg, sizeof(slot->errmsg), "unsupported compression method"); // TODO: implement it
-				ESP_LOGE(__func__, "%s", slot->errmsg);
+				bmp_log_err(data, __func__, "unsupported compression method"); // TODO: implement it
 				return -1;
 			}
 			if ( data->bmpInfoHeader.biBitCount != 24 && data->bmpInfoHeader.biBitCount != 32) {
-				snprintf(slot->errmsg, sizeof(slot->errmsg), "24-bit or 32-bit pixel expected");
-				ESP_LOGE(__func__, "%s", slot->errmsg);
+				bmp_log_err(data, __func__, "24-bit or 32-bit pixel required");
 				return -1;
 			}
 			if ( data->bmpInfoHeader.biWidth > 500 ) {
-				snprintf(slot->errmsg, sizeof(slot->errmsg), "bitmap width greater 500");
-				ESP_LOGE(__func__, "%s", slot->errmsg);
+				bmp_log_err(data, __func__, "bitmap width greater 500");
 				return -1;
 			}
 
@@ -187,19 +196,24 @@ int https_callback_bmp_processing(T_HTTPS_CLIENT_SLOT *slot, uint8_t **buf, uint
 			// data len as multiple amount of data per line
 			size_t linesize =get_bytes_per_line(data);
 			data->sz_read_buffer = linesize;
-			while (data->sz_read_buffer < SZ_BUFFER ) {
+			while (data->sz_read_buffer < MIN(SZ_BUFFER,data->bmpInfoHeader.biSizeImage) ) {
 				data->sz_read_buffer += linesize;
 			}
 			ESP_LOGI(__func__, "sz_read_buffer = %d",data->sz_read_buffer);
+
+			LOG_MEM(__func__, 3);
 			if ( !(data->read_buffer1 = calloc(data->sz_read_buffer, sizeof(char)))) {
-				ESP_LOGE(__func__, "could not allocate %u bytes for read buffer1", data->sz_read_buffer);
+				bmp_log_err(data, __func__,  "could not allocate %u bytes for read buffer1", data->sz_read_buffer);
 				return -1;
 			}
+			ESP_LOGI(__func__, "calloc %lu bytes", data->sz_read_buffer);
 
 			if ( !(data->read_buffer2 = calloc(data->sz_read_buffer, sizeof(char)))) {
-				ESP_LOGE(__func__, "could not allocate %u bytes for read buffer2", data->sz_read_buffer);
+				bmp_log_err(data, __func__,  "could not allocate %u bytes for read buffer2", data->sz_read_buffer);
 				return -1;
 			}
+			ESP_LOGI(__func__, "calloc %lu bytes", data->sz_read_buffer);
+			LOG_MEM(__func__, 4);
 
 			// is there some data to skip? (palette data)
 			int skip_data_cnt  = data->bmpFileHeader.bfOffBits - data->total_length;
@@ -209,7 +223,6 @@ int https_callback_bmp_processing(T_HTTPS_CLIENT_SLOT *slot, uint8_t **buf, uint
 				*buf_len= data->buf_len_expected = skip_data_cnt;
 				*buf=data->buffer;
 				data->bmp_read_phase = BRP_GOT_SKIPPED_DATA;
-				//ESP_LOGI(__func__,"todo=%d, phase=%d(%s), buf_len=%u", to_do, bmp_read_phase, BRP2TXT(bmp_read_phase), *buf_len);
 				return 1;
 			}
 
@@ -217,7 +230,6 @@ int https_callback_bmp_processing(T_HTTPS_CLIENT_SLOT *slot, uint8_t **buf, uint
 			*buf_len = data->buf_len_expected = data->sz_read_buffer;
 			*buf = data->read_buffer1;
 			data->bmp_read_phase = BRP_GOT_FIRST_DATA_BUFFER1;
-			//ESP_LOGI(__func__,"todo=%d, phase=%d(%s), buf_len=%u", to_do, bmp_read_phase, BRP2TXT(bmp_read_phase), *buf_len);
 			return 1;
 
 		case BRP_GOT_SKIPPED_DATA:
@@ -230,15 +242,14 @@ int https_callback_bmp_processing(T_HTTPS_CLIENT_SLOT *slot, uint8_t **buf, uint
 			*buf_len = data->buf_len_expected = data->sz_read_buffer;
 			*buf = data->read_buffer1;
 			data->bmp_read_phase = BRP_GOT_FIRST_DATA_BUFFER1;
-			//ESP_LOGI(__func__,"todo=%d, phase=%d(%s), buf_len=%u", to_do, bmp_read_phase, BRP2TXT(bmp_read_phase), *buf_len);
 			return 1;
 
 		case BRP_GOT_FIRST_DATA_BUFFER1:
 			// buffer 1 is filled, can be processes, try to fill buffer 2 immediately
 			data->total_length += *buf_len;
 			if ( extended_log) {
-				ESP_LOGI(__func__, "read first data to buffer 1 len=%lu, total = %lu", *buf_len, data->total_length);
-				ESP_LOG_BUFFER_HEXDUMP(__func__, data->read_buffer1, MAX(64, *buf_len), ESP_LOG_INFO);
+				ESP_LOGI(__func__, "read first data to buffer 1 len=%lu, total = %lu, data as BGR:", *buf_len, data->total_length);
+				ESP_LOG_BUFFER_HEXDUMP(__func__, data->read_buffer1, MIN(192, *buf_len), ESP_LOG_INFO);
 			}
 			data->read_buffer_length = *buf_len;
 
@@ -247,7 +258,6 @@ int https_callback_bmp_processing(T_HTTPS_CLIENT_SLOT *slot, uint8_t **buf, uint
 			data->bmp_read_phase = BRP_GOT_DATA_BUFFER2;
 			xEventGroupClearBits(data->s_bmp_event_group_for_worker, 0xFFFF);
 			xEventGroupSetBits(data->s_bmp_event_group_for_worker, BMP_BIT_BUFFER1_HAS_DATA);
-			//ESP_LOGI(__func__,"todo=%d, phase=%d(%s), buf_len=%u", to_do, bmp_read_phase, BRP2TXT(bmp_read_phase), *buf_len);
 			return 1;
 
 		case BRP_GOT_DATA_BUFFER2:
@@ -263,7 +273,6 @@ int https_callback_bmp_processing(T_HTTPS_CLIENT_SLOT *slot, uint8_t **buf, uint
 			data->bmp_read_phase = BRP_GOT_DATA_BUFFER1;
 
 			// wait for end of processing buffer1
-
 			// first boolan true: clear bits before function return, second boolean false: wait for one of the specified bits
 			uxBits = xEventGroupWaitBits(data->s_bmp_event_group_for_reader, BMP_BIT_BUFFER_PROCESSED | BMP_BIT_STOP_WORKING, pdTRUE, pdFALSE, xTicksToWait);
 			if ( extended_log)
@@ -272,7 +281,6 @@ int https_callback_bmp_processing(T_HTTPS_CLIENT_SLOT *slot, uint8_t **buf, uint
 				// buffer 1 processed, continue with buffer 2
 				xEventGroupClearBits(data->s_bmp_event_group_for_worker, 0xFFFF);
 				xEventGroupSetBits(data->s_bmp_event_group_for_worker, BMP_BIT_BUFFER2_HAS_DATA);
-				//ESP_LOGI(__func__,"todo=%d, phase=%d(%s), buf_len=%u", to_do, bmp_read_phase, BRP2TXT(bmp_read_phase), *buf_len);
 				return 1;
 			}
 			if ( uxBits & BMP_BIT_STOP_WORKING ) {
@@ -280,7 +288,7 @@ int https_callback_bmp_processing(T_HTTPS_CLIENT_SLOT *slot, uint8_t **buf, uint
 				ESP_LOGI(__func__,"stop working(1)");
 				return -1;
 			}
-			ESP_LOGE(__func__,"unexpected uxBits 0x%04x",uxBits);
+			bmp_log_err(data, __func__, "unexpected uxBits 0x%04x",uxBits);
 			return -1;
 
 		case BRP_GOT_DATA_BUFFER1:
@@ -303,7 +311,6 @@ int https_callback_bmp_processing(T_HTTPS_CLIENT_SLOT *slot, uint8_t **buf, uint
 			if ( uxBits & BMP_BIT_BUFFER_PROCESSED) {
 				xEventGroupClearBits(data->s_bmp_event_group_for_worker, 0xFFFF);
 				xEventGroupSetBits(data->s_bmp_event_group_for_worker, BMP_BIT_BUFFER1_HAS_DATA);
-				//ESP_LOGI(__func__,"todo=%d, phase=%d(%s), buf_len=%u", to_do, bmp_read_phase, BRP2TXT(bmp_read_phase), *buf_len);
 				return 1;
 			}
 			if ( uxBits & BMP_BIT_STOP_WORKING ) {
@@ -311,7 +318,7 @@ int https_callback_bmp_processing(T_HTTPS_CLIENT_SLOT *slot, uint8_t **buf, uint
 				ESP_LOGI(__func__,"stop working(2)");
 				return -1;
 			}
-			ESP_LOGE(__func__,"unexpected uxBits 0x%04x",uxBits);
+			bmp_log_err(data, __func__, "unexpected uxBits 0x%04x",uxBits);
 			return -1;
 
 		}
@@ -320,20 +327,17 @@ int https_callback_bmp_processing(T_HTTPS_CLIENT_SLOT *slot, uint8_t **buf, uint
 		ESP_LOGI(__func__,"finished");
         xEventGroupClearBits(data->s_bmp_event_group_for_worker, 0xFFFF);
 		xEventGroupSetBits(data->s_bmp_event_group_for_worker, BMP_BIT_NO_MORE_DATA);
-
-        free_buffers(data);
-   	//ESP_LOGI(__func__,"todo=%d(finish), buf_len=%u", to_do, *buf_len);
+		LOG_MEM(__func__, 5);
 
 	} else if ( slot->todo==HCT_FAILED ) {
 		ESP_LOGI(__func__,"failed");
         xEventGroupClearBits(data->s_bmp_event_group_for_worker, 0xFFFF);
 		xEventGroupSetBits(data->s_bmp_event_group_for_worker, BMP_BIT_NO_MORE_DATA);
-
-        free_buffers(data);
-    	//ESP_LOGI(__func__,"todo=%d(failed), buf_len=%u", to_do, *buf_len);
+		bmp_log_err(data, __func__, "error %s", slot->errmsg);
+		LOG_MEM(__func__, 6);
 
 	} else {
-		ESP_LOGE(__func__,"unknown todo %d", slot->todo);
+		bmp_log_err(data, __func__, "unknown todo %d", slot->todo);
 	}
 	return -1;
 }
@@ -371,7 +375,7 @@ uint8_t *get_read_buffer(T_BMP_WORKING *data, int bufnr) {
 	case 1: return data->read_buffer1;
 	case 2: return data->read_buffer2;
 	default:
-		ESP_LOGE(__func__, "wrong bufnr %d", bufnr);
+		bmp_log_err(data, __func__,  "wrong bufnr %d", bufnr);
 	}
 	return NULL;
 }
@@ -381,17 +385,3 @@ void bmp_finished(T_BMP_WORKING *data) {
 	data->bmp_read_phase = BRP_IDLE;
 }
 
-/*
-T_BMP_WORKING *get_bmp_slot() {
-
-	for (int i=0; i < N_HTTPS_CLIENTS; i++) {
-		T_BMP_WORKING *slot = &(bmp_working_data[i]);
-		if ( !slot->active) {
-			ESP_LOGI(__func__, "found slot %d", i);
-			return slot;
-		}
-	}
-	ESP_LOGW(__func__, "no free slot");
-	return NULL; // no free slot
-}
-*/
