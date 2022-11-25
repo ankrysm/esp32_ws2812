@@ -38,9 +38,11 @@ function get_autoplay_file() {
 	  	} else {
 	  		alert("get_autoplay_file" + this.statusText);
 	  	}
+	  } else {
+		  showMsg("retrieving file configuration ..."); // it took a while
 	  }
 	};
-	xhttp.open("GET", "cfg/get", true);
+	xhttp.open("GET", "cfg/get", false); // synchronous request, data neede for getfiles
 	xhttp.send();
 }
 

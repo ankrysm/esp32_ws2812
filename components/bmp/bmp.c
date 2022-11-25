@@ -206,13 +206,13 @@ int https_callback_bmp_processing(T_HTTPS_CLIENT_SLOT *slot, uint8_t **buf, uint
 				bmp_log_err(data, __func__,  "could not allocate %u bytes for read buffer1", data->sz_read_buffer);
 				return -1;
 			}
-			ESP_LOGI(__func__, "calloc %lu bytes", data->sz_read_buffer);
+			//ESP_LOGI(__func__, "calloc %lu bytes", data->sz_read_buffer);
 
 			if ( !(data->read_buffer2 = calloc(data->sz_read_buffer, sizeof(char)))) {
 				bmp_log_err(data, __func__,  "could not allocate %u bytes for read buffer2", data->sz_read_buffer);
 				return -1;
 			}
-			ESP_LOGI(__func__, "calloc %lu bytes", data->sz_read_buffer);
+			//ESP_LOGI(__func__, "calloc %lu bytes", data->sz_read_buffer);
 			LOG_MEM(__func__, 4);
 
 			// is there some data to skip? (palette data)

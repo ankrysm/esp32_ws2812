@@ -85,6 +85,7 @@ T_EVENT_CONFIG event_config_tab[] = {
 		{ET_BMP_OPEN, EVT_PARA_NONE, "bmp_open", "open BMP stream, defined by 'bmp' object",""},
 		{ET_BMP_READ, EVT_PARA_NUMERIC | EVT_PARA_OPTIONAL, "bmp_read","read BMP data line by line and display it", "execution time in ms, -1 all lines until end (default)"},
 		{ET_BMP_CLOSE, EVT_PARA_NONE, "bmp_close", "close BMP stream",""},
+		{ET_TRESHOLD, EVT_PARA_NUMERIC, "treshold", "ignore pixel when r,g,b is lower than treshold","treshold 0 .. 255"},
 		{ET_NONE, EVT_PARA_NONE, "", "",""} // end of table
 };
 

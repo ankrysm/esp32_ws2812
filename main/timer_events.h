@@ -154,8 +154,8 @@ typedef struct TRACK_ELEMENT {
 	double w_acceleration;
 	double w_brightness;
 	double w_brightness_delta;
+	int32_t w_treshold;
 	int64_t w_wait_time;
-	//int64_t w_bmp_remaining_lines;
 	T_W_BMP *w_bmp;
 
 	/// id of the object to display

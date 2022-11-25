@@ -127,6 +127,10 @@ static void process_track_element_init(T_TRACK_ELEMENT *ele) {
 			bmp_open_url(ele);
 			break;
 
+		case ET_TRESHOLD:
+			ele->w_treshold = evt->para.value;
+			break;
+
 		default:
 			break;
 		}
@@ -274,6 +278,9 @@ static void  process_track_element_work(T_TRACK_ELEMENT *ele, uint64_t scene_tim
 				bmp_stop_processing(ele);
 				//ele->w_bmp_remaining_lines = 0;
 				ele->w_wait_time = 0;
+				break;
+			case ET_TRESHOLD:
+				ele->w_treshold = ele->evt_work_current->para.value;
 				break;
 
 			default:

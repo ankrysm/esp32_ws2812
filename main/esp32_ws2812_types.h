@@ -142,6 +142,7 @@ typedef enum {
 	ET_BMP_OPEN,             // I W - open internet connection for bmp file
 	ET_BMP_READ,             // - W - (numeric) read n lines from bmp data (-1 = until bmp ends)
 	ET_BMP_CLOSE,            // - W F close connection for bmp
+	ET_TRESHOLD,             // I W - ignore pixels when rgb < treshold
 	ET_UNKNOWN
 } event_type;
 

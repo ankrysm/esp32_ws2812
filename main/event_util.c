@@ -79,6 +79,7 @@ void event2text(T_EVENT *evt, char *buf, size_t sz_buf) {
 	case ET_GOTO_POS:
 	case ET_DISTANCE:
 	case ET_BMP_READ:
+	case ET_TRESHOLD:
 		snprintf(buf, sz_buf,"id=%d, type=%d/%s, val=%.3f",
 			evt->id, evt->type, eventype2text(evt->type), evt->para.value);
 		break;

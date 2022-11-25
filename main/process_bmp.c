@@ -78,7 +78,7 @@ static size_t bmp_show_data( T_TRACK_ELEMENT *ele, double brightness ) {
 		}
 
 		if ( wr_mempos < wr_max_mempos ) {
-			if ( g < 5 && r < 5 && b<5 ) {
+			if ( g < ele->w_treshold && r < ele->w_treshold && b < ele->w_treshold ) {
 				g=r=b=0;
 			}
 			p_data->buf[wr_mempos++] = g * brightness;
@@ -278,7 +278,7 @@ t_result bmp_open_url(T_TRACK_ELEMENT *ele) {
 	} else {
 		// create new bmp data
 		ele->w_bmp = calloc(1, sizeof(T_W_BMP));
-		ESP_LOGI(__func__, "calloc %lu bytes",sizeof(T_W_BMP));
+		// ESP_LOGI(__func__, "calloc %lu bytes",sizeof(T_W_BMP));
 	}
 	LOG_MEM(__func__, 2);
 	// initialise data for bmp handling

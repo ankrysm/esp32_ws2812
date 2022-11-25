@@ -13,6 +13,7 @@
 	 	 	{"type":"bmp_open"},
 	 	 	{"type":"brightness", "value":0.1},
      	 	{"type":"goto", "value":0},
+     	 	{"type":"treshold", "value":5},
      	 	{"type":"wait_first", "value":100}
 	 	 ],
      	 "work": [
@@ -25,6 +26,7 @@
      	 	{"type":"object","value":"bmp2"},
 	 	 	{"type":"bmp_open"},
 	 	 	{"type":"brightness", "value":0.1},
+     	 	{"type":"treshold", "value":5},
      	 	{"type":"goto", "value":51},
      	 	{"type":"wait_first", "value":100}
 	 	 ],
