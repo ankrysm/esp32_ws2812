@@ -325,15 +325,23 @@ int https_callback_bmp_processing(T_HTTPS_CLIENT_SLOT *slot, uint8_t **buf, uint
 
 	} else if ( slot->todo==HCT_FINISH ) {
 		ESP_LOGI(__func__,"finished");
-        xEventGroupClearBits(data->s_bmp_event_group_for_worker, 0xFFFF);
-		xEventGroupSetBits(data->s_bmp_event_group_for_worker, BMP_BIT_NO_MORE_DATA);
+		if ( data) {
+			xEventGroupClearBits(data->s_bmp_event_group_for_worker, 0xFFFF);
+			xEventGroupSetBits(data->s_bmp_event_group_for_worker, BMP_BIT_NO_MORE_DATA);
+		} else {
+			ESP_LOGE(__func__,"at finish: data is gone");
+		}
 		LOG_MEM(__func__, 5);
 
 	} else if ( slot->todo==HCT_FAILED ) {
 		ESP_LOGI(__func__,"failed");
-        xEventGroupClearBits(data->s_bmp_event_group_for_worker, 0xFFFF);
-		xEventGroupSetBits(data->s_bmp_event_group_for_worker, BMP_BIT_NO_MORE_DATA);
-		bmp_log_err(data, __func__, "error %s", slot->errmsg);
+		if ( data) {
+			xEventGroupClearBits(data->s_bmp_event_group_for_worker, 0xFFFF);
+			xEventGroupSetBits(data->s_bmp_event_group_for_worker, BMP_BIT_NO_MORE_DATA);
+			bmp_log_err(data, __func__, "error %s", slot->errmsg);
+		} else {
+			ESP_LOGE(__func__,"at failed: data is gone");
+		}
 		LOG_MEM(__func__, 6);
 
 	} else {
