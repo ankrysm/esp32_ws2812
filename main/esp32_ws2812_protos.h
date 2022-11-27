@@ -72,7 +72,7 @@ T_DISPLAY_OBJECT *find_object4oid(char *oid);
 T_DISPLAY_OBJECT *create_object(char *oid) ;
 T_DISPLAY_OBJECT_DATA *create_object_data(T_DISPLAY_OBJECT *obj, uint32_t id);
 esp_err_t object_list_add(T_DISPLAY_OBJECT *obj);
-
+esp_err_t clear_data(char *msg, size_t sz_msg, run_status_type new_status);
 
 // from json_util.c
 t_result evt_get_bool(cJSON *element, char *attr, bool *val, char *errmsg, size_t sz_errmsg);
@@ -97,8 +97,6 @@ void firstled(int red, int green, int blue);
 
 
 // from process_bmp.c
-//t_result bmp_work(uint8_t *buf, size_t sz_buf, double brightness);
-//bool get_is_bmp_reading();
 t_result get_is_bmp_reading(T_TRACK_ELEMENT *ele);
 void bmp_stop_processing(T_TRACK_ELEMENT *ele);
 t_result bmp_open_url(T_TRACK_ELEMENT *ele);
@@ -121,7 +119,6 @@ int set_event_timer_period(int new_timer_period);
 void scenes_start();
 void scenes_autostart();
 void scenes_stop(bool flag_blank);
-//void scenes_blank();
 void scenes_pause();
 void scenes_restart();
 run_status_type get_scene_status();
@@ -137,16 +134,35 @@ void initialise_wifi();
 esp_err_t waitforConnect();
 wifi_status_type wifi_connect_status();
 char *wifi_connect_status2text(wifi_status_type status);
+
+// from rest_server_main.c
 void init_restservice();
 void server_stop();
 void initialise_mdns(void);
 void initialise_netbios();
 
+// from rest_server_post.c
+esp_err_t post_handler_load(httpd_req_t *req, char *content);
+esp_err_t post_handler_file_store(httpd_req_t *req, char *content, char *fname, size_t sz_fname);
+esp_err_t post_handler_config_set(httpd_req_t *req, char *buf);
 
-
-
-
-
+// from rest_server_get.c
+void get_handler_list_err(httpd_req_t *req);
+void get_handler_clear_err(httpd_req_t *req);
+void get_handler_list(httpd_req_t *req);
+esp_err_t get_handler_file_list(httpd_req_t *req);
+void get_handler_status_current(httpd_req_t *req);
+void get_handler_scene_new_status(httpd_req_t *req, run_status_type new_status);
+esp_err_t get_handler_clear(httpd_req_t *req);
+void get_handler_restart(httpd_req_t *req);
+void get_handler_reset(httpd_req_t *req);
+void get_handler_config(httpd_req_t *req, char *msg);
+esp_err_t get_handler_file_load(httpd_req_t *req, char *fname, size_t sz_fname);
+esp_err_t get_handler_file_delete(httpd_req_t *req, char *fname, size_t sz_fname);
+esp_err_t get_handler_file_get(httpd_req_t *req, char *fname, size_t sz_fname);
+esp_err_t get_handler_test(httpd_req_t *req, char *fname, size_t sz_fname);
+esp_err_t get_handler_ota_check(httpd_req_t *req);
+esp_err_t get_handler_ota_update(httpd_req_t *req);
 
 
 #endif /* MAIN_ESP32_WS2812_PROTOS_H_ */

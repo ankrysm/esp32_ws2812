@@ -14,6 +14,7 @@ extern uint32_t cfg_numleds;
 extern uint32_t cfg_cycle;
 extern char *cfg_autoplayfile;
 extern char *cfg_timezone;
+extern char *cfg_ota_url;
 extern uint32_t extended_log;
 extern char last_loaded_file[];
 
@@ -58,6 +59,7 @@ esp_err_t store_config() {
 
 	nvs_set_str(my_handle, CFG_KEY_AUTOPLAY_FILE, cfg_autoplayfile ? cfg_autoplayfile : "");
 	nvs_set_str(my_handle, CFG_KEY_TIMEZONE, cfg_timezone ? cfg_timezone : "");
+	nvs_set_str(my_handle, CFG_KEY_OTA_URL, cfg_ota_url ? cfg_ota_url : "");
 
 	nvs_set_u32(my_handle, CFG_KEY_EXTENDED_LOG, extended_log);
 
@@ -145,6 +147,26 @@ esp_err_t load_config() {
     		break;
     	}
 
+    	// ***** ota url ********************************
+    	if ( cfg_ota_url) {
+    		free(cfg_ota_url);
+    		cfg_ota_url = NULL;
+    	}
+    	ret = nvs_get_str(my_handle, CFG_KEY_OTA_URL, NULL, &len); ///call for length
+        ESP_LOGI(__func__, "retrieve '%s' len = %d'", CFG_KEY_OTA_URL, len);
+
+    	if (ret == ESP_OK) {
+    		cfg_ota_url = calloc(len+1, sizeof(char));
+        	nvs_get_str(my_handle, CFG_KEY_OTA_URL, cfg_ota_url, &len); // call for value
+            ESP_LOGI(__func__, "retrieve '%s' successful: '%s'", CFG_KEY_OTA_URL, cfg_ota_url?cfg_ota_url:"");
+    	} else if (ret == ESP_ERR_NVS_NOT_FOUND) {
+    		// it is ok missing it
+            ESP_LOGI(__func__, "retrieve '%s' not found", CFG_KEY_OTA_URL);
+    	} else {
+            ESP_LOGI(__func__, "retrieve '%s' failed, ret=%d", CFG_KEY_OTA_URL, ret);
+    		break;
+    	}
+
     	// ****** time zone *************************
     	if ( cfg_timezone) {
     		free(cfg_timezone);
@@ -211,6 +233,7 @@ char *config2txt(char *txt, size_t sz) {
 			"  autoplay file loaded=%s\n" \
 			"  autoplay started=%s\n" \
 			"cycle=%d\n" \
+			"ota_url=%s\n" \
 			"extended_log=%d\n",
 			cfg_numleds,
 			cfg_autoplayfile ? cfg_autoplayfile:"",
@@ -223,6 +246,7 @@ char *config2txt(char *txt, size_t sz) {
 			(cfg_trans_flags & CFG_AUTOPLAY_LOADED ? "true" : "false" ),
 			(cfg_trans_flags & CFG_AUTOPLAY_STARTED ? "true" : "false" ),
 			cfg_cycle,
+			cfg_ota_url ? cfg_ota_url : "",
 			extended_log
 	);
 	return txt;
@@ -239,6 +263,7 @@ void add_config_informations(cJSON *root) {
 	cJSON_AddStringToObject(root, "autoplay_file", cfg_autoplayfile && strlen(cfg_autoplayfile) ? cfg_autoplayfile : "");
 	cJSON_AddStringToObject(root, "timezone", cfg_timezone && strlen(cfg_timezone) ? cfg_timezone : "");
 	cJSON_addBoolean(root,  "autoplay", cfg_flags & CFG_AUTOPLAY );
+	cJSON_AddStringToObject(root, "ota_url", cfg_ota_url && strlen(cfg_ota_url) ? cfg_ota_url : "");
 	cJSON_addBoolean(root, "show_status", cfg_flags & CFG_SHOW_STATUS);
 	cJSON_AddNumberToObject(root, "extended_log", extended_log);
 

@@ -10,21 +10,22 @@
 
 #include "esp32_ws2812.h"
 
-#define MAX_CONTENTLEN 10240
+//#define MAX_CONTENTLEN 10240
 
 extern esp_vfs_spiffs_conf_t fs_conf;
 extern T_LOG_ENTRY logtable[];
 extern size_t sz_logtable;
 extern int log_write_idx;
 
+/*
 typedef struct rest_server_context {
     char base_path[ESP_VFS_PATH_MAX + 1];
 } rest_server_context_t;
+*/
+//#define CHECK_FILE_EXTENSION(filename, ext) (strcasecmp(&filename[strlen(filename) - strlen(ext)], ext) == 0)
 
-#define CHECK_FILE_EXTENSION(filename, ext) (strcasecmp(&filename[strlen(filename) - strlen(ext)], ext) == 0)
 
-
-static httpd_handle_t server = NULL;
+// static httpd_handle_t server = NULL;
 
 // from global_data.c
 extern T_HTTP_PROCCESSING_TYPE http_processing[];
@@ -34,6 +35,7 @@ extern T_EVENT_GROUP *s_event_group_list;
 extern char last_loaded_file[];
 extern size_t sz_last_loaded_file;
 
+/*
 static void http_help(httpd_req_t *req) {
 	char resp_str[255];
 	snprintf(resp_str, sizeof(resp_str), "path - description\n");
@@ -50,6 +52,7 @@ static void http_help(httpd_req_t *req) {
 	}
 
 }
+*/
 
 static void add_system_informations(cJSON *root) {
 	esp_chip_info_t chip_info;
@@ -74,7 +77,7 @@ static void add_system_informations(cJSON *root) {
 	cJSON_AddStringToObject(root, "app_version", app_desc->version);
 }
 
-
+/*
 static void get_path_from_uri(const char *uri, char *dest, size_t destsize)
 {
     size_t pathlen = strlen(uri);
@@ -107,8 +110,9 @@ static T_HTTP_PROCCESSING_TYPE *get_http_processing(char *path) {
 	}
 	return NULL;
 }
+*/
 
-static void get_handler_list_err(httpd_req_t *req) {
+void get_handler_list_err(httpd_req_t *req) {
 	char buf[512];
 
 	if( obtain_logsem_lock() != ESP_OK ) {
@@ -133,7 +137,7 @@ static void get_handler_list_err(httpd_req_t *req) {
 }
 
 
-static void get_handler_clear_err(httpd_req_t *req) {
+void get_handler_clear_err(httpd_req_t *req) {
 
 	if( obtain_logsem_lock() != ESP_OK ) {
 		ESP_LOGE(__func__, "xSemaphoreTake failed");
@@ -293,7 +297,7 @@ void get_handler_list(httpd_req_t *req) {
 	release_eventlist_lock();
 }
 
-static esp_err_t get_handler_file_list(httpd_req_t *req) {
+esp_err_t get_handler_file_list(httpd_req_t *req) {
     char entrypath[LEN_PATH_MAX];
     char msg[64];
     const char *entrytype;
@@ -392,12 +396,12 @@ static void response_with_status(httpd_req_t *req, char *msg, run_status_type st
     cJSON_Delete(root);
 }
 
-static void get_handler_status_current(httpd_req_t *req) {
+void get_handler_status_current(httpd_req_t *req) {
 	response_with_status(req, "", get_scene_status());
 }
 
 // run/pause/stop/blank
-static void get_handler_scene_new_status(httpd_req_t *req, run_status_type new_status) {
+void get_handler_scene_new_status(httpd_req_t *req, run_status_type new_status) {
 
 	bool changed = false;
 	run_status_type old_status = get_scene_status();
@@ -454,42 +458,9 @@ static void get_handler_scene_new_status(httpd_req_t *req, run_status_type new_s
 
 }
 
-static esp_err_t clear_data(char *msg, size_t sz_msg, run_status_type new_status) {
-	memset(msg, 0, sz_msg);
-
-	// stop display program
-	run_status_type old_status = get_scene_status();
-	if ( old_status != new_status) {
-		old_status = set_scene_status(new_status);
-		snprintf(msg, sz_msg,"new status set, ");
-	}
-
-	bool hasError = false;
-	if (clear_event_group_list() == ESP_OK) {
-		snprintfapp(msg,sz_msg,"event group list cleared");
-	} else {
-		hasError=true;
-		snprintfapp(msg,sz_msg,"clear event group list failed");
-	}
-
-	if ( clear_object_list() == ESP_OK) {
-		snprintfapp(msg, sz_msg,", object list cleared");
-	} else {
-		hasError = true;
-		snprintfapp(msg,sz_msg - strlen(msg),", clear object list failed");
-	}
-	if ( clear_tracks() == ESP_OK) {
-		snprintfapp(msg, sz_msg,", track list cleared");
-	} else {
-		hasError = true;
-		snprintfapp(msg,sz_msg - strlen(msg),", clear track list failed");
-	}
-	return hasError ? ESP_FAIL : ESP_OK;
-
-}
 
 
-static esp_err_t get_handler_clear(httpd_req_t *req) {
+esp_err_t get_handler_clear(httpd_req_t *req) {
 	char msg[255];
 
     LOG_MEM(__func__,1);
@@ -506,7 +477,7 @@ static esp_err_t get_handler_clear(httpd_req_t *req) {
 	return res;
 }
 
-static void get_handler_restart(httpd_req_t *req) {
+void get_handler_restart(httpd_req_t *req) {
 	char resp_str[64];
 
 	snprintf(resp_str, sizeof(resp_str),"Restart initiated\n");
@@ -521,7 +492,7 @@ static void get_handler_restart(httpd_req_t *req) {
     esp_restart();
 }
 
-static void get_handler_reset(httpd_req_t *req) {
+void get_handler_reset(httpd_req_t *req) {
 
 	// clear nvs
 	nvs_flash_erase();
@@ -534,7 +505,7 @@ static void get_handler_reset(httpd_req_t *req) {
 	get_handler_restart(req);
 }
 
-static void get_handler_config(httpd_req_t *req, char *msg) {
+void get_handler_config(httpd_req_t *req, char *msg) {
     httpd_resp_set_type(req, "application/json");
     cJSON *root = cJSON_CreateObject();
 
@@ -558,7 +529,7 @@ static void get_handler_config(httpd_req_t *req, char *msg) {
 /**
  * decodes JSON content and stores data in memory.
  * scenes will be stopped and data will be overwritten
- */
+ * /
 static esp_err_t post_handler_load(httpd_req_t *req, char *content) {
 	char msg[255];
 	memset(msg, 0, sizeof(msg));
@@ -588,10 +559,10 @@ static esp_err_t post_handler_load(httpd_req_t *req, char *content) {
 	return res;
 
 }
-
+*/
 /**
  * stores content in flash file
- */
+ * /
 static esp_err_t post_handler_file_store(httpd_req_t *req, char *content, char *fname, size_t sz_fname) {
 	char msg[255];
 	memset(msg, 0, sizeof(msg));
@@ -616,11 +587,12 @@ static esp_err_t post_handler_file_store(httpd_req_t *req, char *content, char *
 
 	return ESP_OK;
 }
+*/
 
 /**
  * load file from flash into memory
  */
-static esp_err_t get_handler_file_load(httpd_req_t *req, char *fname, size_t sz_fname) {
+esp_err_t get_handler_file_load(httpd_req_t *req, char *fname, size_t sz_fname) {
 	char errmsg[128];
 	char msg[256];
 
@@ -659,7 +631,7 @@ static esp_err_t get_handler_file_load(httpd_req_t *req, char *fname, size_t sz_
 /**
  * delete flash file
  */
-static esp_err_t get_handler_file_delete(httpd_req_t *req, char *fname, size_t sz_fname) {
+esp_err_t get_handler_file_delete(httpd_req_t *req, char *fname, size_t sz_fname) {
 	char msg[256];
 	memset(msg,0,sizeof(msg));
 
@@ -679,7 +651,7 @@ static esp_err_t get_handler_file_delete(httpd_req_t *req, char *fname, size_t s
 /**
  * get file content
  */
-static esp_err_t get_handler_file_get(httpd_req_t *req, char *fname, size_t sz_fname) {
+esp_err_t get_handler_file_get(httpd_req_t *req, char *fname, size_t sz_fname) {
 	esp_err_t res = ESP_FAIL;
 	char msg[255];
 
@@ -707,10 +679,21 @@ static esp_err_t get_handler_file_get(httpd_req_t *req, char *fname, size_t sz_f
 	return res;
 }
 
+
+esp_err_t get_handler_ota_check(httpd_req_t *req) {
+	ESP_LOGE(__func__, "NYI");
+	return ESP_OK;
+}
+
+esp_err_t get_handler_ota_update(httpd_req_t *req) {
+	ESP_LOGE(__func__, "NYI");
+	return ESP_OK;
+}
+
 /**
  * load data into memory
  * first stop scene
- */
+ * /
 static esp_err_t post_handler_config_set(httpd_req_t *req, char *buf) {
 	char msg[255];
 	memset(msg, 0, sizeof(msg));
@@ -738,6 +721,7 @@ static esp_err_t post_handler_config_set(httpd_req_t *req, char *buf) {
 	return ESP_OK;
 
 }
+*/
 
 /**
  * isn't a file name
@@ -745,7 +729,7 @@ static esp_err_t post_handler_config_set(httpd_req_t *req, char *buf) {
  * len default = 10
  * start default=0
  */
-static esp_err_t get_handler_test(httpd_req_t *req, char *fname, size_t sz_fname) {
+esp_err_t get_handler_test(httpd_req_t *req, char *fname, size_t sz_fname) {
 	char msg[256];
 	memset(msg,0,sizeof(msg));
 
@@ -803,7 +787,7 @@ static esp_err_t get_handler_test(httpd_req_t *req, char *fname, size_t sz_fname
  * uri should be data/add or data/set with POST-data
  * /set?id=<id> - replaces event with this id
  * /add - adds event
- */
+ * /
 static esp_err_t post_handler_main(httpd_req_t *req)
 {
 	ESP_LOGI(__func__,"running on core %d",xPortGetCoreID());
@@ -863,7 +847,7 @@ static esp_err_t post_handler_main(httpd_req_t *req)
             }
 
             ESP_LOGE(__func__, "Data reception failed!");
-            /* Respond with 500 Internal Server Error */
+            // Respond with 500 Internal Server Error
             httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to receive data\n");
             free(buf);
             return ESP_FAIL;
@@ -912,7 +896,8 @@ static esp_err_t post_handler_main(httpd_req_t *req)
 	LOG_MEM(__func__,3);
 	return res;
 }
-
+*/
+/*
 static esp_err_t get_handler_main(httpd_req_t *req)
 {
 	ESP_LOGI(__func__,"running on core %d",xPortGetCoreID());
@@ -1023,6 +1008,14 @@ static esp_err_t get_handler_main(httpd_req_t *req)
 		get_handler_reset(req);
 		break;
 
+	case HP_CFG_OTA_CHECK:
+		get_handler_ota_check(req);
+		break;
+
+	case HP_CFG_OTA_UPDATE:
+		get_handler_ota_update(req);
+		break;
+
 	case HP_CLEAR_ERR:
 		get_handler_clear_err(req);
 		break;
@@ -1032,7 +1025,7 @@ static esp_err_t get_handler_main(httpd_req_t *req)
 		break;
 
 	default:
-		snprintf(resp_str, sizeof(resp_str),"path='%s' todo %d NYI", path, pt->todo);
+		snprintf(resp_str, sizeof(resp_str),"path='%s' to do %d NYI", path, pt->todo);
 		ESP_LOGE(__func__, "%s", resp_str);
 		snprintfapp(resp_str, sizeof(resp_str), "\n");
 		httpd_resp_send_err(req, HTTPD_404_NOT_FOUND, resp_str);
@@ -1081,7 +1074,7 @@ esp_err_t start_rest_server(const char *base_path)
     // Install URI Handler
     // POST
     httpd_uri_t data_post_uri = {
-        .uri       = "/*",
+        .uri       = "/ *",
         .method    = HTTP_POST,
         .handler   = post_handler_main,
         .user_ctx  = rest_context
@@ -1090,7 +1083,7 @@ esp_err_t start_rest_server(const char *base_path)
 
     // GET
     httpd_uri_t data_get_uri = {
-        .uri       = "/*",
+        .uri       = "/ *",
         .method    = HTTP_GET,
         .handler   = get_handler_main,
         .user_ctx  = rest_context
@@ -1102,7 +1095,7 @@ esp_err_t start_rest_server(const char *base_path)
 
 void server_stop() {
 	   if (server) {
-	        /* Stop the httpd server */
+	        // Stop the httpd server
 	        httpd_stop(server);
 	        ESP_LOGI(__func__, "HTTP Server STOPP");
 	        server=NULL;
@@ -1120,3 +1113,4 @@ void initialise_mdns(void) {
 
 void initialise_netbios() {
 }
+*/

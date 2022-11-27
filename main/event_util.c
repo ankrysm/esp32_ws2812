@@ -518,3 +518,37 @@ char *object_type2text(object_type type) {
 	return "???";
 
 }
+
+esp_err_t clear_data(char *msg, size_t sz_msg, run_status_type new_status) {
+	memset(msg, 0, sz_msg);
+
+	// stop display program
+	run_status_type old_status = get_scene_status();
+	if ( old_status != new_status) {
+		old_status = set_scene_status(new_status);
+		snprintf(msg, sz_msg,"new status set, ");
+	}
+
+	bool hasError = false;
+	if (clear_event_group_list() == ESP_OK) {
+		snprintfapp(msg,sz_msg,"event group list cleared");
+	} else {
+		hasError=true;
+		snprintfapp(msg,sz_msg,"clear event group list failed");
+	}
+
+	if ( clear_object_list() == ESP_OK) {
+		snprintfapp(msg, sz_msg,", object list cleared");
+	} else {
+		hasError = true;
+		snprintfapp(msg,sz_msg - strlen(msg),", clear object list failed");
+	}
+	if ( clear_tracks() == ESP_OK) {
+		snprintfapp(msg, sz_msg,", track list cleared");
+	} else {
+		hasError = true;
+		snprintfapp(msg,sz_msg - strlen(msg),", clear track list failed");
+	}
+	return hasError ? ESP_FAIL : ESP_OK;
+
+}

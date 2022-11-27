@@ -23,6 +23,7 @@ uint32_t cfg_numleds = 60;
 uint32_t cfg_cycle = 50;
 char *cfg_autoplayfile = NULL;
 char *cfg_timezone = NULL;
+char *cfg_ota_url = NULL;
 
 char last_loaded_file[LEN_PATH_MAX];
 size_t sz_last_loaded_file = sizeof(last_loaded_file);
@@ -62,6 +63,8 @@ T_HTTP_PROCCESSING_TYPE http_processing[] = {
 		{"/cfg/get",   0,                          HP_CONFIG_GET,  "show config"},
 		{"/cfg/set",   HPF_POST,                   HP_CONFIG_SET,  "set config"},
 		{"/cfg/restart", 0,                        HP_RESET,       "restart the controller"},
+		{"/cfg/ota/check", 0,                      HP_CFG_OTA_CHECK, "check for new firmware" },
+		{"/cfg/ota/update", 0,                     HP_CFG_OTA_UPDATE, "ota update" },
 		{"/cfg/tabula_rasa", 0,                    HP_CFG_RESET,   "reset all data to default"},
 		{"/test/",     HPF_PATH_FROM_URL,          HP_TEST,        "set leds to color, values via path &lt;r&gt;/&lt;g&gt;/&lt;b&gt;/[len]/[pos]"},
 		{"/help",      0,                          HP_HELP,        "API help"},

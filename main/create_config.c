@@ -12,6 +12,7 @@ extern uint32_t cfg_numleds;
 extern uint32_t cfg_cycle;
 extern char *cfg_autoplayfile;
 extern char *cfg_timezone;
+extern char *cfg_ota_url;
 extern int extended_log;
 
 esp_err_t decode_json4config_root(char *content, char *errmsg, size_t sz_errmsg) {
@@ -122,6 +123,25 @@ esp_err_t decode_json4config_root(char *content, char *errmsg, size_t sz_errmsg)
 				if ( cfg_autoplayfile)
 					free(cfg_autoplayfile);
 				cfg_autoplayfile = strlen(sval) ? strdup(sval) : NULL;
+				store_it = true;
+			}
+		} else if ( lrc != RES_NOT_FOUND) {
+			ESP_LOGE(__func__, "parse attribute '%s' failed: %s", attr, errmsg);
+			break;
+		}
+
+		attr="ota_url";
+		lrc = evt_get_string(tree, attr, sval, sizeof(sval), errmsg, sz_errmsg);
+		if ( lrc == RES_OK || lrc == RES_NO_VALUE) {
+			if (!strcmp(cfg_ota_url?cfg_ota_url:"", sval)) {
+				ESP_LOGI(__func__, "%s='%s' not changed",
+						attr, cfg_ota_url?cfg_ota_url:"");
+			} else {
+				ESP_LOGI(__func__, "%s='%s' changed",
+						attr, cfg_ota_url?cfg_ota_url:"");
+				if ( cfg_ota_url)
+					free(cfg_ota_url);
+				cfg_ota_url = strlen(sval) ? strdup(sval) : NULL;
 				store_it = true;
 			}
 		} else if ( lrc != RES_NOT_FOUND) {

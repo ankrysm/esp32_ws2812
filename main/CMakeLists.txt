@@ -1,10 +1,11 @@
 
 set(COMPONENT_SRCS
-					"main.c" "rest_server.c" "web_server.c" "led_strip.c" "config.c"
+					"main.c" "web_server.c" "led_strip.c" "config.c"
 					"wifi_config.c" "timer_events.c" "process_events.c" "color.c" "create_events.c"
 					"event_util.c" "global_data.c"
 					"json_util.c" "create_config.c" "process_bmp.c" "process_objects.c"
 					"create_objects.c" "decode_json.c" "create_tracks.c" "logger.c"
+					"rest_server_main.c" "rest_server_get.c" "rest_server_post.c"
 					)
 set(COMPONENT_ADD_INCLUDEDIRS ".")
 
