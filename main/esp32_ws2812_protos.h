@@ -161,6 +161,8 @@ esp_err_t get_handler_file_load(httpd_req_t *req, char *fname, size_t sz_fname);
 esp_err_t get_handler_file_delete(httpd_req_t *req, char *fname, size_t sz_fname);
 esp_err_t get_handler_file_get(httpd_req_t *req, char *fname, size_t sz_fname);
 esp_err_t get_handler_test(httpd_req_t *req, char *fname, size_t sz_fname);
+
+// from rest_server_ota.c
 esp_err_t get_handler_ota_check(httpd_req_t *req);
 esp_err_t get_handler_ota_update(httpd_req_t *req);
 

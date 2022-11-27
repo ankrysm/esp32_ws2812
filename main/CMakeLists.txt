@@ -5,7 +5,7 @@ set(COMPONENT_SRCS
 					"event_util.c" "global_data.c"
 					"json_util.c" "create_config.c" "process_bmp.c" "process_objects.c"
 					"create_objects.c" "decode_json.c" "create_tracks.c" "logger.c"
-					"rest_server_main.c" "rest_server_get.c" "rest_server_post.c"
+					"rest_server_main.c" "rest_server_get.c" "rest_server_post.c" "rest_server_ota.c"
 					)
 set(COMPONENT_ADD_INCLUDEDIRS ".")
 

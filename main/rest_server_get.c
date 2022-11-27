@@ -680,16 +680,6 @@ esp_err_t get_handler_file_get(httpd_req_t *req, char *fname, size_t sz_fname) {
 }
 
 
-esp_err_t get_handler_ota_check(httpd_req_t *req) {
-	ESP_LOGE(__func__, "NYI");
-	return ESP_OK;
-}
-
-esp_err_t get_handler_ota_update(httpd_req_t *req) {
-	ESP_LOGE(__func__, "NYI");
-	return ESP_OK;
-}
-
 /**
  * load data into memory
  * first stop scene
