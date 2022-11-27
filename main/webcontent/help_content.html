@@ -8,20 +8,40 @@
 	to stream pixel data from a web storage</p>
 	<p>If you have led strip with 300 leds you need a bmp file with a width of 300. There will be on pixel line displayed in one cycle
 	so the height multiplied by the cycle time determines the display time.</p>
+
+	<h4>Create a BMP file with <b>MacOS-preview app</b></h4>
 	<p>To create BMP files you can use the preview app. To save images as BMP you have to press the option key while
 	selecting entries from the format list box. BMP is not shown normally</p>
-	<p>Another possibility is to use <b>sips</b> from the command line in the terminal app.</p>
-	<p>Example: <em>sips -s format bmp -r 90 image.jpeg --out image.bmp</em></p>
+
+	<h4>Create a BMP file with <b>sips</b></h4>
+	<p>Another possibility is to use <b>sips</b> from the command line in the terminal app. It comes with the macOS</p>
+	<p>Example: <b><i>sips -s format bmp -r 90 image.jpeg --out image.bmp</i></b></p>
 	<p>It converts image.jpg into image.bmp and rotates it by 90 degrees.</p>
 	<p>The files created by <em>sips</em> are smaller than the files exported by <em>preview app</em> because
 	<em>sips</em> uses 3 bytes per pixel <em>preview</em> uses 4 bytes</p>
 
+	<h4>Create a BMP-File using ImageMagick</h4>
+	<p>To create images you cam use <a href="https://www.gimp.org">gimp</a>. It creates xcf files</p>
+	<p><a href="https://imagemagick.org">ImageMagick</a> is a free tool to manipulate images.
+	On macOS you need <a href="https://brew.sh">homebrew</a> to install ImageMagick.
+	In a terminal session type: </p><p><b><i>brew install imagemagick</i></b></p>
+	<p>If ImageMagick is installed you can convert the xcf files into bmp files. For example</p>
+	<p><b><i>convert example.xcf -define bmp:format=bmp example.bmp</i></b></p>
+	<p>Normally you should have use <i>format=bmp3</i> but it doesn't work in any cases. So because there are many bmp formats you should check it:</p>
+	<p><b><i>file example.bmp</i></b></p>
+	<p>If it returns <i>&quot;PC bitmap, Windows 98/2000 and newer format&quot;</i> you have to convert it once again.</p>
+	<p><b><i>convert example.bmp -define bmp:format=bmp3 example3.bmp</i></b></p>
+	<p><b><i>file example3.bmp</i></b> should return <i>&quot;PC bitmap, Windows 3.x format&quot;</i>. This is the format for our purpose.</p>
+	<p>There are to methods to store pixels in a bmp file: up to down or down to up. If it doesn&apos;t fit
+	use the additional convert option <b><i>-flip</i></b></p>
+
+
 	<h3>common descriptions</h3>
 		<p>Configurations and scenes are described in json files with sections</p>
 		<ul>
-		<li><strong>&quot;objects&quot;</strong> - what to display, colors and section length</li>
-		<li><strong>&quot;events&quot;</strong> - how to arrange and modify displayed objects, move them, blink ... </li>
-		<li><strong>&quot;tracks&quot;</strong> - arrange events, repeat them </li>
+		<li><b>&quot;objects&quot;</b> - what to display, colors and section length</li>
+		<li><b>&quot;events&quot;</b> - how to arrange and modify displayed objects, move them, blink ... </li>
+		<li><b>&quot;tracks&quot;</b> - arrange events, repeat them </li>
 		</ul>
 
 	<h3>API description</h3>

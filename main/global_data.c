@@ -63,7 +63,7 @@ T_HTTP_PROCCESSING_TYPE http_processing[] = {
 		{"/cfg/set",   HPF_POST,                   HP_CONFIG_SET,  "set config"},
 		{"/cfg/restart", 0,                        HP_RESET,       "restart the controller"},
 		{"/cfg/tabula_rasa", 0,                    HP_CFG_RESET,   "reset all data to default"},
-		{"/test/",     HPF_PATH_FROM_URL,          HP_TEST,        "set leds to color, values via path <r>/<g>/<b>/[len]/[pos]"},
+		{"/test/",     HPF_PATH_FROM_URL,          HP_TEST,        "set leds to color, values via path &lt;r&gt;/&lt;g&gt;/&lt;b&gt;/[len]/[pos]"},
 		{"/help",      0,                          HP_HELP,        "API help"},
 		{"",           0,                          HP_END_OF_LIST, ""}
 };

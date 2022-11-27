@@ -224,10 +224,9 @@ void scenes_pause() {
 }
 
 void scenes_autostart() {
-	log_info(__func__, "execution AUTOSTART");
 	if ( (cfg_trans_flags & CFG_AUTOPLAY_LOADED) && (cfg_flags & CFG_AUTOPLAY)) {
 		cfg_trans_flags |= CFG_AUTOPLAY_STARTED;
-		ESP_LOGI(__func__, "autostart processed");
+		log_info(__func__, "execution AUTOSTART");
 		scenes_start();
 	}
 }
