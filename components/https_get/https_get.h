@@ -58,7 +58,8 @@ struct HTTPS_CLIENT_SLOT {
 	int64_t t_task_end;
 };
 
+esp_err_t common_http_event_handler(esp_http_client_event_t *evt);
+
 T_HTTPS_CLIENT_SLOT *https_get(char *url, https_get_callback callback, void *user_args);
-//bool is_http_client_task_active();
 
 #endif /* COMPONENTS_HTTPS_GET_HTTPS_GET_H_ */

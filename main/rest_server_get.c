@@ -75,42 +75,8 @@ static void add_system_informations(cJSON *root) {
 	cJSON_AddStringToObject(root, "compile_date", app_desc->date);
 	cJSON_AddStringToObject(root, "compile_time", app_desc->time);
 	cJSON_AddStringToObject(root, "app_version", app_desc->version);
+	cJSON_AddStringToObject(root, "app_name", app_desc->project_name);
 }
-
-/*
-static void get_path_from_uri(const char *uri, char *dest, size_t destsize)
-{
-    size_t pathlen = strlen(uri);
-
-    const char *quest = strchr(uri, '?');
-    if (quest) {
-        pathlen = MIN(pathlen, quest - uri);
-    }
-    const char *hash = strchr(uri, '#');
-    if (hash) {
-        pathlen = MIN(pathlen, hash - uri);
-    }
-    strlcpy(dest, uri, MIN(destsize, pathlen + 1));
-}
-
-static T_HTTP_PROCCESSING_TYPE *get_http_processing(char *path) {
-
-	for  (int i=0; http_processing[i].todo != HP_END_OF_LIST; i++) {
-		if ( http_processing[i].flags & HPF_PATH_FROM_URL) {
-			// if a filename is expected compare with strstr
-			if ( strstr(path, http_processing[i].path) == path) {
-				return &http_processing[i];
-			}
-		} else {
-			// if no filename expected compare with strcmp
-			if ( !strcmp(path, http_processing[i].path)) {
-				return &http_processing[i];
-			}
-		}
-	}
-	return NULL;
-}
-*/
 
 void get_handler_list_err(httpd_req_t *req) {
 	char buf[512];
@@ -524,70 +490,6 @@ void get_handler_config(httpd_req_t *req, char *msg) {
     cJSON_Delete(root);
 
 }
-
-
-/**
- * decodes JSON content and stores data in memory.
- * scenes will be stopped and data will be overwritten
- * /
-static esp_err_t post_handler_load(httpd_req_t *req, char *content) {
-	char msg[255];
-	memset(msg, 0, sizeof(msg));
-
-	// stop display, clear data
-	run_status_type new_status = RUN_STATUS_STOPPED;
-	esp_err_t res = clear_data(msg, sizeof(msg), new_status);
-	if ( res != ESP_OK ) {
-		log_warn(__func__, "%s", msg);
-		snprintfapp(msg, sizeof(msg), "\n");
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, msg);
-        return ESP_FAIL;
-	}
-
-	if ( decode_json4event_root(content, msg, sizeof(msg)) != ESP_OK) {
-		log_warn(__func__, "%s", msg);
-		snprintfapp(msg, sizeof(msg), "\n");
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, msg);
-        return ESP_FAIL;
-	}
-
-	ESP_LOGI(__func__, "ended with '%s'", msg);
-    httpd_resp_set_type(req, "plain/text");
-	snprintf(msg,sizeof(msg), "data load done");
-	httpd_resp_sendstr_chunk(req, msg);
-
-	return res;
-
-}
-*/
-/**
- * stores content in flash file
- * /
-static esp_err_t post_handler_file_store(httpd_req_t *req, char *content, char *fname, size_t sz_fname) {
-	char msg[255];
-	memset(msg, 0, sizeof(msg));
-
-
-	if ( store_events_to_file(fname, content, msg, sizeof(msg))!= ESP_OK) {
-		log_err(__func__, "%s", msg);
-		snprintfapp(msg, sizeof(msg), "\n");
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, msg);
-        return ESP_FAIL;
-	}
-
-	snprintf(msg,sizeof(msg), "content saved to %s",fname);
-	log_info(__func__, "success: %s", msg);
-
-	// successful
-    httpd_resp_set_type(req, "plain/text");
-    char resp_txt[256];
-	snprintf(resp_txt,sizeof(resp_txt), "content saved to %s",fname);
-	snprintfapp(msg,sizeof(msg), "Response: '%s'",resp_txt);
-	httpd_resp_sendstr_chunk(req, resp_txt);
-
-	return ESP_OK;
-}
-*/
 
 /**
  * load file from flash into memory

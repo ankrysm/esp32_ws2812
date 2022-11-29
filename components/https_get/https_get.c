@@ -39,7 +39,7 @@
 static T_HTTPS_CLIENT_SLOT https_get_slots[N_HTTPS_CLIENTS];
 static bool init_needed=true;
 
-esp_err_t _http_event_handler(esp_http_client_event_t *evt){
+esp_err_t common_http_event_handler(esp_http_client_event_t *evt){
     switch(evt->event_id) {
         case HTTP_EVENT_ERROR:
             ESP_LOGD(__func__, "HTTP_EVENT_ERROR");
@@ -253,7 +253,7 @@ T_HTTPS_CLIENT_SLOT *https_get(char *url, https_get_callback callback, void *use
 	esp_http_client_config_t *request_config = &(slot->request_config);
 	memset(request_config, 0, sizeof(esp_http_client_config_t));
 	request_config->url = strdup(url);
-	request_config->event_handler = _http_event_handler;
+	request_config->event_handler = common_http_event_handler;
 	request_config->crt_bundle_attach = esp_crt_bundle_attach;
 
 	LOG_MEM(__func__, 1);
