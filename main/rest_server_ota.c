@@ -40,6 +40,7 @@ static char ota_response[128];
 static void do_ota_check_https_get(char *url) {
 
 	esp_http_client_config_t request_config;
+	memset(&request_config, 0, sizeof(esp_http_client_config_t));
 	request_config.url = url;
 	request_config.event_handler = common_http_event_handler;
 	request_config.crt_bundle_attach = esp_crt_bundle_attach;
@@ -161,7 +162,7 @@ esp_err_t get_handler_ota_check(httpd_req_t *req) {
 		memset(ota_response, 0, sizeof(ota_response));
 		log_info(__func__, "start check %s", url);
 
-		const uint32_t sz_stack = 4096;
+		const uint32_t sz_stack = 8192;
 		xTaskCreate(&ota_check_main_task, "ota_check", sz_stack, (void*)url, 0, &xOtaHandle);
 
 		// wait for task end 20 sec
@@ -221,6 +222,7 @@ void ota_update_main_task(void *pvParameters)
     memset(ota_response, 0, sizeof(ota_response));
 
     esp_http_client_config_t request_config;
+	memset(&request_config, 0, sizeof(esp_http_client_config_t));
 	request_config.url = url;
 	request_config.event_handler = common_http_event_handler;
 	request_config.crt_bundle_attach = esp_crt_bundle_attach;
@@ -283,19 +285,19 @@ esp_err_t get_handler_ota_update(httpd_req_t *req) {
 
 		if ( ota_task_status == OST_UPDATE ) {
 			snprintf(msg, sizeof(msg), "OTA task is already running for %.2f sec",
-					(esp_timer_get_time() - t_task_start)/100000.0 );
+					(esp_timer_get_time() - t_task_start)/1000000.0 );
 			break;
 		}
 
 		if ( ota_task_status == OST_UPDATE_FAILED) {
 			snprintf(msg, sizeof(msg), "OTA task FAILED since %.2f sec",
-					(esp_timer_get_time() - t_task_end)/100000.0 );
+					(esp_timer_get_time() - t_task_end)/1000000.0 );
 			break;
 		}
 
 		if ( ota_task_status == OST_UPDATE_FINISHED) {
 			snprintf(msg, sizeof(msg), "OTA task finished since %.2f sec",
-					(esp_timer_get_time() - t_task_end)/100000.0 );
+					(esp_timer_get_time() - t_task_end)/1000000.0 );
 			break;
 		}
 
@@ -304,7 +306,7 @@ esp_err_t get_handler_ota_update(httpd_req_t *req) {
 			ota_task_status = OST_UPDATE;
 			log_info(__func__, "start check");
 
-			const uint32_t sz_stack = 4096;
+			const uint32_t sz_stack = 8192;
 			xTaskCreate(&ota_update_main_task, "ota_update", sz_stack, NULL, 0, &xOtaHandle);
 			snprintf(msg, sizeof(msg), "OTA task started");
 		}
