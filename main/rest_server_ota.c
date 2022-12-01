@@ -265,71 +265,68 @@ void ota_update_main_task(void *pvParameters)
 
 esp_err_t get_handler_ota_update(httpd_req_t *req) {
 
-	esp_err_t rc = ESP_FAIL;
 	char msg[64];
 	memset(msg, 0, sizeof(msg));
 
-	do {
+	if ( ota_task_status == OST_IDLE ) {
+		// doesn't run, start it
+		ota_task_status = OST_UPDATE;
+		log_info(__func__, "start update");
 
-		if ( !cfg_ota_url || !strlen(cfg_ota_url)) {
-			snprintf(msg, sizeof(msg), "no URL for OTA configured");
+		const uint32_t sz_stack = 8192;
+		xTaskCreate(&ota_update_main_task, "ota_update", sz_stack, NULL, 0, &xOtaHandle);
+
+		snprintf(msg, sizeof(msg), "SUCCESS, firmware update started");
+	} else {
+		snprintf(msg, sizeof(msg), "update processs busy");
+	}
+
+	httpd_resp_sendstr_chunk(req, msg);
+	log_info(__func__, "%s", msg);
+	httpd_resp_sendstr_chunk(req, "\n");
+
+	return ESP_OK;
+}
+
+esp_err_t get_handler_ota_status(httpd_req_t *req) {
+
+	esp_err_t rc = ESP_OK;
+	char msg[64];
+	memset(msg, 0, sizeof(msg));
+
+	if ( !cfg_ota_url || !strlen(cfg_ota_url)) {
+		snprintf(msg, sizeof(msg), "no URL for OTA configured");
+	} else {
+		switch( ota_task_status) {
+		case OST_IDLE:
+			snprintf(msg, sizeof(msg), "idle");
 			break;
-		}
 
-		// from here it is ok
-		rc = ESP_OK;
-		if ( ota_task_status == OST_CHECK ) {
-			snprintf(msg, sizeof(msg), "another OTA task is running");
+		case OST_CHECK:
+			snprintf(msg, sizeof(msg), "check update site is running");
 			break;
-		}
-
-		if ( ota_task_status == OST_UPDATE ) {
-			snprintf(msg, sizeof(msg), "OTA task is already running for %.2f sec",
+		case OST_UPDATE:
+			snprintf(msg, sizeof(msg), "update is running since %.2f sec",
 					(esp_timer_get_time() - t_task_start)/1000000.0 );
 			break;
-		}
-
-		if ( ota_task_status == OST_UPDATE_FAILED) {
-			snprintf(msg, sizeof(msg), "OTA task FAILED since %.2f sec",
+		case OST_UPDATE_FAILED:
+			snprintf(msg, sizeof(msg), "update FAILED since %.2f sec",
+					(esp_timer_get_time() - t_task_end)/1000000.0 );
+			break;
+		case OST_UPDATE_FINISHED:
+			snprintf(msg, sizeof(msg), "SUCCESS, finished since %.2f sec",
 					(esp_timer_get_time() - t_task_end)/1000000.0 );
 			break;
 		}
+	}
 
-		if ( ota_task_status == OST_UPDATE_FINISHED) {
-			snprintf(msg, sizeof(msg), "OTA task finished since %.2f sec",
-					(esp_timer_get_time() - t_task_end)/1000000.0 );
-			break;
-		}
-
-		if ( ota_task_status == OST_IDLE ) {
-			// doesn't run, start it
-			ota_task_status = OST_UPDATE;
-			log_info(__func__, "start check");
-
-			const uint32_t sz_stack = 8192;
-			xTaskCreate(&ota_update_main_task, "ota_update", sz_stack, NULL, 0, &xOtaHandle);
-			snprintf(msg, sizeof(msg), "OTA task started");
-		}
-
-	} while(0);
-
-	if ( rc == ESP_OK ) {
-		httpd_resp_sendstr_chunk(req, msg);
-		log_info(__func__, "%s", msg);
+	httpd_resp_sendstr_chunk(req, msg);
+	log_info(__func__, "%s", msg);
+	httpd_resp_sendstr_chunk(req, "\n");
+	if ( strlen(ota_response)) {
+		httpd_resp_sendstr_chunk(req, ota_response);
+		log_info(__func__, "%s", ota_response);
 		httpd_resp_sendstr_chunk(req, "\n");
-		if ( strlen(ota_response)) {
-			httpd_resp_sendstr_chunk(req, ota_response);
-			log_info(__func__, "%s", ota_response);
-			httpd_resp_sendstr_chunk(req, "\n");
-		}
-
-	} else {
-		log_err(__func__, "%s", msg);
-		snprintfapp(msg, sizeof(msg),"\n");
-		if ( strlen(ota_response)) {
-			snprintfapp(msg, sizeof(msg),"%s\n", ota_response);
-		}
-		httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, msg);
 	}
 
 	return rc;

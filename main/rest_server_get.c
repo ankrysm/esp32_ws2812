@@ -16,6 +16,8 @@ extern esp_vfs_spiffs_conf_t fs_conf;
 extern T_LOG_ENTRY logtable[];
 extern size_t sz_logtable;
 extern int log_write_idx;
+extern char sha256_hash_boot_partition[];
+extern char sha256_hash_run_partition[];
 
 /*
 typedef struct rest_server_context {
@@ -76,6 +78,9 @@ static void add_system_informations(cJSON *root) {
 	cJSON_AddStringToObject(root, "compile_time", app_desc->time);
 	cJSON_AddStringToObject(root, "app_version", app_desc->version);
 	cJSON_AddStringToObject(root, "app_name", app_desc->project_name);
+	cJSON_AddStringToObject(root, "sha256boot", sha256_hash_boot_partition);
+	cJSON_AddStringToObject(root, "sha256run", sha256_hash_run_partition);
+
 }
 
 void get_handler_list_err(httpd_req_t *req) {

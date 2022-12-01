@@ -170,6 +170,6 @@ esp_err_t get_handler_test(httpd_req_t *req, char *fname, size_t sz_fname);
 // from rest_server_ota.c
 esp_err_t get_handler_ota_check(httpd_req_t *req);
 esp_err_t get_handler_ota_update(httpd_req_t *req);
-
+esp_err_t get_handler_ota_status(httpd_req_t *req);
 
 #endif /* MAIN_ESP32_WS2812_PROTOS_H_ */
