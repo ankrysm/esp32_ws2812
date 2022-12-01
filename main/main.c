@@ -19,13 +19,20 @@ extern char *cfg_timezone;
 
 void firstled(int red, int green, int blue) ;
 
+
 void some_useful_informations() {
 	ESP_LOGI(__func__, "LEN_PATH_MAX=%d", LEN_PATH_MAX);
 	ESP_LOGI(__func__,"sizeof int=%u, int32_t=%u, int64_t=%u, float=%u, double=%u, time_t=%u",
 			sizeof(int), sizeof(int32_t), sizeof(int64_t), sizeof(float), sizeof(double), sizeof(time_t));
-
 }
 
+void print_partitions() {
+	char text[HASH_TEXT_LEN];
+	get_sha256_of_bootloader_partition(text, sizeof(text));
+	log_info(__func__, "sha256 hash of bootloader: %s", text);
+	get_sha256_of_running_partition(text, sizeof(text));
+	log_info(__func__, "sha256 hash of running partition: %s", text);
+}
 void app_main() {
 
 	init_logging(ESP_LOG_VERBOSE);
@@ -129,6 +136,9 @@ void app_main() {
 
 	log_info(__func__, "main started");
 	ESP_LOGI(__func__,"running on core %d",xPortGetCoreID());
+
+	print_partitions();
+
 	xDelay = 50000 / portTICK_PERIOD_MS;
 	while(1) {
 		vTaskDelay(xDelay);

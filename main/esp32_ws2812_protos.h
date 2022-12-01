@@ -16,6 +16,10 @@ void c_checkrgb(T_COLOR_RGB *rgb, T_COLOR_RGB *rgbmin, T_COLOR_RGB *rgbmax);
 void c_checkrgb_abs(T_COLOR_RGB *rgb);
 T_NAMED_RGB_COLOR *color4name(char *name);
 
+// from global_data.c
+void global_data_init();
+void global_set_extended_log(uint32_t p_extended_log);
+
 // from config.c
 esp_err_t store_config();
 esp_err_t load_config();
@@ -24,6 +28,7 @@ char *config2txt(char *txt, size_t sz);
 esp_err_t storage_info(size_t *total, size_t *used);
 void add_base_path(char *filename, size_t sz_filename);
 void add_config_informations(cJSON *element);
+void get_sha256_partition_hashes();
 
 // from create_config.c
 esp_err_t decode_json4config_root(char *content, char *errmsg, size_t sz_errmsg);
@@ -129,7 +134,7 @@ uint64_t get_scene_time();
 // from webserver.c
 esp_err_t get_handler_html(httpd_req_t *req);
 
-// from wifi_vonfig.c
+// from wifi_config.c
 void initialise_wifi();
 esp_err_t waitforConnect();
 wifi_status_type wifi_connect_status();

@@ -40,6 +40,11 @@
 #include "bootloader_random.h"
 #include "esp_app_desc.h"
 
+//#include "nvs.h"
+//#include "nvs_flash.h"
+//#include "esp_partition.h"
+#include "esp_ota_ops.h"
+
 #include "esp_smartconfig.h"
 #include "lwip/apps/netbiosns.h"
 
@@ -50,6 +55,7 @@
 
 #define LEN_PATH_MAX (ESP_VFS_PATH_MAX+128)
 #define N_TRACKS 16
+
 
 
 #endif /* MAIN_ESP32_WS2812_BASIC_H_ */

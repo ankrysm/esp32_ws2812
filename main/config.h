@@ -31,9 +31,5 @@
 #define CFG_KEY_TIMEZONE "timezone"
 #define CFG_KEY_EXTENDED_LOG "extended_log"
 
-// from global_data.c
-void global_data_init();
-void global_set_extended_log(uint32_t p_extended_log);
-
 
 #endif /* CONFIG_H_ */

@@ -18,6 +18,9 @@ extern char *cfg_ota_url;
 extern uint32_t extended_log;
 extern char last_loaded_file[];
 
+char sha256_hash_boot_partition[HASH_TEXT_LEN];
+char sha256_hash_run_partition[HASH_TEXT_LEN];
+
 
 esp_vfs_spiffs_conf_t fs_conf = {
   .base_path = "/spiffs",
@@ -345,4 +348,12 @@ esp_err_t init_storage() {
     // ** init Config ***
 
     return ESP_OK;
+}
+
+void get_sha256_partition_hashes() {
+	get_sha256_of_bootloader_partition(sha256_hash_boot_partition, sizeof(sha256_hash_boot_partition));
+	log_info(__func__, "sha256 hash of bootloader: %s", sha256_hash_boot_partition);
+	get_sha256_of_running_partition(sha256_hash_run_partition, sizeof(sha256_hash_run_partition));
+	log_info(__func__, "sha256 hash of running partition: %s", sha256_hash_run_partition);
+
 }
