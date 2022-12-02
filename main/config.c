@@ -15,6 +15,8 @@ extern uint32_t cfg_cycle;
 extern char *cfg_autoplayfile;
 extern char *cfg_timezone;
 extern char *cfg_ota_url;
+extern char *cfg_name;
+extern char *compile_date;
 extern uint32_t extended_log;
 extern char last_loaded_file[];
 
@@ -191,6 +193,27 @@ esp_err_t load_config() {
     		break;
     	}
 
+    	// ****** name *************************
+    	if ( cfg_name) {
+    		free(cfg_name);
+    		cfg_name = NULL;
+    	}
+    	ret = nvs_get_str(my_handle, CFG_KEY_NAME, NULL, &len); ///call for length
+        ESP_LOGI(__func__, "retrieve '%s' len = %d'", CFG_KEY_NAME, len);
+
+    	if (ret == ESP_OK) {
+    		cfg_name = calloc(len+1, sizeof(char));
+        	nvs_get_str(my_handle, CFG_KEY_NAME, cfg_name, &len); // call for value
+            ESP_LOGI(__func__, "retrieve '%s' successful: '%s'", CFG_KEY_NAME, cfg_name?cfg_name:"");
+
+    	} else if (ret == ESP_ERR_NVS_NOT_FOUND) {
+    		// it is ok missing it
+            ESP_LOGI(__func__, "retrieve '%s' not found", CFG_KEY_NAME);
+    	} else {
+            ESP_LOGI(__func__, "retrieve '%s' failed, ret=%d", CFG_KEY_NAME, ret);
+    		break;
+    	}
+
     	// ********** extended_log ******************************
        	ret = nvs_get_u32(my_handle, CFG_KEY_EXTENDED_LOG, &extended_log);
         	if (ret == ESP_OK) {
@@ -237,7 +260,8 @@ char *config2txt(char *txt, size_t sz) {
 			"  autoplay started=%s\n" \
 			"cycle=%d\n" \
 			"ota_url=%s\n" \
-			"extended_log=%d\n",
+			"extended_log=%d\n" \
+			"name=%s\n",
 			cfg_numleds,
 			cfg_autoplayfile ? cfg_autoplayfile:"",
 			cfg_timezone ? cfg_timezone:"",
@@ -250,7 +274,8 @@ char *config2txt(char *txt, size_t sz) {
 			(cfg_trans_flags & CFG_AUTOPLAY_STARTED ? "true" : "false" ),
 			cfg_cycle,
 			cfg_ota_url ? cfg_ota_url : "",
-			extended_log
+			extended_log,
+			cfg_name
 	);
 	return txt;
 }
@@ -269,6 +294,7 @@ void add_config_informations(cJSON *root) {
 	cJSON_AddStringToObject(root, "ota_url", cfg_ota_url && strlen(cfg_ota_url) ? cfg_ota_url : "");
 	cJSON_addBoolean(root, "show_status", cfg_flags & CFG_SHOW_STATUS);
 	cJSON_AddNumberToObject(root, "extended_log", extended_log);
+	cJSON_AddStringToObject(root, "name", cfg_name);
 
 	// transient data
 	cJSON *var = cJSON_AddObjectToObject(root,"work");

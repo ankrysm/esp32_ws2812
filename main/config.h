@@ -30,6 +30,7 @@
 #define CFG_KEY_OTA_URL "ota_url"
 #define CFG_KEY_TIMEZONE "timezone"
 #define CFG_KEY_EXTENDED_LOG "extended_log"
+#define CFG_KEY_NAME "name"
 
 
 #endif /* CONFIG_H_ */

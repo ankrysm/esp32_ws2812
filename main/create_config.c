@@ -13,6 +13,7 @@ extern uint32_t cfg_cycle;
 extern char *cfg_autoplayfile;
 extern char *cfg_timezone;
 extern char *cfg_ota_url;
+extern char *cfg_name;
 extern int extended_log;
 
 esp_err_t decode_json4config_root(char *content, char *errmsg, size_t sz_errmsg) {
@@ -164,6 +165,25 @@ esp_err_t decode_json4config_root(char *content, char *errmsg, size_t sz_errmsg)
 				store_it = true;
 				set_timezone(cfg_timezone);
 				log_current_time();
+			}
+		} else if ( lrc != RES_NOT_FOUND) {
+			ESP_LOGE(__func__, "parse attribute '%s' failed: %s", attr, errmsg);
+			break;
+		}
+
+		attr="name";
+		lrc = evt_get_string(tree, attr, sval, sizeof(sval), errmsg, sz_errmsg);
+		if ( lrc == RES_OK || lrc == RES_NO_VALUE) {
+			if (!strcmp(cfg_name ? cfg_name:"", sval)) {
+				ESP_LOGI(__func__, "%s='%s' not changed",
+						attr, cfg_timezone ? cfg_timezone : "");
+			} else {
+				ESP_LOGI(__func__, "%s='%s' changed",
+						attr, cfg_name ? cfg_name : "");
+				if ( cfg_name)
+					free(cfg_name);
+				cfg_name = strlen(sval) ? strdup(sval) : NULL;
+				store_it = true;
 			}
 		} else if ( lrc != RES_NOT_FOUND) {
 			ESP_LOGE(__func__, "parse attribute '%s' failed: %s", attr, errmsg);

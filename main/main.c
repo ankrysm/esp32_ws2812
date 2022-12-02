@@ -17,6 +17,10 @@ extern uint32_t cfg_numleds;
 extern uint32_t cfg_cycle;
 extern char *cfg_timezone;
 
+// from config.c
+extern char sha256_hash_boot_partition[];
+extern char sha256_hash_run_partition[];
+
 void firstled(int red, int green, int blue) ;
 
 
@@ -26,13 +30,6 @@ void some_useful_informations() {
 			sizeof(int), sizeof(int32_t), sizeof(int64_t), sizeof(float), sizeof(double), sizeof(time_t));
 }
 
-void print_partitions() {
-	char text[HASH_TEXT_LEN];
-	get_sha256_of_bootloader_partition(text, sizeof(text));
-	log_info(__func__, "sha256 hash of bootloader: %s", text);
-	get_sha256_of_running_partition(text, sizeof(text));
-	log_info(__func__, "sha256 hash of running partition: %s", text);
-}
 void app_main() {
 
 	init_logging(ESP_LOG_VERBOSE);
@@ -49,6 +46,7 @@ void app_main() {
 	ESP_ERROR_CHECK(nvs_flash_init());
 	ESP_ERROR_CHECK(init_storage());
 	ESP_ERROR_CHECK(load_config());
+	get_sha256_partition_hashes();
 
 	// init led-strip
 	led_strip_init(cfg_numleds);
@@ -76,6 +74,8 @@ void app_main() {
 	initialise_netbios();
 
 	initialise_wifi();
+
+
 
 	xDelay = 500 / portTICK_PERIOD_MS;
 
@@ -136,8 +136,6 @@ void app_main() {
 
 	log_info(__func__, "main started");
 	ESP_LOGI(__func__,"running on core %d",xPortGetCoreID());
-
-	print_partitions();
 
 	xDelay = 50000 / portTICK_PERIOD_MS;
 	while(1) {

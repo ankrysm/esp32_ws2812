@@ -1,4 +1,7 @@
-/*
+/**
+ * HTTP Restful API Server - OTA services
+ * based on esp-idf examples
+ *
  * rest_server_ota.c
  *
  *  Created on: Nov 27, 2022
@@ -33,8 +36,7 @@ static int64_t t_task_start;
 static int64_t t_task_end;
 
 static TaskHandle_t xOtaHandle;
-//static t_ota_request_data *ota_update_data = NULL;
-static char ota_response[128];
+static char ota_response[192];
 
 
 static void do_ota_check_https_get(char *url) {
