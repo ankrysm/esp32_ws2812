@@ -18,6 +18,7 @@ int snprintfapp(char *txt, size_t sz_txt, char *fmt, ... );
 void sha256totext(const uint8_t *image_hash, char *text, size_t sz_text);
 void get_sha256_of_running_partition(char *text, size_t sz_text);
 void get_sha256_of_bootloader_partition(char *text, size_t sz_text);
+int extract_number(const char *string);
 
 
 //#define LOG_MEM(f,c) {ESP_LOGI(f, "MEMORY(%d): free_heap_size=%lu, min=%lu", c, esp_get_free_heap_size(), esp_get_minimum_free_heap_size());}

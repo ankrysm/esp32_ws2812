@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include "sdkconfig.h"
+#include <ctype.h>
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"

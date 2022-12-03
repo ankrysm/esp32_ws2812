@@ -16,28 +16,51 @@
 #include "esp_https_ota.h"
 
 typedef enum {
-	OST_IDLE,
+	OST_IDLE, // needs check
 	OST_CHECK,
+	OST_CHECK_FINISHED,
+	OST_CHECK_FINISHED_UPTODATE,
+	OST_CHECK_FINISHED_UPDATE_NEEDED,
+	OST_CHECK_FINISHED_UPDATE_OPTIONAL,
+	OST_CHECK_FINISHED_ERROR,
 	OST_UPDATE,
 	OST_UPDATE_FAILED,
 	OST_UPDATE_FINISHED
 } t_ota_status;
 
 static volatile t_ota_status ota_task_status = OST_IDLE;
+//static int update_status = -1;
 
 extern char *cfg_ota_url;
+extern char sha256_hash_run_partition[];
 
 //static esp_http_client_config_t request_config;
 
 // results
 static int status_code;
 static int content_length;
-static int64_t t_task_start;
-static int64_t t_task_end;
+static int64_t t_task_start = 0;
+static int64_t t_task_end = 0;
 
 static TaskHandle_t xOtaHandle;
 static char ota_response[192];
 
+char *ota_status2text(t_ota_status status) {
+	switch(status) {
+	case OST_IDLE:                           return "CHECK_NEEDED";
+	case OST_CHECK:                          return "CHECK_IS_RUNNING";
+	case OST_CHECK_FINISHED:                 return "CHECK_FINISHED";
+	case OST_CHECK_FINISHED_UPTODATE:        return "UPTODATE";
+	case OST_CHECK_FINISHED_UPDATE_NEEDED:   return "UPDATE_NEEDED";
+	case OST_CHECK_FINISHED_UPDATE_OPTIONAL: return "UPDATE_OPTIONAL";
+	case OST_CHECK_FINISHED_ERROR:           return "UPDATA_CHECK_FAILED";
+	case OST_UPDATE:                         return "UPDATE_IS_RUNNING";
+	case OST_UPDATE_FAILED:                  return "UPDATA_FAILED";
+	case OST_UPDATE_FINISHED:                return "UPDATA_FINISHED";
+	default:
+		return "?????";
+	}
+}
 
 static void do_ota_check_https_get(char *url) {
 
@@ -133,7 +156,7 @@ static void ota_check_main_task(void *pvParameters)
     log_info(__func__, "*** finished, duration %lld ms ****",
     		(t_task_end - t_task_start)/1000);
 
-	ota_task_status = OST_IDLE;
+	ota_task_status = OST_CHECK_FINISHED;
 
     vTaskDelete(NULL);
     // no statements here, task deleted
@@ -153,7 +176,19 @@ esp_err_t get_handler_ota_check(httpd_req_t *req) {
 			break;
 		}
 
-		if ( ota_task_status != OST_IDLE ) {
+		bool failed = false;
+
+		switch ( ota_task_status ) {
+		case OST_CHECK:
+		case OST_CHECK_FINISHED: // temporary status
+		case OST_UPDATE:
+			failed = true;
+			break;
+		default:
+			break;
+		}
+
+		if ( failed) {
 			snprintf(ota_response, sizeof(ota_response), "OTA task is already running");
 			break;
 		}
@@ -171,28 +206,91 @@ esp_err_t get_handler_ota_check(httpd_req_t *req) {
 		TickType_t xDelay = 100 / portTICK_PERIOD_MS;
 		for ( int i=0; i< 200; i++) {
 			vTaskDelay(xDelay);
-			if ( ota_task_status == OST_IDLE)
+			if ( ota_task_status == OST_CHECK_FINISHED)
 				break; // ended
 		}
 
-		if ( ota_task_status != OST_IDLE) {
+		if ( ota_task_status != OST_CHECK_FINISHED) {
 			vTaskDelete(xOtaHandle);
 			snprintf(ota_response, sizeof(ota_response), "time out, server doesn't answer");
+			ota_task_status = OST_CHECK_FINISHED_ERROR;
 			break;
 		}
 
 		if (status_code != 200 ) {
 			snprintf(ota_response, sizeof(ota_response), "Request failed, status code %d", status_code);
+			ota_task_status = OST_CHECK_FINISHED_ERROR;
 			break;
 		}
 
 		if ( !strlen(ota_response)) {
+			ota_task_status = OST_CHECK_FINISHED_ERROR;
 			snprintf(ota_response, sizeof(ota_response), "empty response");
 			break;
 		}
 
+		// check for update OK
+		ota_task_status = OST_CHECK_FINISHED_ERROR;
+
 		httpd_resp_sendstr_chunk(req, ota_response);
 		httpd_resp_sendstr_chunk(req, "\n");
+
+		char *s, *p, *t, *l, *h , *v;
+		p = s = strdup(ota_response);
+		h = v = NULL;
+		for (t = strtok_r(p, "\n", &l); t; p=NULL) {
+			if ( strstr(t, "V=") == t ) {
+				// like this
+				// V=1.01
+				char *ll;
+				strtok_r(t, "=", &ll); // ignore "V="
+				v = strtok_r(NULL, " ", &ll); // read version string
+
+			} else if ( strstr(t, "H=") == t ) {
+				// like this:
+				// H=fa7414c503331abe22d2e4ccbf93ebdc2caba1d48687076e267db4dab8fc6749  esp32_ws2812-Application.bin
+				char *ll;
+				strtok_r(t, "=", &ll); // ignore "H="
+				h = strtok_r(NULL, " ", &ll); // read sha256 hash
+			}
+		}
+		if ( h && v ) {
+//			update_status = 0;
+			if ( ! strcasecmp(h, sha256_hash_run_partition)) {
+				httpd_resp_sendstr_chunk(req, "no update available\n");
+				ota_task_status = OST_CHECK_FINISHED_UPTODATE;
+
+			} else {
+				// check version number
+				const esp_app_desc_t *app_desc = esp_app_get_description();
+				int actual_version = extract_number(app_desc->version);
+				int new_version = extract_number(v);
+				ESP_LOGI(__func__, "version: act (%s)%d, new (%s)%d", app_desc->version, actual_version, v, new_version);
+				char msg[32];
+				if ( new_version > actual_version) {
+					snprintf(msg, sizeof(msg),"new version %s available, actual version %s",
+							v, app_desc->version);
+					//update_status = 1;
+					ota_task_status = OST_CHECK_FINISHED_UPDATE_NEEDED;
+
+				} else if (new_version == actual_version){
+					snprintf(msg, sizeof(msg),"there's no new version, but binary differs, actual version %s",
+							v, app_desc->version);
+					//update_status = 2;
+					ota_task_status = OST_CHECK_FINISHED_UPDATE_OPTIONAL;
+				} else {
+					snprintf(msg, sizeof(msg),"strange, new version %s is lower than actual version %s",
+							v, app_desc->version);
+					//update_status = 3;
+					ota_task_status = OST_CHECK_FINISHED_UPDATE_OPTIONAL;
+				}
+				httpd_resp_sendstr_chunk(req, msg);
+			}
+		} else {
+			httpd_resp_sendstr_chunk(req, "missing version data\n");
+		}
+
+		free(s);
 		rc = ESP_OK;
 
 	} while(0);
@@ -208,6 +306,7 @@ esp_err_t get_handler_ota_check(httpd_req_t *req) {
 
 	return rc;
 }
+
 
 // ****************************** OTA UPDATE ******************************************
 
@@ -260,7 +359,8 @@ void ota_update_main_task(void *pvParameters)
 	if (url)
 		free(url);
 
-    ota_task_status = OST_IDLE;
+    //ota_task_status = OST_IDLE;
+    //update_status = -1; // force check
     vTaskDelete(NULL);
     // no statements here, task deleted
 }
@@ -270,7 +370,32 @@ esp_err_t get_handler_ota_update(httpd_req_t *req) {
 	char msg[64];
 	memset(msg, 0, sizeof(msg));
 
-	if ( ota_task_status == OST_IDLE ) {
+	bool doit = false;
+	switch (ota_task_status) {
+	case OST_IDLE: // check needed
+		snprintf(msg, sizeof(msg), "update check needed");
+		break;
+	case OST_CHECK:
+	case OST_CHECK_FINISHED:
+		snprintf(msg, sizeof(msg), "busy, update check is running");
+		break;
+	case OST_CHECK_FINISHED_UPTODATE:
+		snprintf(msg, sizeof(msg), "application is uptodate");
+		break;
+	case OST_UPDATE:
+		snprintf(msg, sizeof(msg), "update processs busy");
+		break;
+	case OST_UPDATE_FAILED:
+		snprintf(msg, sizeof(msg), "update processs failed");
+		break;
+	case OST_UPDATE_FINISHED:
+		snprintf(msg, sizeof(msg), "update processs finished, reboot needed");
+		break;
+	default:
+		doit = false;
+	}
+
+	if ( doit ) {
 		// doesn't run, start it
 		ota_task_status = OST_UPDATE;
 		log_info(__func__, "start update");
@@ -279,8 +404,6 @@ esp_err_t get_handler_ota_update(httpd_req_t *req) {
 		xTaskCreate(&ota_update_main_task, "ota_update", sz_stack, NULL, 0, &xOtaHandle);
 
 		snprintf(msg, sizeof(msg), "SUCCESS, firmware update started");
-	} else {
-		snprintf(msg, sizeof(msg), "update processs busy");
 	}
 
 	httpd_resp_sendstr_chunk(req, msg);
@@ -291,6 +414,29 @@ esp_err_t get_handler_ota_update(httpd_req_t *req) {
 }
 
 esp_err_t get_handler_ota_status(httpd_req_t *req) {
+
+    httpd_resp_set_type(req, "application/json");
+    cJSON *root = cJSON_CreateObject();
+
+    cJSON_AddStringToObject(root, "status", ota_status2text(ota_task_status));
+    cJSON_AddNumberToObject(root, "start_time", t_task_start/1000);
+    cJSON_AddNumberToObject(root, "end_time", t_task_end/1000);
+    cJSON_AddNumberToObject(root, "time", esp_timer_get_time()/1000);
+	if ( strlen(ota_response)) {
+		cJSON_AddStringToObject(root, "status", ota_response);
+	}
+
+    char *resp = cJSON_PrintUnformatted(root);
+    ESP_LOGI(__func__,"RESP=%s", resp?resp:"nix");
+
+	httpd_resp_sendstr_chunk(req, resp);
+	httpd_resp_sendstr_chunk(req, "\n"); // response more readable
+
+    free((void *)resp);
+    cJSON_Delete(root);
+    return ESP_OK;
+
+/*
 
 	esp_err_t rc = ESP_OK;
 	char msg[64];
@@ -325,11 +471,13 @@ esp_err_t get_handler_ota_status(httpd_req_t *req) {
 	httpd_resp_sendstr_chunk(req, msg);
 	log_info(__func__, "%s", msg);
 	httpd_resp_sendstr_chunk(req, "\n");
-	if ( strlen(ota_response)) {
-		httpd_resp_sendstr_chunk(req, ota_response);
-		log_info(__func__, "%s", ota_response);
-		httpd_resp_sendstr_chunk(req, "\n");
-	}
+	*/
 
-	return rc;
+//	if ( strlen(ota_response)) {
+//		httpd_resp_sendstr_chunk(req, ota_response);
+//		log_info(__func__, "%s", ota_response);
+//		httpd_resp_sendstr_chunk(req, "\n");
+//	}
+
+//	return rc;
 }

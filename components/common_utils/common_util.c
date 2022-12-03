@@ -10,6 +10,7 @@
 #include <math.h>
 #include <string.h>
 #include <stdlib.h>
+#include <ctype.h>
 #include "esp_log.h"
 #include "esp_random.h"
 #include "esp_ota_ops.h"
@@ -88,4 +89,20 @@ void get_sha256_of_bootloader_partition(char *text, size_t sz_text)
     esp_partition_get_sha256(&partition, sha_256);
     sha256totext(sha_256, text, sz_text);
 
+}
+
+int extract_number(const char *string) {
+	if ( !string || !strlen(string))
+		return 0;
+	char *t = calloc(strlen(string)+1, sizeof(char));
+	int p=0;
+	for (int i=0; i<strlen(string);i++) {
+		int c = string[i];
+		if ( isdigit(c)) {
+			t[p++] = c;
+		}
+	}
+	int ret = strlen(t) ? atoi(t) : 0;
+	free(t);
+	return ret;
 }
