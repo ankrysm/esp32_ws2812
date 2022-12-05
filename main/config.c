@@ -275,7 +275,7 @@ char *config2txt(char *txt, size_t sz) {
 			cfg_cycle,
 			cfg_ota_url ? cfg_ota_url : "",
 			extended_log,
-			cfg_name
+			cfg_name?cfg_name:""
 	);
 	return txt;
 }

@@ -235,23 +235,29 @@ esp_err_t get_handler_ota_check(httpd_req_t *req) {
 		httpd_resp_sendstr_chunk(req, ota_response);
 		httpd_resp_sendstr_chunk(req, "\n");
 
+		ESP_LOGI(__func__, "response is '%s'", ota_response);
+
 		char *s, *p, *t, *l, *h , *v;
 		p = s = strdup(ota_response);
 		h = v = NULL;
-		for (t = strtok_r(p, "\n", &l); t; p=NULL) {
+		for (t = strtok_r(p, "\n", &l); t; t = strtok_r(NULL, "\n", &l)) {
+			ESP_LOGI(__func__,"check '%s'", t?t:"");
 			if ( strstr(t, "V=") == t ) {
 				// like this
 				// V=1.01
-				char *ll;
-				strtok_r(t, "=", &ll); // ignore "V="
-				v = strtok_r(NULL, " ", &ll); // read version string
-
+				char *vs, *vp, *vl;
+				vs = vp = strdup(t);
+				strtok_r(vp, "=", &vl); // ignore "V="
+				v = strdup(strtok_r(NULL, " ", &vl)); // read version string
+				free(vs);
 			} else if ( strstr(t, "H=") == t ) {
 				// like this:
 				// H=fa7414c503331abe22d2e4ccbf93ebdc2caba1d48687076e267db4dab8fc6749  esp32_ws2812-Application.bin
-				char *ll;
-				strtok_r(t, "=", &ll); // ignore "H="
-				h = strtok_r(NULL, " ", &ll); // read sha256 hash
+				char *hs, *hp, *hl;
+				hs = hp = strdup(t);
+				strtok_r(hp, "=", &hl); // ignore "H="
+				h = strdup(strtok_r(NULL, " ", &hl)); // read sha256 hash
+				free(hs);
 			}
 		}
 		if ( h && v ) {
@@ -266,7 +272,7 @@ esp_err_t get_handler_ota_check(httpd_req_t *req) {
 				int actual_version = extract_number(app_desc->version);
 				int new_version = extract_number(v);
 				ESP_LOGI(__func__, "version: act (%s)%d, new (%s)%d", app_desc->version, actual_version, v, new_version);
-				char msg[32];
+				char msg[128];
 				if ( new_version > actual_version) {
 					snprintf(msg, sizeof(msg),"new version %s available, actual version %s",
 							v, app_desc->version);
@@ -289,6 +295,10 @@ esp_err_t get_handler_ota_check(httpd_req_t *req) {
 		} else {
 			httpd_resp_sendstr_chunk(req, "missing version data\n");
 		}
+		if(h)
+			free(h);
+		if(v)
+			free(v);
 
 		free(s);
 		rc = ESP_OK;
@@ -392,7 +402,7 @@ esp_err_t get_handler_ota_update(httpd_req_t *req) {
 		snprintf(msg, sizeof(msg), "update processs finished, reboot needed");
 		break;
 	default:
-		doit = false;
+		doit = true;
 	}
 
 	if ( doit ) {
