@@ -436,10 +436,10 @@ esp_err_t get_handler_ota_status(httpd_req_t *req, char *msg) {
     	cJSON_AddNumberToObject(root, "end_time", t_task_end/1000);
     }
 
-	cJSON_AddStringToObject(root, "ota",  strlen(ota_response) ? ota_response : " ");
+	cJSON_AddStringToObject(root, "ota",  strlen(ota_response) ? ota_response : "-");
 
 	if ( msg && strlen(msg)) {
-		cJSON_AddStringToObject(root, "msg", msg && strlen(msg) ? msg : " ");
+		cJSON_AddStringToObject(root, "msg", msg && strlen(msg) ? msg : "-");
 	}
 
     char *resp = cJSON_PrintUnformatted(root);

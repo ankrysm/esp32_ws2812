@@ -294,7 +294,7 @@ void add_config_informations(cJSON *root) {
 	cJSON_AddStringToObject(root, "ota_url", cfg_ota_url && strlen(cfg_ota_url) ? cfg_ota_url : "");
 	cJSON_addBoolean(root, "show_status", cfg_flags & CFG_SHOW_STATUS);
 	cJSON_AddNumberToObject(root, "extended_log", extended_log);
-	cJSON_AddStringToObject(root, "name", cfg_name);
+	cJSON_AddStringToObject(root, "name", cfg_name ? cfg_name : "");
 
 	// transient data
 	cJSON *var = cJSON_AddObjectToObject(root,"work");
