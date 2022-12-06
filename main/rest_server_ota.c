@@ -446,3 +446,6 @@ esp_err_t get_handler_ota_status(httpd_req_t *req) {
     free((void *)resp);
     cJSON_Delete(root);
     return ESP_OK;
+}
+
+
