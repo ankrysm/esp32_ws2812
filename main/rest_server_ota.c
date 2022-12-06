@@ -29,12 +29,9 @@ typedef enum {
 } t_ota_status;
 
 static volatile t_ota_status ota_task_status = OST_IDLE;
-//static int update_status = -1;
 
 extern char *cfg_ota_url;
 extern char sha256_hash_run_partition[];
-
-//static esp_http_client_config_t request_config;
 
 // results
 static int status_code;
@@ -51,12 +48,12 @@ char *ota_status2text(t_ota_status status) {
 	case OST_CHECK:                          return "CHECK_IS_RUNNING";
 	case OST_CHECK_FINISHED:                 return "CHECK_FINISHED";
 	case OST_CHECK_FINISHED_UPTODATE:        return "UPTODATE";
-	case OST_CHECK_FINISHED_UPDATE_NEEDED:   return "UPDATE_NEEDED";
-	case OST_CHECK_FINISHED_UPDATE_OPTIONAL: return "UPDATE_OPTIONAL";
-	case OST_CHECK_FINISHED_ERROR:           return "UPDATA_CHECK_FAILED";
+	case OST_CHECK_FINISHED_UPDATE_NEEDED:   return "CHKRES_UPD_NEEDED";
+	case OST_CHECK_FINISHED_UPDATE_OPTIONAL: return "CHKRES_UPD_OPTIONAL";
+	case OST_CHECK_FINISHED_ERROR:           return "CHKRES_UPD_CHECK_FAILED";
 	case OST_UPDATE:                         return "UPDATE_IS_RUNNING";
-	case OST_UPDATE_FAILED:                  return "UPDATA_FAILED";
-	case OST_UPDATE_FINISHED:                return "UPDATA_FINISHED";
+	case OST_UPDATE_FAILED:                  return "UPDATE_FAILED";
+	case OST_UPDATE_FINISHED:                return "UPDATE_FINISHED";
 	default:
 		return "?????";
 	}
@@ -371,8 +368,6 @@ void ota_update_main_task(void *pvParameters)
 	if (url)
 		free(url);
 
-    //ota_task_status = OST_IDLE;
-    //update_status = -1; // force check
     vTaskDelete(NULL);
     // no statements here, task deleted
 }
@@ -451,49 +446,3 @@ esp_err_t get_handler_ota_status(httpd_req_t *req) {
     free((void *)resp);
     cJSON_Delete(root);
     return ESP_OK;
-
-/*
-
-	esp_err_t rc = ESP_OK;
-	char msg[64];
-	memset(msg, 0, sizeof(msg));
-
-	if ( !cfg_ota_url || !strlen(cfg_ota_url)) {
-		snprintf(msg, sizeof(msg), "no URL for OTA configured");
-	} else {
-		switch( ota_task_status) {
-		case OST_IDLE:
-			snprintf(msg, sizeof(msg), "idle");
-			break;
-
-		case OST_CHECK:
-			snprintf(msg, sizeof(msg), "check update site is running");
-			break;
-		case OST_UPDATE:
-			snprintf(msg, sizeof(msg), "update is running since %.2f sec",
-					(esp_timer_get_time() - t_task_start)/1000000.0 );
-			break;
-		case OST_UPDATE_FAILED:
-			snprintf(msg, sizeof(msg), "update FAILED since %.2f sec",
-					(esp_timer_get_time() - t_task_end)/1000000.0 );
-			break;
-		case OST_UPDATE_FINISHED:
-			snprintf(msg, sizeof(msg), "SUCCESS, finished since %.2f sec",
-					(esp_timer_get_time() - t_task_end)/1000000.0 );
-			break;
-		}
-	}
-
-	httpd_resp_sendstr_chunk(req, msg);
-	log_info(__func__, "%s", msg);
-	httpd_resp_sendstr_chunk(req, "\n");
-	*/
-
-//	if ( strlen(ota_response)) {
-//		httpd_resp_sendstr_chunk(req, ota_response);
-//		log_info(__func__, "%s", ota_response);
-//		httpd_resp_sendstr_chunk(req, "\n");
-//	}
-
-//	return rc;
-}

@@ -297,11 +297,10 @@ function get_update_status() {
 	xhttp.onreadystatechange = function() {
 	    if (this.readyState == 4 ){
 	    	if (this.status == 200) {
-	    		getOtaStatusFunction(this.responseText);
+	    	    var j = JSON.parse(json.responseText);
+	    		getOtaStatusFunction(j);
 	    		
-	    		// TODO!!!
-	    		document.getElementById("updatemessages").innerHTML = this.responseText;
-	    		if ( this.reponseText.indexOf("SUCCESS",0) >= 0 || this.reponseText.indexOf("FAILED",0) >=0) {
+	    		if ( j.status == "UPDATE_FAILED" || j.status == "UPDATE_FINISHED") {
 	    			  if ( timerIsRunning) {
 	    				  clearInterval(timerVar);
 	    				  timerIsRunning=false;
@@ -316,8 +315,7 @@ function get_update_status() {
   	xhttp.send();
 }
 
-function getOtaStatusFunction(json) {
-    var j = JSON.parse(json.responseText);
+function getOtaStatusFunction(j) {
     var table="<caption>Settings</caption>";
     table+="<tr><th>Attribute</th><th>Value</th></tr>\n";
     table +="<tr><td>status</td><td>" + j.status +"</td></tr>\n";
