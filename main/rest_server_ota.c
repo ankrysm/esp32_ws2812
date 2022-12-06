@@ -148,6 +148,7 @@ static void ota_check_main_task(void *pvParameters)
     log_info(__func__, "*** start ***");
 
     t_task_start = esp_timer_get_time();
+    t_task_end = 0;
 
     do_ota_check_https_get(url);
 
@@ -329,6 +330,7 @@ void ota_update_main_task(void *pvParameters)
 	ESP_LOGI(__func__, "Attempting to download update from %s", url);
 
     t_task_start = esp_timer_get_time();
+    t_task_end = 0;
 
     memset(ota_response, 0, sizeof(ota_response));
 
@@ -431,9 +433,13 @@ esp_err_t get_handler_ota_status(httpd_req_t *req) {
     cJSON_AddStringToObject(root, "status", ota_status2text(ota_task_status));
     cJSON_AddNumberToObject(root, "start_time", t_task_start/1000);
     cJSON_AddNumberToObject(root, "end_time", t_task_end/1000);
-    cJSON_AddNumberToObject(root, "time", esp_timer_get_time()/1000);
-	if ( strlen(ota_response)) {
-		cJSON_AddStringToObject(root, "status", ota_response);
+
+    char txt[64];
+    get_current_timestamp(txt, sizeof(txt));
+ 	cJSON_AddStringToObject(root, "current_time_stamp", txt);
+
+ 	if ( strlen(ota_response)) {
+		cJSON_AddStringToObject(root, "ota", ota_response);
 	}
 
     char *resp = cJSON_PrintUnformatted(root);

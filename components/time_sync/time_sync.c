@@ -110,12 +110,12 @@ void get_current_timestamp(char *tbuf, size_t sz_tbuf) {
 	ESP_LOGI(__func__, "The current date/time is: %s", tbuf);
 }
 
-void get_time4(time_t now, char *tbuf, size_t sz_tbuf) {
+void get_time4(time_t seconds, char *tbuf, size_t sz_tbuf) {
 	struct tm timeinfo;
 	char tformat[64];
 	char *tz = getenv("TZ");
 	snprintf(tformat, sizeof(tformat),"%s/%%A, %%F %%T", tz?tz:"not set");
-	localtime_r(&now, &timeinfo);
+	localtime_r(&seconds, &timeinfo);
 	strftime(tbuf, sz_tbuf, tformat, &timeinfo);
 }
 

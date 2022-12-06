@@ -19,13 +19,15 @@
 
 
 		<h3>updates</h3>
+		<table id="ota_status"></table>
 		<button type="button" onclick="check_for_update()">check update site</button>
 		<button type="button" onclick="run_update()">update</button>
+		<!--  
 		<pre id="updatemessages">
 		<code>
 		</code>
 		</pre>
-
+		-->
 
 		<h3>last messages</h3>
 		<button type="button" onclick="load_messages()">load messages</button>
@@ -295,6 +297,9 @@ function get_update_status() {
 	xhttp.onreadystatechange = function() {
 	    if (this.readyState == 4 ){
 	    	if (this.status == 200) {
+	    		getOtaStatusFunction(this.responseText);
+	    		
+	    		// TODO!!!
 	    		document.getElementById("updatemessages").innerHTML = this.responseText;
 	    		if ( this.reponseText.indexOf("SUCCESS",0) >= 0 || this.reponseText.indexOf("FAILED",0) >=0) {
 	    			  if ( timerIsRunning) {
@@ -309,6 +314,26 @@ function get_update_status() {
   	};
   	xhttp.open("GET", "cfg/ota/status", true);
   	xhttp.send();
+}
+
+function getOtaStatusFunction(json) {
+    var j = JSON.parse(json.responseText);
+    var table="<caption>Settings</caption>";
+    table+="<tr><th>Attribute</th><th>Value</th></tr>\n";
+    table +="<tr><td>status</td><td>" + j.status +"</td></tr>\n";
+    
+    var dt="";
+    if (j.start_time > 0 && j.end_time > 0 ) {
+    	dt = ((j.end_time - j.start_time)/1000).toFixed(3) + "sec ";
+    }
+    table +="<tr><td>time difference</td><td>" + dt +"</td></tr>\n";
+
+    table +="<tr><td>current time stamp</td><td>" + j.current_time_stamp +"</td></tr>\n";
+    table +="<tr><td>ota response</td><td>" +
+		"<pre><code>" + j.ota + "</code></pre>" +
+    	"</td></tr>\n";
+
+    document.getElementById("ota_status").innerHTML = table;
 }
 
 </script>

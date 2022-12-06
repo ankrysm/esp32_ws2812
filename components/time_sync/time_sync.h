@@ -35,7 +35,7 @@ void get_current_timestamp(char *tbuf, size_t sz_tbuf);
 /**
  * convert time_t to a verbose date string
  */
-void get_time4(time_t now, char *tbuf, size_t sz_tbuf);
+void get_time4(time_t seconds, char *tbuf, size_t sz_tbuf);
 
 /**
  * convert time_t to a short date string
