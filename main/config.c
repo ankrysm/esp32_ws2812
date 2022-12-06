@@ -65,6 +65,7 @@ esp_err_t store_config() {
 	nvs_set_str(my_handle, CFG_KEY_AUTOPLAY_FILE, cfg_autoplayfile ? cfg_autoplayfile : "");
 	nvs_set_str(my_handle, CFG_KEY_TIMEZONE, cfg_timezone ? cfg_timezone : "");
 	nvs_set_str(my_handle, CFG_KEY_OTA_URL, cfg_ota_url ? cfg_ota_url : "");
+	nvs_set_str(my_handle, CFG_KEY_NAME, cfg_name ? cfg_name : "");
 
 	nvs_set_u32(my_handle, CFG_KEY_EXTENDED_LOG, extended_log);
 
