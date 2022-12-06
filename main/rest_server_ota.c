@@ -47,16 +47,28 @@ char *ota_status2text(t_ota_status status) {
 	case OST_IDLE:                           return "CHECK_NEEDED";
 	case OST_CHECK:                          return "CHECK_IS_RUNNING";
 	case OST_CHECK_FINISHED:                 return "CHECK_FINISHED";
-	case OST_CHECK_FINISHED_UPTODATE:        return "UPTODATE";
-	case OST_CHECK_FINISHED_UPDATE_NEEDED:   return "CHKRES_UPD_NEEDED";
-	case OST_CHECK_FINISHED_UPDATE_OPTIONAL: return "CHKRES_UPD_OPTIONAL";
-	case OST_CHECK_FINISHED_ERROR:           return "CHKRES_UPD_CHECK_FAILED";
+	case OST_CHECK_FINISHED_UPTODATE:        return "UP_TO_DATE";
+	case OST_CHECK_FINISHED_UPDATE_NEEDED:   return "UPDATE_NEEDED";
+	case OST_CHECK_FINISHED_UPDATE_OPTIONAL: return "UPDATE_OPTIONAL";
+	case OST_CHECK_FINISHED_ERROR:           return "UPDATE_CHECK_FAILED";
 	case OST_UPDATE:                         return "UPDATE_IS_RUNNING";
 	case OST_UPDATE_FAILED:                  return "UPDATE_FAILED";
 	case OST_UPDATE_FINISHED:                return "UPDATE_FINISHED";
 	default:
 		return "?????";
 	}
+}
+
+bool ota_is_running(t_ota_status status) {
+	switch(status) {
+	case OST_IDLE:
+	case OST_CHECK:
+	case OST_UPDATE:
+		return true;
+	default:
+		return false;
+	}
+
 }
 
 static void do_ota_check_https_get(char *url) {
@@ -144,9 +156,6 @@ static void ota_check_main_task(void *pvParameters)
 
     log_info(__func__, "*** start ***");
 
-    t_task_start = esp_timer_get_time();
-    t_task_end = 0;
-
     do_ota_check_https_get(url);
 
     t_task_end = esp_timer_get_time();
@@ -167,6 +176,8 @@ esp_err_t get_handler_ota_check(httpd_req_t *req) {
 
 	esp_err_t rc = ESP_FAIL;
 	char *url = NULL;
+	char msg[128];
+	memset(msg,0, sizeof(msg));
 
 	do {
 		if ( !cfg_ota_url || !strlen(cfg_ota_url)) {
@@ -195,6 +206,8 @@ esp_err_t get_handler_ota_check(httpd_req_t *req) {
 
 		ota_task_status = OST_CHECK;
 		memset(ota_response, 0, sizeof(ota_response));
+	    t_task_start = esp_timer_get_time();
+	    t_task_end = 0;
 		log_info(__func__, "start check %s", url);
 
 		const uint32_t sz_stack = 8192;
@@ -230,9 +243,6 @@ esp_err_t get_handler_ota_check(httpd_req_t *req) {
 		// check for update OK
 		ota_task_status = OST_CHECK_FINISHED_ERROR;
 
-		httpd_resp_sendstr_chunk(req, ota_response);
-		httpd_resp_sendstr_chunk(req, "\n");
-
 		ESP_LOGI(__func__, "response is '%s'", ota_response);
 
 		char *s, *p, *t, *l, *h , *v;
@@ -259,9 +269,8 @@ esp_err_t get_handler_ota_check(httpd_req_t *req) {
 			}
 		}
 		if ( h && v ) {
-//			update_status = 0;
 			if ( ! strcasecmp(h, sha256_hash_run_partition)) {
-				httpd_resp_sendstr_chunk(req, "no update available\n");
+				snprintf(msg, sizeof(msg), "no update available");
 				ota_task_status = OST_CHECK_FINISHED_UPTODATE;
 
 			} else {
@@ -270,28 +279,24 @@ esp_err_t get_handler_ota_check(httpd_req_t *req) {
 				int actual_version = extract_number(app_desc->version);
 				int new_version = extract_number(v);
 				ESP_LOGI(__func__, "version: act (%s)%d, new (%s)%d", app_desc->version, actual_version, v, new_version);
-				char msg[128];
 				if ( new_version > actual_version) {
 					snprintf(msg, sizeof(msg),"new version %s available, actual version %s",
 							v, app_desc->version);
-					//update_status = 1;
 					ota_task_status = OST_CHECK_FINISHED_UPDATE_NEEDED;
 
 				} else if (new_version == actual_version){
 					snprintf(msg, sizeof(msg),"there's no new version, but binary differs, actual version %s",
 							v, app_desc->version);
-					//update_status = 2;
 					ota_task_status = OST_CHECK_FINISHED_UPDATE_OPTIONAL;
 				} else {
 					snprintf(msg, sizeof(msg),"strange, new version %s is lower than actual version %s",
 							v, app_desc->version);
-					//update_status = 3;
 					ota_task_status = OST_CHECK_FINISHED_UPDATE_OPTIONAL;
 				}
-				httpd_resp_sendstr_chunk(req, msg);
+				//httpd_resp_sendstr_chunk(req, msg);
 			}
 		} else {
-			httpd_resp_sendstr_chunk(req, "missing version data\n");
+			snprintf(msg, sizeof(msg), "missing version data");
 		}
 		if(h)
 			free(h);
@@ -307,6 +312,8 @@ esp_err_t get_handler_ota_check(httpd_req_t *req) {
 		log_err(__func__, "%s", ota_response);
 		snprintfapp(ota_response, sizeof(ota_response),"\n");
 		httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, ota_response);
+	} else {
+		get_handler_ota_status(req, msg);
 	}
 
 	if (url)
@@ -326,8 +333,6 @@ void ota_update_main_task(void *pvParameters)
 
 	ESP_LOGI(__func__, "Attempting to download update from %s", url);
 
-    t_task_start = esp_timer_get_time();
-    t_task_end = 0;
 
     memset(ota_response, 0, sizeof(ota_response));
 
@@ -405,36 +410,36 @@ esp_err_t get_handler_ota_update(httpd_req_t *req) {
 	if ( doit ) {
 		// doesn't run, start it
 		ota_task_status = OST_UPDATE;
+	    t_task_start = esp_timer_get_time();
+	    t_task_end = 0;
 		log_info(__func__, "start update");
 
 		const uint32_t sz_stack = 8192;
 		xTaskCreate(&ota_update_main_task, "ota_update", sz_stack, NULL, 0, &xOtaHandle);
 
-		snprintf(msg, sizeof(msg), "SUCCESS, firmware update started");
+		snprintf(msg, sizeof(msg), "firmware update started");
 	}
 
-	httpd_resp_sendstr_chunk(req, msg);
-	log_info(__func__, "%s", msg);
-	httpd_resp_sendstr_chunk(req, "\n");
-
-	return ESP_OK;
+	return get_handler_ota_status(req, msg);
 }
 
-esp_err_t get_handler_ota_status(httpd_req_t *req) {
+esp_err_t get_handler_ota_status(httpd_req_t *req, char *msg) {
 
     httpd_resp_set_type(req, "application/json");
     cJSON *root = cJSON_CreateObject();
 
     cJSON_AddStringToObject(root, "status", ota_status2text(ota_task_status));
     cJSON_AddNumberToObject(root, "start_time", t_task_start/1000);
-    cJSON_AddNumberToObject(root, "end_time", t_task_end/1000);
+    if (ota_is_running(ota_task_status)) {
+    	cJSON_AddNumberToObject(root, "end_time", esp_timer_get_time()/1000);
+    } else {
+    	cJSON_AddNumberToObject(root, "end_time", t_task_end/1000);
+    }
 
-    char txt[64];
-    get_current_timestamp(txt, sizeof(txt));
- 	cJSON_AddStringToObject(root, "current_time_stamp", txt);
+	cJSON_AddStringToObject(root, "ota",  strlen(ota_response) ? ota_response : " ");
 
- 	if ( strlen(ota_response)) {
-		cJSON_AddStringToObject(root, "ota", ota_response);
+	if ( msg && strlen(msg)) {
+		cJSON_AddStringToObject(root, "msg", msg && strlen(msg) ? msg : " ");
 	}
 
     char *resp = cJSON_PrintUnformatted(root);

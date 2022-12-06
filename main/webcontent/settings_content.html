@@ -22,7 +22,7 @@
 		<table id="ota_status"></table>
 		<button type="button" onclick="check_for_update()">check update site</button>
 		<button type="button" onclick="run_update()">update</button>
-		<!--  
+		<!--
 		<pre id="updatemessages">
 		<code>
 		</code>
@@ -261,7 +261,8 @@ function check_for_update() {
 	xhttp.onreadystatechange = function() {
 	    if (this.readyState == 4 ){
 	    	if (this.status == 200) {
-	    		document.getElementById("updatemessages").innerHTML = this.responseText;
+	    	    var j = JSON.parse(this.responseText);
+	    		getOtaStatusFunction(j);
 	    	} else {
 	    		alert(this.statusText);
 	    	}
@@ -277,11 +278,12 @@ function run_update() {
 		xhttp.onreadystatechange = function() {
 		    if (this.readyState == 4 ){
 		    	if (this.status == 200) {
-		    		document.getElementById("updatemessages").innerHTML = this.responseText;
-		    		  if ( !timerIsRunning) {
-		    			  timerVar = setInterval(get_update_status, timer_interval);
-		    			  timerIsRunning=true;
-		    		  }
+		    	    var j = JSON.parse(this.responseText);
+		    		getOtaStatusFunction(j);
+	    		    if ( !timerIsRunning) {
+	    			  timerVar = setInterval(get_update_status, timer_interval);
+	    			  timerIsRunning=true;
+	    		    }
 		    	} else {
 		    		alert(this.statusText);
 		    	}
@@ -289,7 +291,7 @@ function run_update() {
 	  	};
 	  	xhttp.open("GET", "cfg/ota/update", true);
 	  	xhttp.send();
-	} 
+	}
 }
 
 function get_update_status() {
@@ -297,9 +299,9 @@ function get_update_status() {
 	xhttp.onreadystatechange = function() {
 	    if (this.readyState == 4 ){
 	    	if (this.status == 200) {
-	    	    var j = JSON.parse(json.responseText);
+	    	    var j = JSON.parse(this.responseText);
 	    		getOtaStatusFunction(j);
-	    		
+
 	    		if ( j.status == "UPDATE_FAILED" || j.status == "UPDATE_FINISHED") {
 	    			  if ( timerIsRunning) {
 	    				  clearInterval(timerVar);
@@ -316,17 +318,17 @@ function get_update_status() {
 }
 
 function getOtaStatusFunction(j) {
-    var table="<caption>Settings</caption>";
+    var table="<caption>OTA Status</caption>";
     table+="<tr><th>Attribute</th><th>Value</th></tr>\n";
     table +="<tr><td>status</td><td>" + j.status +"</td></tr>\n";
-    
+    table +="<tr><td>message</td><td>" + j.msg +"</td></tr>\n";
+
     var dt="";
     if (j.start_time > 0 && j.end_time > 0 ) {
-    	dt = ((j.end_time - j.start_time)/1000).toFixed(3) + "sec ";
+    	dt = ((j.end_time - j.start_time)/1000).toFixed(1) + " sec ";
     }
-    table +="<tr><td>time difference</td><td>" + dt +"</td></tr>\n";
+    table +="<tr><td>duration</td><td>" + dt +"</td></tr>\n";
 
-    table +="<tr><td>current time stamp</td><td>" + j.current_time_stamp +"</td></tr>\n";
     table +="<tr><td>ota response</td><td>" +
 		"<pre><code>" + j.ota + "</code></pre>" +
     	"</td></tr>\n";

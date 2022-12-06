@@ -304,7 +304,7 @@ static esp_err_t get_handler_main(httpd_req_t *req)
 		break;
 
 	case HP_CFG_OTA_STATUS:
-		get_handler_ota_status(req);
+		get_handler_ota_status(req, "");
 		break;
 
 	case HP_CLEAR_ERR:
