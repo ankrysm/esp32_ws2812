@@ -46,7 +46,6 @@ void app_main() {
 	ESP_ERROR_CHECK(nvs_flash_init());
 	ESP_ERROR_CHECK(init_storage());
 	ESP_ERROR_CHECK(load_config());
-	get_sha256_partition_hashes();
 
 	// init led-strip
 	led_strip_init(cfg_numleds);
@@ -123,6 +122,8 @@ void app_main() {
 		firstled(32,0,0);
 		ESP_LOGI(__func__, "without WIFI");
 	}
+
+	get_sha256_partition_hashes();
 
 	// load autostart file if specified
 	load_autostart_file();
