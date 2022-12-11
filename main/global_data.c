@@ -13,6 +13,7 @@ int log_write_idx=0;
 
 T_TRACK tracks[N_TRACKS];
 size_t sz_tracks = sizeof(tracks);
+bool track_process_paused = false;
 
 T_DISPLAY_OBJECT *s_object_list = NULL;
 T_EVENT_GROUP *s_event_group_list = NULL;
@@ -48,6 +49,7 @@ T_HTTP_PROCCESSING_TYPE http_processing[] = {
 		{"/r",         0,                          HP_RUN,         "run"},
 		{"/s",         0,                          HP_STOP,        "stop"},
 		{"/p",         0,                          HP_PAUSE,       "pause"},
+	    {"/cont",      0,                          HP_CONTINUE,    "continue"},
 		{"/b",         0,                          HP_BLANK,       "stop and blank strip"},
 		{"/i",         0,                          HP_ASK,         "run status"},
 		{"/sts",       0,                          HP_STATUS,      "status info"},
@@ -91,6 +93,7 @@ T_EVENT_CONFIG event_config_tab[] = {
 		{ET_BMP_READ, EVT_PARA_NUMERIC | EVT_PARA_OPTIONAL, "bmp_read","read BMP data line by line and display it", "execution time in ms, -1 all lines until end (default)"},
 		{ET_BMP_CLOSE, EVT_PARA_NONE, "bmp_close", "close BMP stream",""},
 		{ET_TRESHOLD, EVT_PARA_NUMERIC, "treshold", "ignore pixel when r,g,b is lower than treshold","treshold 0 .. 255"},
+		{ET_PAUSE, EVT_PARA_NONE, "pause", "pause display, wait for continue request",""},
 		{ET_NONE, EVT_PARA_NONE, "", "",""} // end of table
 };
 

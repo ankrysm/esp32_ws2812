@@ -126,6 +126,7 @@ void scenes_autostart();
 void scenes_stop(bool flag_blank);
 void scenes_pause();
 void scenes_restart();
+void scenes_continue();
 run_status_type get_scene_status();
 run_status_type set_scene_status(run_status_type new_status);
 uint64_t get_event_timer_period();
@@ -166,6 +167,7 @@ esp_err_t get_handler_file_load(httpd_req_t *req, char *fname, size_t sz_fname);
 esp_err_t get_handler_file_delete(httpd_req_t *req, char *fname, size_t sz_fname);
 esp_err_t get_handler_file_get(httpd_req_t *req, char *fname, size_t sz_fname);
 esp_err_t get_handler_test(httpd_req_t *req, char *fname, size_t sz_fname);
+esp_err_t get_handler_continue(httpd_req_t *req);
 
 // from rest_server_ota.c
 esp_err_t get_handler_ota_check(httpd_req_t *req);

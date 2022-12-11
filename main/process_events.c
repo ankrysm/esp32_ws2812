@@ -8,6 +8,7 @@
 #include "esp32_ws2812.h"
 
 extern T_TRACK tracks[];
+extern bool track_process_paused;
 
 static int extended_logging = true;
 
@@ -129,6 +130,10 @@ static void process_track_element_init(T_TRACK_ELEMENT *ele) {
 
 		case ET_TRESHOLD:
 			ele->w_treshold = evt->para.value;
+			break;
+
+		case ET_PAUSE:
+			track_process_paused= true;
 			break;
 
 		default:
@@ -281,6 +286,10 @@ static void  process_track_element_work(T_TRACK_ELEMENT *ele, uint64_t scene_tim
 				break;
 			case ET_TRESHOLD:
 				ele->w_treshold = ele->evt_work_current->para.value;
+				break;
+
+			case ET_PAUSE:
+				track_process_paused= true;
 				break;
 
 			default:

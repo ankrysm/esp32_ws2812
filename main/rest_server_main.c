@@ -315,6 +315,10 @@ static esp_err_t get_handler_main(httpd_req_t *req)
 		get_handler_test(req, fname, sizeof(fname));
 		break;
 
+	case HP_CONTINUE:
+		get_handler_continue(req);
+		break;
+
 	default:
 		snprintf(resp_str, sizeof(resp_str),"path='%s' todo %d NYI", path, pt->todo);
 		ESP_LOGE(__func__, "%s", resp_str);

@@ -24,7 +24,7 @@
 		 "work": [{"type":"paint", "value":500}, {"type":"brightness", "value":0},{"type":"paint", "value":500}],
 		 "final":[{"type":"clear"}]
 	 	},
-	 	{"id":"WAIT","work":[{"type":"wait", "value":3000}]},
+	 	{"id":"WAIT","work":[{"type":"wait", "value":3000, "remark":"count in 5 sec, wait 3 sec + 2 sec bmpopen"}]},
 	 	{"id":"STOP","work":[{"type":"clear"}]}
 	 ],
 	 "tracks" : [

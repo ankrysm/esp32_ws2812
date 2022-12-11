@@ -97,6 +97,7 @@ void event2text(T_EVENT *evt, char *buf, size_t sz_buf) {
 	case ET_CLEAR:
 	case ET_BMP_OPEN:
 	case ET_BMP_CLOSE:
+	case ET_PAUSE:
 		snprintf(buf, sz_buf,"id=%d, type=%d/%s",
 			evt->id, evt->type, eventype2text(evt->type));
 		break;

@@ -21,6 +21,8 @@ extern T_DISPLAY_OBJECT *s_object_list;
 extern T_EVENT_GROUP *s_event_group_list;
 extern char last_loaded_file[];
 extern size_t sz_last_loaded_file;
+extern bool track_process_paused;
+
 
 
 static void add_system_informations(cJSON *root) {
@@ -355,8 +357,6 @@ void get_handler_scene_new_status(httpd_req_t *req, run_status_type new_status) 
 	}
 	httpd_resp_set_type(req, "application/json");
 
-	cJSON *root = cJSON_CreateObject();
-
 	char txt[32];
 
 	switch (new_status) {
@@ -372,7 +372,11 @@ void get_handler_scene_new_status(httpd_req_t *req, run_status_type new_status) 
 				strlcpy(txt, "STARTING", sizeof(txt));
 			}
 		} else {
-			strlcpy(txt, "RUNNING", sizeof(txt));
+			if (track_process_paused) {
+				strlcpy(txt, "WAITFORCONTINUE", sizeof(txt));
+			} else {
+				strlcpy(txt, "RUNNING", sizeof(txt));
+			}
 		}
 		break;
 	case RUN_STATUS_PAUSED:
@@ -381,6 +385,8 @@ void get_handler_scene_new_status(httpd_req_t *req, run_status_type new_status) 
 	default:
 		strlcpy(txt,"UNKNOWN", sizeof(txt));
 	}
+
+	cJSON *root = cJSON_CreateObject();
 	cJSON_AddStringToObject(root, "text", txt);
 	cJSON_AddNumberToObject(root, "scene_time", get_scene_time());
 	cJSON_AddStringToObject(root, "last_loaded_file", strlen(last_loaded_file) ? last_loaded_file :"");
@@ -396,7 +402,14 @@ void get_handler_scene_new_status(httpd_req_t *req, run_status_type new_status) 
 
 }
 
+esp_err_t get_handler_continue(httpd_req_t *req) {
 
+	scenes_continue();
+
+	get_handler_scene_new_status(req, RUN_STATUS_ASK);
+
+	return ESP_OK;
+}
 
 esp_err_t get_handler_clear(httpd_req_t *req) {
 	char msg[255];
