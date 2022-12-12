@@ -60,7 +60,7 @@ path - description
 ## JSON attributes for config
 
 | attribute | type | description |
-| ---- | ----|
+| ---- | ----| ---- |
 | "name" | string | name of the controller |
 | "numleds" | numeric | number of leds of the strip, default 60 |
 | "cycle" | numeric | cycle time in ms, default 50 |
