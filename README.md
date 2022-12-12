@@ -64,8 +64,6 @@ path - description
 | "name" | string | name of the controller |
 | "numleds" | numeric | number of leds of the strip, default 60 |
 | "cycle" | numeric | cycle time in ms, default 50 |
-
-
 | "show_status" | boolean | if true, shows the status of the system with the first led:<br>white: init,<br> yellow: try to connect<br>, green: connected<br>blue: easy connect in progress,<br>red: no WIFI connection |
 | "autoplay" | boolean |if true, play scenes automatically after boot up |
 | "autoplay_file" | string |file name to load or play after boot up |
