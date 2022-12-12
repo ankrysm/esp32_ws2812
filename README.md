@@ -28,7 +28,7 @@ the first led in the strip is used for status display
 
 ### objects
 
-this is what to display, may be a solid color, color transition or somethng else. 
+this is what to display, may be a solid color, color transition or somethng else.
 
 ### events
 
@@ -59,14 +59,16 @@ path - description
 
 ## JSON attributes for config
 
-    +- "numleds", type: numeric, number of leds of the strip
-    +- "cycle", type: numeric, cycle time in ms
-    +- "show_status", type: boolean, if true, shows the status of the system:
-    |                 white: init, yellow: try to connect, green: connected
-    |                 blue: easy connect in progress, red: no WIFI connection
-    +- "autoplay", type: boolean, if true, play scenes automatically after boot up
-    +- "autoplay_file", type: string, file name for autoplay
-    +- "strip_demo", type: boolean, if true, shows led in serial log
+| attribute | type | description |
+| --- | -----|
+| "name" | string | name of the controller |
+| "numleds" | numeric | number of leds of the strip, default 60 |
+| "cycle" | numeric | cycle time in ms, default 50 |
+| "show_status" | boolean | if true, shows the status of the system with the first led:<br>white: init,<br> yellow: try to connect<br>, green: connected<br>blue: easy connect in progress,<br>red: no WIFI connection |
+| "autoplay" | boolean |if true, play scenes automatically after boot up |
+| "autoplay_file" | string |file name to load or play after boot up |
+| "timezone" | string | for localtime |
+| "extended_log" | numeric | for serial console : 0 - normal logs, 1: more loges, 2: extended logs |
 
 ## JSON attributes for display
 

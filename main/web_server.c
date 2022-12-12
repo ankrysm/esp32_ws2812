@@ -197,21 +197,21 @@ static void get_handler_help_html_event_syntax(httpd_req_t *req) {
 			snprintf(txt, sizeof(txt), "<tr><td>{\"type\":\"%s\"}</td><td>%s%s</td></tr>\n",
 					event_config_tab[i].name,
 					event_config_tab[i].help,
-					(optional_para ? "(optional)":""));
+					(optional_para ? " (optional)":""));
 			break;
 		case EVT_PARA_NUMERIC:
 			snprintf(txt, sizeof(txt), "<tr><td>{\"type\":\"%s\", \"value\":&lt;%s&gt;}</td><td>%s%s</td></tr>\n",
 					event_config_tab[i].name,
 					event_config_tab[i].parahelp,
 					event_config_tab[i].help,
-					(optional_para ? "(optional)":""));
+					(optional_para ? " (optional)":""));
 			break;
 		case EVT_PARA_STRING:
 			snprintf(txt, sizeof(txt), "<tr><td>{\"type\":\"%s\", \"value\":\"&lt;%s&gt;\" }</td><td>%s%s</td></tr>\n",
 					event_config_tab[i].name,
 					event_config_tab[i].parahelp,
 					event_config_tab[i].help,
-					(optional_para ? "(optional)":""));
+					(optional_para ? " (optional)":""));
 			break;
 		}
 		httpd_resp_sendstr_chunk(req, txt);
