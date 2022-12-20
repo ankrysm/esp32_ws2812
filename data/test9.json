@@ -13,7 +13,6 @@
 	 	{
 	 	"remarks":"this is an event group",
 	 	 "id":"A",
- 		"repeats":5,
 	 	 "init": [
 	 	 	{"type":"brightness", "value":0.1},
      	 	{"type":"goto", "value":10},
