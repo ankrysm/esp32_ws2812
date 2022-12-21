@@ -200,6 +200,14 @@ Each list of steps can containe these attributes:
 | "treshold" | treshold 0 .. 255 | ignore pixel when r- ,g- and b-value is lower than treshold| &#9745; | &#9745; | &#9744;|
 | "pause" || "pause display, wait for continue request| &#9745; | &#9745; | &#9744;|
 
+### Attribute "tracks" 
+
+You can define up 16 tracks as a list of evnets to display. The single track has the following attributes:
+
+* "id" - a numeric track number 
+* "elements" - a list of events, each element has the attributes
+  * "event" - the id of the event that should be processed
+  * "repeat" - how many times the event should be executed, optional, default is 1
 
 ## Display bitmap files
 
