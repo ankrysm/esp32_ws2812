@@ -74,42 +74,8 @@ esp_err_t fetch_and_store_time_in_nvs(void *args)
     if (obtain_time() != ESP_OK) {
         return ESP_FAIL;
     }
-
-    nvs_handle_t my_handle;
-    esp_err_t err;
-
-    time_t now;
-    time(&now);
-
-    //Open
-    err = nvs_open(s_storage_namespace, NVS_READWRITE, &my_handle);
-    if (err != ESP_OK) {
-        goto exit;
-    }
-
-    //Write
-    err = nvs_set_i64(my_handle, "timestamp", now);
-    if (err != ESP_OK) {
-        goto exit;
-    }
-
-    err = nvs_commit(my_handle);
-    if (err != ESP_OK) {
-        goto exit;
-    }
-
-    nvs_close(my_handle);
-    sntp_stop();
-
-exit:
-    if (err != ESP_OK) {
-        ESP_LOGE(__func__, "Error updating time in nvs");
-    } else {
-        ESP_LOGI(__func__, "Updated time in NVS");
-    }
-    return err;
+    return ESP_OK;
 }
-*/
 
 
 esp_err_t init_time_service() {

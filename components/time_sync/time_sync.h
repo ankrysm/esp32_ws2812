@@ -47,16 +47,6 @@ void get_shorttime4(time_t now, char *tbuf, size_t sz_tbuf);
  */
 void set_timezone(char *tz);
 
-/**
- * @brief get current date string
- */
-void get_current_timestamp(char *tbuf, size_t sz_tbuf);
-
-/**
- * @brief set the timezone
- */
-void set_timezone(char *tz);
-
 #ifdef __cplusplus
 }
 #endif
