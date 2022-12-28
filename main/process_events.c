@@ -8,6 +8,7 @@
 #include "esp32_ws2812.h"
 
 extern T_TRACK tracks[];
+extern bool track_process_paused;
 
 static int extended_logging = true;
 
@@ -30,11 +31,15 @@ static void reset_track_element(T_TRACK_ELEMENT *ele) {
 	ele->w_brightness_delta = 0.0;
 	ele->w_distance = 0.0;
 	ele->w_wait_time = 0;
-	ele->w_bmp_remaining_lines = 0;
+	if ( ele->w_bmp ) {
+		bmp_free_buffers(&(ele->w_bmp->w_data));
+		free(ele->w_bmp);
+		ele->w_bmp = NULL;
+	}
 	ele->time = 0;
 	ele->delta_pos = 1;
 	ele->evt_work_current = ele->evtgrp ? ele->evtgrp->evt_work_list : NULL;
-	memset(ele->w_object_oid,0, LEN_EVT_OID);
+	ele->w_object = NULL;
 }
 
 void reset_tracks() {
@@ -54,6 +59,7 @@ void reset_tracks() {
 	}
 }
 
+// ****** INIT-functions ****************************************
 
 static void process_track_element_init(T_TRACK_ELEMENT *ele) {
 	ESP_LOGI(__func__, "started");
@@ -111,14 +117,23 @@ static void process_track_element_init(T_TRACK_ELEMENT *ele) {
 
 		case ET_SET_OBJECT:
 			if (strlen(evt->para.svalue)) {
-				strlcpy(ele->w_object_oid, evt->para.svalue, sizeof(ele->w_object_oid));
+				ele->w_object = find_object4oid(evt->para.svalue);
+				//strlcpy(ele->w_object_oid, evt->para.svalue, sizeof(ele->w_object_oid));
 				if ( extended_logging)
-					ESP_LOGI(__func__,"ele.id=%d, tevt.id=%d: new object_oid='%s'", ele->id, evt->id, ele->w_object_oid);
+					ESP_LOGI(__func__,"ele.id=%d, tevt.id=%d: new object_oid='%s'", ele->id, evt->id, ele->w_object->oid);
 			}
 			break;
 
 		case ET_BMP_OPEN:
-			bmp_open_url(ele->w_object_oid);
+			bmp_open_url(ele);
+			break;
+
+		case ET_TRESHOLD:
+			ele->w_treshold = evt->para.value;
+			break;
+
+		case ET_PAUSE:
+			track_process_paused= true;
 			break;
 
 		default:
@@ -179,8 +194,8 @@ static void process_track_element_final(T_TRACK_ELEMENT *ele) {
 			break;
 
 		case ET_BMP_CLOSE:
-			bmp_stop_processing();
-			ele->w_bmp_remaining_lines = 0;
+			bmp_stop_processing(ele);
+			//ele->w_bmp_remaining_lines = 0;
 			break;
 
 		default:
@@ -195,6 +210,8 @@ static void process_track_element_final(T_TRACK_ELEMENT *ele) {
 // time values in ms
 // sets several parameters
 static void  process_track_element_work(T_TRACK_ELEMENT *ele, uint64_t scene_time, uint64_t timer_period) {
+	t_result res;
+
 	if (!ele->evt_work_current) {
 		ESP_LOGW(__func__, "ele.id=%d: no evt_work_current", ele->id );
 		return; // no events
@@ -248,21 +265,31 @@ static void  process_track_element_work(T_TRACK_ELEMENT *ele, uint64_t scene_tim
 				break;
 			case ET_SET_OBJECT:
 				if (strlen(ele->evt_work_current->para.svalue)) {
-					strlcpy(ele->w_object_oid, ele->evt_work_current->para.svalue, sizeof(ele->w_object_oid));
+					ele->w_object = find_object4oid(ele->evt_work_current->para.svalue);
+					//strlcpy(ele->w_object_oid, ele->evt_work_current->para.svalue, sizeof(ele->w_object_oid));
 					if ( extended_logging)
-						ESP_LOGI(__func__,"ele.id=%d, evt.id=%d: new object_oid='%s'", ele->id, ele->evt_work_current->id, ele->w_object_oid);
+						ESP_LOGI(__func__,"ele.id=%d, evt.id=%d: new object_oid='%s'", ele->id, ele->evt_work_current->id, ele->w_object->oid);
 				}
 				break;
 			case ET_BMP_OPEN:
-				bmp_open_url(ele->w_object_oid);
+				bmp_open_url(ele);
 				break;
 			case ET_BMP_READ:
-				ele->w_bmp_remaining_lines = ele->evt_work_current->para.value;
+				ele->w_wait_time = ele->evt_work_current->para.value;
+				//ele->w_bmp_remaining_lines = ele->evt_work_current->para.value;
 				ele->evt_grp_current_status = EVT_STS_RUNNING;
 				break;
 			case ET_BMP_CLOSE:
-				bmp_stop_processing();
-				ele->w_bmp_remaining_lines = 0;
+				bmp_stop_processing(ele);
+				//ele->w_bmp_remaining_lines = 0;
+				ele->w_wait_time = 0;
+				break;
+			case ET_TRESHOLD:
+				ele->w_treshold = ele->evt_work_current->para.value;
+				break;
+
+			case ET_PAUSE:
+				track_process_paused= true;
 				break;
 
 			default:
@@ -310,22 +337,29 @@ static void  process_track_element_work(T_TRACK_ELEMENT *ele, uint64_t scene_tim
 			}
 			break;
 		case ET_BMP_READ:
-			if ( !get_is_bmp_reading()) {
-				ESP_LOGI(__func__,"bmp_read_data: all data read");
+			res = get_is_bmp_reading(ele);
+			if (res == RES_OK) {
+				if ( ele->w_wait_time <= 0) {
+					// until end of bitmap
+					break;
+				}
+
+				ele->w_wait_time -= timer_period;
+				if (ele->w_wait_time <=0) {
+					// timer ends
+					bmp_stop_processing(ele);
+					ele->evt_grp_current_status = EVT_STS_FINISHED;
+				}
+				break;
+			}
+			if ( res == RES_FINISHED) {
+				// already done
+				ESP_LOGI(__func__,"bmp_read_data(%d): all data read", ele->id);
 				ele->evt_grp_current_status = EVT_STS_FINISHED;
 				break;
 			}
-
-			// if remaining lines < 0 wait for EOF
-			if (ele->w_bmp_remaining_lines > 0) {
-				ESP_LOGI(__func__,"remaining lines %lld",ele->w_bmp_remaining_lines);
-				(ele->w_bmp_remaining_lines)--;
-				if ( ele->w_bmp_remaining_lines == 0) {
-					ESP_LOGI(__func__,"bmp_read_data: all lines read");
-					bmp_stop_processing();
-					ele->evt_grp_current_status = EVT_STS_FINISHED;
-				}
-			}
+			ESP_LOGI(__func__,"bmp_read_data(%d): failed", ele->id);
+			ele->evt_grp_current_status = EVT_STS_FINISHED;
 			break;
 		default:
 			// should not happen here
@@ -386,8 +420,8 @@ static void process_track(T_TRACK *track, uint64_t scene_time, uint64_t timer_pe
 			process_track_element_final(track->current_element);
 			process_object(track->current_element);
 
-			// check for repeat TODO
-			ESP_LOGI(__func__, "track %d, ele.id=%d, repeate %d/%d",
+			// check for repeat
+			ESP_LOGI(__func__, "track %d, ele.id=%d, repeats %d/%d",
 					track->id, track->current_element->id,
 					track->current_element->w_repeats, track->current_element->repeats);
 			bool doit_again = false;
@@ -466,4 +500,53 @@ int process_tracks(uint64_t scene_time, uint64_t timer_period) {
 	}
 	return active_tracks;
 }
+
+// ######################################## STOP TRACKS ####################################
+
+void process_stop_track(T_TRACK *track) {
+	t_result res;
+
+	if ( track->status ==  EVT_STS_FINISHED) {
+		return; // all elements finished, track completed, nothing to do anymore
+	}
+
+	for (T_TRACK_ELEMENT *ele= track->element_list; ele; ele=ele->nxt) {
+		if ( ele->status == EVT_STS_FINISHED) {
+			continue;
+		}
+		if ( ele->status == EVT_STS_RUNNING) {
+			if ( ele->evt_work_current) {
+				switch(ele->evt_work_current->type) {
+				case ET_BMP_READ:
+					res = get_is_bmp_reading(ele);
+					if (res == RES_OK) {
+						ESP_LOGI(__func__, "stop bmp processing id=", ele->id);
+						bmp_stop_processing(ele);
+					}
+					break;
+				default:
+					break;
+				}
+			}
+		}
+		ele->status = EVT_STS_FINISHED;
+	}
+	track->status =  EVT_STS_FINISHED;
+	ESP_LOGI(__func__, "track %d done", track->id);
+}
+
+
+
+void process_stop_all_tracks() {
+	for ( int i=0; i < N_TRACKS; i++) {
+		ESP_LOGI(__func__,"stop track %d", i);
+		T_TRACK *track = &(tracks[i]);
+		if ( ! track->element_list)
+			continue; // nothing to process
+		process_stop_track(track);
+	}
+}
+
+
+
 

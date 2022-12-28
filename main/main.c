@@ -17,13 +17,17 @@ extern uint32_t cfg_numleds;
 extern uint32_t cfg_cycle;
 extern char *cfg_timezone;
 
+// from config.c
+extern char sha256_hash_boot_partition[];
+extern char sha256_hash_run_partition[];
+
 void firstled(int red, int green, int blue) ;
+
 
 void some_useful_informations() {
 	ESP_LOGI(__func__, "LEN_PATH_MAX=%d", LEN_PATH_MAX);
 	ESP_LOGI(__func__,"sizeof int=%u, int32_t=%u, int64_t=%u, float=%u, double=%u, time_t=%u",
 			sizeof(int), sizeof(int32_t), sizeof(int64_t), sizeof(float), sizeof(double), sizeof(time_t));
-
 }
 
 void app_main() {
@@ -70,6 +74,8 @@ void app_main() {
 
 	initialise_wifi();
 
+
+
 	xDelay = 500 / portTICK_PERIOD_MS;
 
 	wifi_status_type done_with_status = 0;
@@ -102,7 +108,9 @@ void app_main() {
 
 	if ( done_with_status == WIFI_CONNECTED ) {
 		// init time service needed for https requests
-	    ESP_ERROR_CHECK(init_time_service(STORAGE_NAMESPACE));
+	    if (init_time_service() != ESP_OK) {
+	    	log_err(__func__, "could not initialise internet time service");
+	    }
 		init_restservice();
 		cfg_trans_flags |=CFG_WITH_WIFI;
 		// green
@@ -114,6 +122,8 @@ void app_main() {
 		firstled(32,0,0);
 		ESP_LOGI(__func__, "without WIFI");
 	}
+
+	get_sha256_partition_hashes();
 
 	// load autostart file if specified
 	load_autostart_file();
@@ -127,6 +137,7 @@ void app_main() {
 
 	log_info(__func__, "main started");
 	ESP_LOGI(__func__,"running on core %d",xPortGetCoreID());
+
 	xDelay = 50000 / portTICK_PERIOD_MS;
 	while(1) {
 		vTaskDelay(xDelay);

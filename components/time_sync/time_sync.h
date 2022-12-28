@@ -25,7 +25,27 @@ esp_err_t fetch_and_store_time_in_nvs(void*);
 /**
  * @brief init time service
  */
-esp_err_t init_time_service(char *storage_namespace);
+esp_err_t init_time_service();
+
+/**
+ * @brief get current date string
+ */
+void get_current_timestamp(char *tbuf, size_t sz_tbuf);
+
+/**
+ * convert time_t to a verbose date string
+ */
+void get_time4(time_t seconds, char *tbuf, size_t sz_tbuf);
+
+/**
+ * convert time_t to a short date string
+ */
+void get_shorttime4(time_t now, char *tbuf, size_t sz_tbuf);
+
+/**
+ * @brief set the timezone
+ */
+void set_timezone(char *tz);
 
 /**
  * @brief get current date string

@@ -4,9 +4,10 @@
 		<div id="runstatus" class="status-field"><p>......</p></div>
 		<br>
 		<div class="btn-group">
-		  	<button type="button" onclick="getRunStatus('r')">PLAY...</button>
-  			<button type="button" onclick="getRunStatus('p')">PAUSE...</button>
-  			<button type="button" onclick="getRunStatus('s')">STOP...</button>
+		  	<button type="button" onclick="getRunStatus('r')">PLAY</button>
+  			<button type="button" onclick="getRunStatus('p')">PAUSE</button>
+  			<button type="button" onclick="getRunStatus('cont')">CONTINUE ...</button>
+  			<button type="button" onclick="getRunStatus('s')">STOP</button>
   			<button type="button" onclick="getRunStatus('b')">STOP &amp; BLANK ...</button>
 			<button type="button" onclick="getRunStatus('i')">refresh status</button>
 		</div>
@@ -45,6 +46,7 @@ function getRunStatus(url) {
   	xhttp.open("GET", url, true);
   	xhttp.send();
 }
+
 
 function setRunStatusInfo() {
   var runstatusDiv = document.getElementById("runstatus");
@@ -96,6 +98,10 @@ function getRunStatusFunction(json) {
 		  clearInterval(timerVar);
 		  timerIsRunning=false;
 	  }
+  } else if (text == "WAITFORCONTINUE") {
+	  status_text = "Wait for continue";
+	  status_bg_color = "yellow";
+
   } else {
 	  status_text = "unexpected '" + text + "'";
 	  status_bg_color = "white";

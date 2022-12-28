@@ -367,3 +367,57 @@ button {
 .tab-btn-group button:hover {
   background-color: #3e8e41;
 }
+
+/* Code By Webdevtrick ( https://webdevtrick.com ) */
+/*@import url(https://fonts.googleapis.com/css?family=Roboto:700);*/
+/*body{
+  background-color: rgb(0,0,0);
+  text-align: center;
+  padding: 40px 0 0 0;
+  margin-top: 15%;
+}
+*/
+input[type=number] {
+  background-color: #04AA6D;
+  font-size: 1em;
+}
+
+fieldset{
+  border: none;
+}
+output{
+  display: inline-block;
+  min-width: 2.5em;
+}
+label, output{
+  padding: 2px 9px;
+  border-radius: 3px;
+  color: #000;
+  font-size: 1.1em;
+}
+input[type=range] {
+  width: 200px;
+}
+label[for=r], output[for=r]{
+  background-color: red;
+}
+label[for=g], output[for=g]{
+  background-color: lightgreen;
+}
+label[for=b], output[for=b]{
+  background-color: lightblue;
+}
+label[for=pos], output[for=pos]{
+  background-color: #04AA6D;
+}
+label[for=len], output[for=len]{
+  background-color: #04AA6D;
+}
+#hexVal{
+  margin-top: 25px;
+  min-width: 4.5em;
+  font-size: 3em;
+  background: rgba(255,255,255,.3);
+}
+
+

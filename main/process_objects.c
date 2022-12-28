@@ -19,14 +19,14 @@ void process_object(T_TRACK_ELEMENT *ele) {
 		return; // do nothing, wait
 	}
 
-	T_DISPLAY_OBJECT *obj = NULL;
+	T_DISPLAY_OBJECT *obj = ele->w_object; //NULL;
 
-	if ( strlen(ele->w_object_oid)) {
-		obj = find_object4oid(ele->w_object_oid);
-		if ( !obj) {
-			ESP_LOGW(__func__, "ele.id='%s', no object found for oid='%s'", ele->id, ele->w_object_oid);
-		}
-	}
+//	if ( strlen(ele->w_object_oid)) {
+//		obj = find_object4oid(ele->w_object_oid);
+//		if ( !obj) {
+//			ESP_LOGW(__func__, "ele.id='%s', no object found for oid='%s'", ele->id, ele->w_object_oid);
+//		}
+//	}
 	if (! obj) {
 		if ( ele->w_flags & EVFL_CLEARPIXEL) {
 			ele->w_flags &= ~EVFL_CLEARPIXEL; // reset the flag
@@ -103,7 +103,7 @@ void process_object(T_TRACK_ELEMENT *ele) {
 	for (T_DISPLAY_OBJECT_DATA *data = obj->data; data; data=data->nxt) {
 		if ( data->type == OBJT_BMP ) {
 			// special handling for bmp processing
-			process_object_bmp(pos, data->len, f);
+			process_object_bmp(pos, ele, f);
 			pos += ele->delta_pos * data->len;
 			if ( pos < startpos || pos > endpos) {
 				ende = true;

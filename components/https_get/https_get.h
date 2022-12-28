@@ -9,6 +9,20 @@
 #define COMPONENTS_HTTPS_GET_HTTPS_GET_H_
 
 
+#include <stdio.h>
+#include <math.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stdarg.h>
+#include "sdkconfig.h"
+
+#include "esp_http_client.h"
+#include "common_util.h"
+
+#define N_HTTPS_CLIENTS 5
+#define LEN_HTTPS_CLIENT_SLOT_NAME 16
+#define LEN_HTTPS_CLIENT_ERRMSG 64
+
 typedef enum {
 	HCT_INIT,
 	HCT_READING,
@@ -16,9 +30,36 @@ typedef enum {
 	HCT_FAILED
 } t_https_callback_todo;
 
-typedef int (*https_get_callback)(t_https_callback_todo todo, uint8_t **buf, uint32_t *buf_len);
+typedef enum {
+	HSS_EMPTY,
+	HSS_ACTIVE
+} t_https_slot_status;
 
-esp_err_t https_get(char *url, https_get_callback callback);
-bool is_http_client_task_active();
+// forward
+struct HTTPS_CLIENT_SLOT;
+typedef struct HTTPS_CLIENT_SLOT  T_HTTPS_CLIENT_SLOT;
+
+typedef int (*https_get_callback)(T_HTTPS_CLIENT_SLOT *slot, uint8_t **buf, uint32_t *buf_len);
+
+struct HTTPS_CLIENT_SLOT {
+	char name[LEN_HTTPS_CLIENT_SLOT_NAME];
+	t_https_slot_status status;
+	t_https_callback_todo todo;
+	TaskHandle_t xHandle;
+	esp_http_client_handle_t client;
+	esp_http_client_config_t request_config;
+	https_get_callback callback;
+	char errmsg[LEN_HTTPS_CLIENT_ERRMSG];
+
+	void *user_args;
+
+	bool logflag;
+	int64_t t_task_start;
+	int64_t t_task_end;
+};
+
+esp_err_t common_http_event_handler(esp_http_client_event_t *evt);
+
+T_HTTPS_CLIENT_SLOT *https_get(char *url, https_get_callback callback, void *user_args);
 
 #endif /* COMPONENTS_HTTPS_GET_HTTPS_GET_H_ */

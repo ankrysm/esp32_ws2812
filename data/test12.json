@@ -1,8 +1,9 @@
 {
 	 "objects" : [
-		 {  "id":"bmp1", "list" :[{"type":"bmp", "len":300, "url":"https://kobe-files.de/testbild_300_300.bmp"}]},
-		 {  "id":"bmp2", "list" :[{"type":"bmp", "len":300, "url":"https://kobe-files.de/testbild.bmp"}]},
-		 {  "id":"bmp3", "list" :[{"type":"bmp", "len":300, "url":"https://kobe-files.de/cross.bmp"}]}
+		 {  "id":"bmp1", "list" :[{"type":"bmp", "len":50,
+		 	"url":"https://kobe-files.de/test3aa.bmp"}]},
+		 {  "id":"bmp2", "list" :[{"type":"bmp", "len":50,
+		 	"url":"https://kobe-files.de/test58_208.bmp"}]}
 	  ],
 	"events": [
 	 	{
@@ -12,7 +13,8 @@
 	 	 	{"type":"bmp_open"},
 	 	 	{"type":"brightness", "value":0.1},
      	 	{"type":"goto", "value":0},
-     	 	{"type":"wait_first", "value":2000}
+     	 	{"type":"treshold", "value":5},
+     	 	{"type":"wait_first", "value":100}
 	 	 ],
      	 "work": [
 	 	 	{"type":"bmp_read"}
@@ -24,21 +26,23 @@
      	 	{"type":"object","value":"bmp2"},
 	 	 	{"type":"bmp_open"},
 	 	 	{"type":"brightness", "value":0.1},
-     	 	{"type":"goto", "value":0},
-     	 	{"type":"wait_first", "value":2000}
+     	 	{"type":"treshold", "value":5},
+     	 	{"type":"goto", "value":51},
+     	 	{"type":"wait_first", "value":100}
 	 	 ],
      	 "work": [
 	 	 	{"type":"bmp_read"}
 		 ]
 	 	},
+	 	{"id":"WAIT","work":[{"type":"wait", "value":3000}]},
 	 	{"id":"STOP","work":[{"type":"clear"}]}
 	 ],
 	 "tracks" : [
 		{"id":1, "elements":[
-			{"event":"A", "repeat":1},
-			{"event":"B", "repeat":1},
-			{"event":"A", "repeat":1},
-			{"event":"STOP"}
+			{"event":"A","repeat":5}
+		] },
+		{"id":2, "elements":[
+			{"event":"WAIT"},{"event":"B","repeat":2}
 		] }
 	]
 

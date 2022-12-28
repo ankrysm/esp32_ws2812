@@ -1,0 +1,29 @@
+{
+	 "objects" : [
+		 {  "id":"bmp", "list" :[{"type":"bmp", "len":300,
+		 	"url":"https://kobe-files.de/moc.bmp"}]},
+ 		 {  "id":"cntin", "list":[{"type":"color", "color":"green","len":2}]}
+	  ],
+	"events": [
+	 	{
+	 	 "id":"A",
+	 	 "init": [
+     	 	{"type":"object","value":"bmp"},
+	 	 	{"type":"bmp_open"},
+	 	 	{"type":"brightness", "value":0.1},
+     	 	{"type":"goto", "value":0},
+     	 	{"type":"treshold", "value":5}
+	 	 ],
+     	 "work": [
+     	 	{"type":"pause"},
+	 	 	{"type":"bmp_read"}
+		 ]
+	 	}
+	 ],
+	 "tracks" : [
+		{"id":1, "elements":[
+			{"event":"A","repeat":1}
+		] }
+	]
+
+}

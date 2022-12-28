@@ -1,0 +1,177 @@
+<article>
+	<h2>Demo</h2>
+
+<div>
+
+	<fieldset>
+	  <label for="r">R</label>
+	  <input type="range" min="0" max="255" id="r" step="1" value="0">
+	  <output for="r" id="outputR">0</output>
+	</fieldset>  
+	 
+	<fieldset>
+	  <label for="g">G</label>
+	  <input type="range" min="0" max="255" id="g" step="1" value="0">
+	  <output for="g" id="outputG">0</output>
+	</fieldset>
+	 
+	<fieldset>
+	  <label for="b">B</label>
+	  <input type="range" min="0" max="255" id="b" step="1" value="0">
+	  <output for="b" id="outputB">0</output>
+	</fieldset> 
+
+	<fieldset>
+	  <label for="len" id="labelLen">len</label>
+	  <input type="number" min="1" max="1000" id="len" step="1" value="1">
+	</fieldset>  
+
+	<fieldset>
+	  <label for="pos" id="labelPos">pos</label>
+	  <input type="range" min="0" max="1000" id="pos" step="1" value="0">
+	  <output for="pos" id="outputPos">0</output>
+	</fieldset>  
+ 
+</div>
+
+<p>
+<output id="hexVal">...........</output>
+</p>
+
+
+</article>
+
+<script>
+var j;
+
+
+/////////////////////////////////////////////////////////////////////
+//RGB-slider
+//Code By Webdevtrick ( https://webdevtrick.com )
+var body = document.body,
+ r = document.querySelector('#r'),
+ g = document.querySelector('#g'),
+ b = document.querySelector('#b'),
+ outputR = document.querySelector('#outputR'),
+ outputG = document.querySelector('#outputG'),
+ outputB = document.querySelector('#outputB'),
+ outputLen = document.querySelector('#outputLen'),
+ outputPos = document.querySelector('#outputPos'),
+ hexVal_out = document.querySelector('#hexVal');
+
+function setColor(){
+	var r_val = parseInt(r.value, 10),
+  	    g_val = parseInt(g.value, 10),
+  	    b_val = parseInt(b.value, 10),
+  	    len_val = parseInt(len.value, 10),
+  	    pos_val = parseInt(pos.value, 10);
+	var r_hexVal = r_val.toString(16),
+	    g_hexVal = g_val.toString(16),
+	    b_hexVal = b_val.toString(16),
+	    hexVal = "#" + pad(r_hexVal) + pad(g_hexVal) + pad(b_hexVal);
+
+	hexVal_out.style.color = r_val <128 && g_val < 128 && b_val<128 ? "white" : "black";
+	hexVal_out.value = hexVal +", RGB="+r_val + "," + g_val + "," + b_val + " len="+len_val+" pos=" +pos_val;;
+	hexVal_out.style.backgroundColor = hexVal;
+
+	var url = "test/" +r_val + "/" + g_val + "/" + b_val + "/"+len_val+"/" +pos_val;
+	var xhttp = new XMLHttpRequest();
+	xhttp.onreadystatechange = function() {
+		if (this.readyState == 4) {
+			if (this.status != 200) {
+				alert(this.statustext);
+			}
+		}
+	};
+	xhttp.open("GET", url, true);
+	xhttp.send();
+
+}
+
+function pad(n){
+	return (n.length<2) ? "0"+n : n;
+}
+
+r.addEventListener('change', function() {
+	setColor();
+	outputR.value = r.value;
+}, false);
+
+r.addEventListener('input', function() {
+	setColor();
+	outputR.value = r.value;
+}, false);
+
+g.addEventListener('change', function() {
+	setColor();
+	outputG.value = g.value;
+}, false);
+
+g.addEventListener('input', function() {
+	setColor();
+	outputG.value = g.value;
+}, false);
+
+b.addEventListener('change', function() {
+	setColor();
+	outputB.value = b.value;
+}, false);
+
+b.addEventListener('input', function() {
+	setColor();
+	outputB.value = b.value;
+}, false);
+
+len.addEventListener('change', function() {
+  setColor();
+  outputLen.value = len.value;
+}, false);
+
+len.addEventListener('input', function() {
+  setColor();
+  outputLen.value = len.value;
+}, false);
+
+pos.addEventListener('change', function() {
+  setColor();
+  outputPos.value = pos.value;
+}, false);
+
+pos.addEventListener('input', function() {
+  setColor();
+  outputPos.value = pos.value;
+}, false);
+
+function onBodyLoad() {
+	getConfig();
+}
+
+function getConfig() {
+	var xhttp = new XMLHttpRequest();
+	xhttp.onreadystatechange = function() {
+	 	if (this.readyState == 4 ){
+	 		if (this.status == 200) {
+	 	    	j = JSON.parse(this.responseText);
+	 	    	setfields(j.numleds);
+	 		} else {
+	 			alert("getConfig failed: " + this.statustext);
+	 		}
+	 	}
+	};
+	xhttp.open("GET", "cfg/get", true);
+	xhttp.send();
+}
+
+function setfields(max_val) {
+    document.querySelector('#pos').max=max_val-1;
+    document.querySelector('#len').max=max_val;
+    document.getElementById('labelPos').innerHTML="position (0.."+ (max_val-1)+")";
+	document.getElementById('labelLen').innerHTML="length (1.."+ max_val+")";
+
+}
+
+
+</script>
+<noscript>
+	<p>no script</p>
+</noscript>

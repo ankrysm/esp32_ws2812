@@ -38,9 +38,11 @@ function get_autoplay_file() {
 	  	} else {
 	  		alert("get_autoplay_file" + this.statusText);
 	  	}
+	  } else {
+		  showMsg("retrieving file configuration ..."); // it took a while
 	  }
 	};
-	xhttp.open("GET", "cfg/get", true);
+	xhttp.open("GET", "cfg/get", false); // synchronous request, data neede for getfiles
 	xhttp.send();
 }
 
@@ -100,7 +102,8 @@ function clearMsg() {
 function getFilesFunction(json) {
 	var j = JSON.parse(json.responseText);
 	var files = j.files;
-    var table="<caption>list of files<br>(A) - autoplay file, (L) - loaded</caption><tr><th>Name</th><th>Size (bytes)</th><th>Actions</th></tr>\n";
+    var table="<caption>list of files<br>(A) - autoplay file, (L) - loaded</caption>"
+    	+ "<tr><th>Name</th><th>Size (bytes)</th><th>modified at</th><th>Actions</th></tr>\n";
     files.forEach((item) => {
     	var addtxt = "";
     	if ( item.name == autoplay_file) {
@@ -109,10 +112,10 @@ function getFilesFunction(json) {
     	if (item.name == last_loaded_file) {
     		addtxt += "(L)";
     	}
-		table +='<tr><td>'
-		+'<a href="/f/get/'+item.name+'">'+item.name+'</a>' + addtxt
-		+'</td><td>' + item.sz +'</td><td>'
-		+'<div class="tab-btn-group">'
+		table +='<tr><td><a href="/f/get/'+item.name+'">'+item.name+'</a>' + addtxt+'</td>'
+		+'<td>' + item.sz + '</td>'
+		+'<td>' + item.mtime + '</td>'
+		+'<td><div class="tab-btn-group">'
 		+'<button type="button" onclick="loadfile('+"'"+item.name+"'"+')">LOAD</button>'
 		+'<button type="button" onclick="set_autoplay_file('+"'"+item.name+"'"+')">AUTO</button>'
 		+'<button type="button" onclick="deletefile('+"'"+item.name+"'"+')">DELETE</button></div>'

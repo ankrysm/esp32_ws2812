@@ -19,6 +19,7 @@ static const int EVENT_BIT_START = BIT0;
 static const int EVENT_BIT_STOP = BIT1;
 static const int EVENT_BIT_PAUSE = BIT2;
 static const int EVENT_BIT_BLANK = BIT3;
+static const int EVENT_BIT_CONTINUE = BIT4;
 
 static const int EVENT_BITS_ALL = 0xFF;
 
@@ -27,6 +28,8 @@ static volatile uint64_t s_scene_time = 0;
 
 extern uint32_t cfg_flags;
 extern uint32_t cfg_trans_flags;
+extern bool track_process_paused;
+
 
 static void show_status() {
 	if ( cfg_flags & CFG_SHOW_STATUS) {
@@ -104,6 +107,7 @@ static void periodic_timer_callback(void* arg) {
 			s_scene_time = 0; // stop resets the time
 			// stop this timer
 			esp_timer_stop(s_handle_periodic_timer);
+			process_stop_all_tracks();
 			if ( uxBits & EVENT_BIT_BLANK) {
 				make_it_blank();
 			}
@@ -119,6 +123,11 @@ static void periodic_timer_callback(void* arg) {
 		}
 	}
 
+	if ( uxBits & EVENT_BIT_CONTINUE ) {
+		ESP_LOGI(__func__, "continue scenes");
+		track_process_paused = false;
+	}
+
 	xEventGroupClearBits(s_timer_event_group, EVENT_BITS_ALL);
 
 	if ( s_run_status != RUN_STATUS_RUNNING ) {
@@ -131,11 +140,11 @@ static void periodic_timer_callback(void* arg) {
 		ESP_LOGE(__func__, "couldn't get lock on eventlist");
 		return;
 	}
-
-	s_scene_time += s_timer_period;
+	bool finished = false;
 
 	if ( do_reset) {
 		s_scene_time = 0;
+		track_process_paused = false;
 
 		// clear the strip
 		uint32_t n = get_numleds();
@@ -146,13 +155,20 @@ static void periodic_timer_callback(void* arg) {
 		reset_tracks();
 	}
 
-	// paint scenes
-	int active_tracks=process_tracks(s_scene_time, s_timer_period);
-	bool finished = active_tracks == 0;
+	if ( track_process_paused) {
+		// do nothing
+		ESP_LOGI(__func__,"paused...");
+	} else {
+		if ( !do_reset) {
+			s_scene_time += s_timer_period;
+		}
+		// paint scenes
+		int active_tracks=process_tracks(s_scene_time, s_timer_period);
+		finished = active_tracks == 0;
 
-	strip_show(false);
-	show_status();
-
+		strip_show(false);
+		show_status();
+	}
 	release_eventlist_lock();
 
 	if ( finished) {
@@ -161,7 +177,7 @@ static void periodic_timer_callback(void* arg) {
 		s_scene_time = 0; // stop resets the time
 		// stop this timer
 		esp_timer_stop(s_handle_periodic_timer);
-		ESP_LOGI(__func__, "finished -> STOP");
+		log_info(__func__, "execution finished -> STOP");
 	}
     //int64_t time_since_boot = esp_timer_get_time();
     //ESP_LOGI(__func__, "Periodic timer called, time since boot: %lld us", time_since_boot);
@@ -213,7 +229,7 @@ void scenes_stop(bool flag_blank) {
 	} else {
 		xEventGroupSetBits(s_timer_event_group, EVENT_BIT_STOP);
 	}
-	bmp_stop_processing();
+	//bmp_stop_processing();
 }
 
 void scenes_pause() {
@@ -222,11 +238,16 @@ void scenes_pause() {
     xEventGroupSetBits(s_timer_event_group, EVENT_BIT_PAUSE);
 }
 
+void scenes_continue() {
+	log_info(__func__, "execution CONTINUE");
+	xEventGroupClearBits(s_timer_event_group, EVENT_BITS_ALL);
+    xEventGroupSetBits(s_timer_event_group, EVENT_BIT_CONTINUE);
+}
+
 void scenes_autostart() {
-	log_info(__func__, "execution AUTOSTART");
 	if ( (cfg_trans_flags & CFG_AUTOPLAY_LOADED) && (cfg_flags & CFG_AUTOPLAY)) {
 		cfg_trans_flags |= CFG_AUTOPLAY_STARTED;
-		ESP_LOGI(__func__, "autostart processed");
+		log_info(__func__, "execution AUTOSTART");
 		scenes_start();
 	}
 }

@@ -40,6 +40,8 @@ extern const unsigned char files_content_html_start[] asm("_binary_files_content
 extern const unsigned char files_content_html_end[]   asm("_binary_files_content_html_end");
 extern const unsigned char help_content_html_start[] asm("_binary_help_content_html_start");
 extern const unsigned char help_content_html_end[]   asm("_binary_help_content_html_end");
+extern const unsigned char demo_content_html_start[] asm("_binary_demo_content_html_start");
+extern const unsigned char demo_content_html_end[]   asm("_binary_demo_content_html_end");
 
 extern const unsigned char example_json_start[] asm("_binary_example_json_start");
 extern const unsigned char example_json_end[]   asm("_binary_example_json_end");
@@ -195,21 +197,21 @@ static void get_handler_help_html_event_syntax(httpd_req_t *req) {
 			snprintf(txt, sizeof(txt), "<tr><td>{\"type\":\"%s\"}</td><td>%s%s</td></tr>\n",
 					event_config_tab[i].name,
 					event_config_tab[i].help,
-					(optional_para ? "(optional)":""));
+					(optional_para ? " (optional)":""));
 			break;
 		case EVT_PARA_NUMERIC:
 			snprintf(txt, sizeof(txt), "<tr><td>{\"type\":\"%s\", \"value\":&lt;%s&gt;}</td><td>%s%s</td></tr>\n",
 					event_config_tab[i].name,
 					event_config_tab[i].parahelp,
 					event_config_tab[i].help,
-					(optional_para ? "(optional)":""));
+					(optional_para ? " (optional)":""));
 			break;
 		case EVT_PARA_STRING:
 			snprintf(txt, sizeof(txt), "<tr><td>{\"type\":\"%s\", \"value\":\"&lt;%s&gt;\" }</td><td>%s%s</td></tr>\n",
 					event_config_tab[i].name,
 					event_config_tab[i].parahelp,
 					event_config_tab[i].help,
-					(optional_para ? "(optional)":""));
+					(optional_para ? " (optional)":""));
 			break;
 		}
 		httpd_resp_sendstr_chunk(req, txt);
@@ -324,6 +326,24 @@ static esp_err_t get_handler_help_html(httpd_req_t *req, char *errmsg, size_t sz
 	return get_handler_main_footer(req, errmsg, sz_errmsg);
 }
 
+
+
+static esp_err_t get_handler_demo_html(httpd_req_t *req, char *errmsg, size_t sz_errmsg) {
+	esp_err_t res = ESP_OK;
+
+
+	// Send HTML file header
+	if ( (res = get_handler_main_header(req, errmsg, sz_errmsg)) != ESP_OK)
+		return res;
+
+	// HTML content
+	const size_t sz = (demo_content_html_end - demo_content_html_start);
+	httpd_resp_send_chunk(req, (const char *)demo_content_html_start, sz);
+
+	return get_handler_main_footer(req, errmsg, sz_errmsg);
+}
+
+
 static void get_handler_listevents(httpd_req_t *req) {
 	httpd_resp_set_type(req, "plain/text");
 
@@ -365,6 +385,9 @@ esp_err_t get_handler_html(httpd_req_t *req)
 
 	} else if (strstr(req->uri, "/help.html") == req->uri) {
 		res = get_handler_help_html(req, errmsg, sizeof(errmsg));
+
+	} else if (strstr(req->uri, "/demo.html") == req->uri) {
+		res = get_handler_demo_html(req, errmsg, sizeof(errmsg));
 
 	} else if (strstr(req->uri, "/help/api.html") == req->uri) {
 		get_handler_help_html_api_reference(req);

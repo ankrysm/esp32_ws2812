@@ -12,6 +12,9 @@ extern uint32_t cfg_numleds;
 extern uint32_t cfg_cycle;
 extern char *cfg_autoplayfile;
 extern char *cfg_timezone;
+extern char *cfg_ota_url;
+extern char *cfg_name;
+extern int extended_log;
 
 esp_err_t decode_json4config_root(char *content, char *errmsg, size_t sz_errmsg) {
 	cJSON *tree = NULL;
@@ -128,6 +131,25 @@ esp_err_t decode_json4config_root(char *content, char *errmsg, size_t sz_errmsg)
 			break;
 		}
 
+		attr="ota_url";
+		lrc = evt_get_string(tree, attr, sval, sizeof(sval), errmsg, sz_errmsg);
+		if ( lrc == RES_OK || lrc == RES_NO_VALUE) {
+			if (!strcmp(cfg_ota_url?cfg_ota_url:"", sval)) {
+				ESP_LOGI(__func__, "%s='%s' not changed",
+						attr, cfg_ota_url?cfg_ota_url:"");
+			} else {
+				ESP_LOGI(__func__, "%s='%s' changed",
+						attr, cfg_ota_url?cfg_ota_url:"");
+				if ( cfg_ota_url)
+					free(cfg_ota_url);
+				cfg_ota_url = strlen(sval) ? strdup(sval) : NULL;
+				store_it = true;
+			}
+		} else if ( lrc != RES_NOT_FOUND) {
+			ESP_LOGE(__func__, "parse attribute '%s' failed: %s", attr, errmsg);
+			break;
+		}
+
 		attr="timezone";
 		lrc = evt_get_string(tree, attr, sval, sizeof(sval), errmsg, sz_errmsg);
 		if ( lrc == RES_OK || lrc == RES_NO_VALUE) {
@@ -149,24 +171,58 @@ esp_err_t decode_json4config_root(char *content, char *errmsg, size_t sz_errmsg)
 			break;
 		}
 
-		attr="strip_demo";
-		lrc = evt_get_bool(tree, attr, &bval, errmsg, sz_errmsg);
-		if (lrc== RES_OK) {
-			if ( bval == (cfg_flags & CFG_STRIP_DEMO)) {
-				ESP_LOGI(__func__, "%s=%s not changed",
-						attr, (cfg_flags &CFG_SHOW_STATUS)?"true":"false");
+		attr="name";
+		lrc = evt_get_string(tree, attr, sval, sizeof(sval), errmsg, sz_errmsg);
+		if ( lrc == RES_OK || lrc == RES_NO_VALUE) {
+			if (!strcmp(cfg_name ? cfg_name:"", sval)) {
+				ESP_LOGI(__func__, "%s='%s' not changed",
+						attr, cfg_timezone ? cfg_timezone : "");
 			} else {
-				cfg_flags &= ~CFG_STRIP_DEMO;
-				if ( bval)
-					cfg_flags |= CFG_STRIP_DEMO;
+				ESP_LOGI(__func__, "%s='%s' changed",
+						attr, cfg_name ? cfg_name : "");
+				if ( cfg_name)
+					free(cfg_name);
+				cfg_name = strlen(sval) ? strdup(sval) : NULL;
 				store_it = true;
-				ESP_LOGI(__func__, "%s=%s changed",
-						attr, (cfg_flags & CFG_STRIP_DEMO)?"true":"false");
 			}
 		} else if ( lrc != RES_NOT_FOUND) {
 			ESP_LOGE(__func__, "parse attribute '%s' failed: %s", attr, errmsg);
 			break;
 		}
+
+		attr="extended_log";
+		lrc = evt_get_number(tree, attr, &val, errmsg, sz_errmsg);
+		if ( lrc == RES_OK) {
+			ival = val;
+			if ( ival == extended_log) {
+				ESP_LOGI(__func__, "%s=%d not changed", attr, extended_log);
+			} else {
+        		global_set_extended_log(ival);
+				store_it = true;
+				ESP_LOGI(__func__, "%s=%d changed", attr, extended_log);
+			}
+		} else if ( lrc != RES_NOT_FOUND) {
+			ESP_LOGE(__func__, "parse attribute '%s' failed: %s", attr, errmsg);
+			break;
+		}
+
+//		lrc = evt_get_bool(tree, attr, &bval, errmsg, sz_errmsg);
+//		if (lrc== RES_OK) {
+//			if ( bval == (cfg_flags & CFG_STRIP_DEMO)) {
+//				ESP_LOGI(__func__, "%s=%s not changed",
+//						attr, (cfg_flags &CFG_SHOW_STATUS)?"true":"false");
+//			} else {
+//				cfg_flags &= ~CFG_STRIP_DEMO;
+//				if ( bval)
+//					cfg_flags |= CFG_STRIP_DEMO;
+//				store_it = true;
+//				ESP_LOGI(__func__, "%s=%s changed",
+//						attr, (cfg_flags & CFG_STRIP_DEMO)?"true":"false");
+//			}
+//		} else if ( lrc != RES_NOT_FOUND) {
+//			ESP_LOGE(__func__, "parse attribute '%s' failed: %s", attr, errmsg);
+//			break;
+//		}
 
 		snprintf(errmsg,sz_errmsg,"success.");
 

@@ -5,14 +5,30 @@
 		<table>
 			<caption>configurations </caption>
 			<tr><th>parameter</th><th>value</th><th>description</th></tr>
+			<tr><td>name</td><td><input type="text" id="name"></td><td>name of the strip</td></tr>
 			<tr><td>number of leds</td><td><input type="text" id="numleds"></td><td>1 .. 1000</td></tr>
 			<tr><td>cycle time</td><td><input type="text" id="cycle"></td><td>in ms, 20 .. 10000</td></tr>
 			<tr><td>time zone</td><td><input type="text" id="timezone"></td><td>Timezone for example 'CET-1CEST,M3.5.0,M10.5.0/3'</td></tr>
 			<tr><td>autoplay</td><td><input type="checkbox" id="autoplay"></td><td>play autoplay file after startup</td></tr>
 			<tr><td>show status</td><td><input type="checkbox" id="show_status"></td><td>first led shows status</td></tr>
+			<tr><td>extended log</td><td><input type="text" id="extended_log"></td><td>0 .. 10</td></tr>
+			<tr><td>update site</td><td><input type="text" id="ota_url"></td><td>URL to get new software versions</td></tr>
 			<tr><td><button id="restart" type="button" onclick="restart()">restart</button></td><td><button id="store_config" type="button" onclick="storeConfig()">store</button><br></td><td></td></tr>
 		</table>
-		
+
+
+
+		<h3>updates</h3>
+		<table id="ota_status"></table>
+		<button type="button" onclick="check_for_update()">check update site</button>
+		<button type="button" onclick="run_update()">update</button>
+		<!--
+		<pre id="updatemessages">
+		<code>
+		</code>
+		</pre>
+		-->
+
 		<h3>last messages</h3>
 		<button type="button" onclick="load_messages()">load messages</button>
 		<button type="button" onclick="clear_messages()">clear messages</button>
@@ -25,6 +41,9 @@
 	</article>
 
 <script>
+var timerIsRunning=false;
+var timerVar;
+const timer_interval = 1000;
 
 function onBodyLoad() {
 	getStatus();
@@ -64,6 +83,8 @@ function getStatusFunction(json) {
     table +="<tr><td>compile_time</td><td>" + j.compile_time +"</td></tr>\n";
     table +="<tr><td>app_version</td><td>" + j.app_version +"</td></tr>\n";
     table +="<tr><td>current time stamp</td><td>" + j.current_time_stamp +"</td></tr>\n";
+    table +="<tr><td>bootloader sha256 hash</td><td>" + j.sha256boot +"</td></tr>\n";
+    table +="<tr><td>firmware sha256 hash</td><td>" + j.sha256run +"</td></tr>\n";
     document.getElementById("settings").innerHTML = table;
 }
 
@@ -113,7 +134,22 @@ function storeConfig() {
 			newJ.timezone = str;
 			changed = true;
 		}
-		
+		n = checkNumber("extended_log", 0, 10);
+		if ( n != j.extended_log) {
+			newJ.extended_log = n;
+			changed = true;
+		}
+		str = document.getElementById("ota_url").value;
+		if ( str != j.ota_url) {
+			newJ.ota_url = str;
+			changed = true;
+		}
+		str = document.getElementById("name").value;
+		if ( str != j.name) {
+			newJ.name = str;
+			changed = true;
+		}
+
 		if ( !changed) {
 			alert("no changes");
 			return;
@@ -137,7 +173,10 @@ function fillConfigValues() {
 	document.getElementById("timezone").value = j.timezone;
 	document.getElementById("autoplay").checked = j.autoplay;
 	document.getElementById("show_status").checked = j.show_status;
-	
+	document.getElementById("extended_log").value = j.extended_log;
+	document.getElementById("ota_url").value = j.ota_url;
+	document.getElementById("name").value = j.name;
+
 }
 
 function getConfig() {
@@ -215,6 +254,86 @@ function clear_messages() {
   	};
   	xhttp.open("GET", "clerr", true);
   	xhttp.send();
+}
+
+function check_for_update() {
+	var xhttp = new XMLHttpRequest();
+	xhttp.onreadystatechange = function() {
+	    if (this.readyState == 4 ){
+	    	if (this.status == 200) {
+	    	    var j = JSON.parse(this.responseText);
+	    		getOtaStatusFunction(j);
+	    	} else {
+	    		alert(this.statusText);
+	    	}
+	    }
+  	};
+  	xhttp.open("GET", "cfg/ota/check", true);
+  	xhttp.send();
+}
+
+function run_update() {
+	if (confirm("start update?")) {
+		var xhttp = new XMLHttpRequest();
+		xhttp.onreadystatechange = function() {
+		    if (this.readyState == 4 ){
+		    	if (this.status == 200) {
+		    	    var j = JSON.parse(this.responseText);
+		    		getOtaStatusFunction(j);
+	    		    if ( !timerIsRunning) {
+	    			  timerVar = setInterval(get_update_status, timer_interval);
+	    			  timerIsRunning=true;
+	    		    }
+		    	} else {
+		    		alert(this.statusText);
+		    	}
+		    }
+	  	};
+	  	xhttp.open("GET", "cfg/ota/update", true);
+	  	xhttp.send();
+	}
+}
+
+function get_update_status() {
+	var xhttp = new XMLHttpRequest();
+	xhttp.onreadystatechange = function() {
+	    if (this.readyState == 4 ){
+	    	if (this.status == 200) {
+	    	    var j = JSON.parse(this.responseText);
+	    		getOtaStatusFunction(j);
+
+	    		if ( j.status == "UPDATE_FAILED" || j.status == "UPDATE_FINISHED") {
+	    			  if ( timerIsRunning) {
+	    				  clearInterval(timerVar);
+	    				  timerIsRunning=false;
+	    			  }
+	    		}
+	    	} else {
+	    		alert(this.statusText);
+	    	}
+	    }
+  	};
+  	xhttp.open("GET", "cfg/ota/status", true);
+  	xhttp.send();
+}
+
+function getOtaStatusFunction(j) {
+    var table="<caption>OTA Status</caption>";
+    table+="<tr><th>Attribute</th><th>Value</th></tr>\n";
+    table +="<tr><td>status</td><td>" + j.status +"</td></tr>\n";
+    table +="<tr><td>message</td><td>" + j.msg +"</td></tr>\n";
+
+    var dt="";
+    if (j.start_time > 0 && j.end_time > 0 ) {
+    	dt = ((j.end_time - j.start_time)/1000).toFixed(1) + " sec ";
+    }
+    table +="<tr><td>duration</td><td>" + dt +"</td></tr>\n";
+
+    table +="<tr><td>ota response</td><td>" +
+		"<pre><code>" + j.ota + "</code></pre>" +
+    	"</td></tr>\n";
+
+    document.getElementById("ota_status").innerHTML = table;
 }
 
 </script>

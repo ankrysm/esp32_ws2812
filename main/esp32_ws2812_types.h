@@ -37,15 +37,20 @@ typedef enum {
 	HP_RUN,
 	HP_STOP,
 	HP_PAUSE,
+	HP_CONTINUE,
 	HP_BLANK,
 	HP_ASK,
 	HP_CONFIG_GET,
 	HP_CONFIG_SET,
 	HP_RESET,
 	HP_CFG_RESET,
+	HP_CFG_OTA_CHECK,
+	HP_CFG_OTA_UPDATE,
+	HP_CFG_OTA_STATUS,
 	HP_HELP,
 	HP_LOAD,
 	HP_CLEAR_ERR,
+	HP_TEST,
 	// End of list
 	HP_END_OF_LIST
 } t_http_processing;
@@ -141,6 +146,8 @@ typedef enum {
 	ET_BMP_OPEN,             // I W - open internet connection for bmp file
 	ET_BMP_READ,             // - W - (numeric) read n lines from bmp data (-1 = until bmp ends)
 	ET_BMP_CLOSE,            // - W F close connection for bmp
+	ET_TRESHOLD,             // I W - ignore pixels when rgb < treshold
+	ET_PAUSE,                // I W - pause display
 	ET_UNKNOWN
 } event_type;
 

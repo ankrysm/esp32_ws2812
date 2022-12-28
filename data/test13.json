@@ -1,0 +1,39 @@
+{
+	 "objects" : [
+		 {  "id":"bmp", "list" :[{"type":"bmp", "len":300,
+		 	"url":"https://kobe-files.de/moc.bmp"}]},
+ 		 {  "id":"cntin", "list":[{"type":"color", "color":"green","len":2}]}
+	  ],
+	"events": [
+	 	{
+	 	 "id":"A",
+	 	 "init": [
+     	 	{"type":"object","value":"bmp"},
+	 	 	{"type":"bmp_open"},
+	 	 	{"type":"brightness", "value":0.1},
+     	 	{"type":"goto", "value":0},
+     	 	{"type":"treshold", "value":5},
+     	 	{"type":"wait_first", "value":2000}
+	 	 ],
+     	 "work": [
+	 	 	{"type":"bmp_read"}
+		 ]
+	 	},
+	 	{"id":"CNT",
+	 	 "init": [{"type":"brightness", "value":1}, {"type":"goto", "value":20}, {"type":"object","value":"cntin"}],
+		 "work": [{"type":"paint", "value":500}, {"type":"brightness", "value":0},{"type":"paint", "value":500}],
+		 "final":[{"type":"clear"}]
+	 	},
+	 	{"id":"WAIT","work":[{"type":"wait", "value":3000, "remark":"count in 5 sec, wait 3 sec + 2 sec bmpopen"}]},
+	 	{"id":"STOP","work":[{"type":"clear"}]}
+	 ],
+	 "tracks" : [
+		{"id":1, "elements":[
+			{"event":"CNT","repeat":5}
+		] },
+		{"id":2, "elements":[
+			{"event":"WAIT","repeat":1},{"event":"A","repeat":1}
+		] }
+	]
+
+}

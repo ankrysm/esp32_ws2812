@@ -10,6 +10,7 @@
 
 #include "color.h"
 #include "esp32_ws2812_types.h"
+#include "process_bmp.h"
 
 #define LEN_EVT_MARKER 8+1
 #define LEN_EVT_OID 16
@@ -57,6 +58,12 @@ typedef struct OBJECT_COLORTRANSITION {
 	T_COLOR_HSV hsv_to;
 } T_OBJECT_COLORTRANSITION;
 
+typedef struct OBJECT_BMP {
+	char *url;
+//	T_BMP_WORKING w_data;
+//	T_PROCESS_BMP p_data;
+} T_OBJECT_BMP;
+
 typedef struct OBJECT_DATA {
 	int32_t id;
 	object_type type;
@@ -65,7 +72,7 @@ typedef struct OBJECT_DATA {
 	union {
 		T_COLOR_HSV hsv;  // when only one color is needed
 		T_OBJECT_COLORTRANSITION tr; // color transition
-		char *url;
+		T_OBJECT_BMP bmp; // data for bmp display
 	} para;
 
 	struct OBJECT_DATA *nxt;
@@ -112,7 +119,7 @@ typedef enum {
 		EVFL_UNKNOWN)
 
 /**
- * events of a scene
+ * parts of an events of a scene
  */
 typedef struct EVENT_GROUP {
 	char id[LEN_EVT_ID];
@@ -121,9 +128,13 @@ typedef struct EVENT_GROUP {
 	T_EVENT *evt_work_list;
 	T_EVENT *evt_final_list;
 
-
 	struct EVENT_GROUP *nxt;
 } T_EVENT_GROUP;
+
+typedef struct {
+	T_BMP_WORKING w_data;
+	T_PROCESS_BMP p_data;
+} T_W_BMP;
 
 typedef struct TRACK_ELEMENT {
 	uint32_t id;
@@ -131,6 +142,8 @@ typedef struct TRACK_ELEMENT {
 	int64_t time; // event time
 	event_status_type status;
 
+	// working data
+	int32_t delta_pos; // +1 or -1
 	uint32_t w_repeats;
 	uint32_t w_flags;
 	double w_pos;
@@ -141,10 +154,14 @@ typedef struct TRACK_ELEMENT {
 	double w_acceleration;
 	double w_brightness;
 	double w_brightness_delta;
+	int32_t w_treshold;
 	int64_t w_wait_time;
-	int64_t w_bmp_remaining_lines;
-	int32_t delta_pos; // +1 or -1
-	char w_object_oid[LEN_EVT_OID];
+	T_W_BMP *w_bmp;
+
+	/// id of the object to display
+	//char w_object_oid[LEN_EVT_OID];
+	T_DISPLAY_OBJECT *w_object;
+
 	event_status_type evt_grp_current_status;
 	T_EVENT_GROUP *evtgrp;
 	T_EVENT *evt_work_current;

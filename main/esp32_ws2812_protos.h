@@ -16,6 +16,10 @@ void c_checkrgb(T_COLOR_RGB *rgb, T_COLOR_RGB *rgbmin, T_COLOR_RGB *rgbmax);
 void c_checkrgb_abs(T_COLOR_RGB *rgb);
 T_NAMED_RGB_COLOR *color4name(char *name);
 
+// from global_data.c
+void global_data_init();
+void global_set_extended_log(uint32_t p_extended_log);
+
 // from config.c
 esp_err_t store_config();
 esp_err_t load_config();
@@ -24,6 +28,7 @@ char *config2txt(char *txt, size_t sz);
 esp_err_t storage_info(size_t *total, size_t *used);
 void add_base_path(char *filename, size_t sz_filename);
 void add_config_informations(cJSON *element);
+void get_sha256_partition_hashes();
 
 // from create_config.c
 esp_err_t decode_json4config_root(char *content, char *errmsg, size_t sz_errmsg);
@@ -72,9 +77,7 @@ T_DISPLAY_OBJECT *find_object4oid(char *oid);
 T_DISPLAY_OBJECT *create_object(char *oid) ;
 T_DISPLAY_OBJECT_DATA *create_object_data(T_DISPLAY_OBJECT *obj, uint32_t id);
 esp_err_t object_list_add(T_DISPLAY_OBJECT *obj);
-
-// from global_data.c
-void global_data_init();
+esp_err_t clear_data(char *msg, size_t sz_msg, run_status_type new_status);
 
 // from json_util.c
 t_result evt_get_bool(cJSON *element, char *attr, bool *val, char *errmsg, size_t sz_errmsg);
@@ -99,15 +102,15 @@ void firstled(int red, int green, int blue);
 
 
 // from process_bmp.c
-t_result bmp_work(uint8_t *buf, size_t sz_buf, double brightness);
-bool get_is_bmp_reading();
-void bmp_stop_processing();
-t_result bmp_open_url(char *id);
-void process_object_bmp(int32_t pos, int32_t len, double brightness);
+t_result get_is_bmp_reading(T_TRACK_ELEMENT *ele);
+void bmp_stop_processing(T_TRACK_ELEMENT *ele);
+t_result bmp_open_url(T_TRACK_ELEMENT *ele);
+void process_object_bmp(int32_t pos, T_TRACK_ELEMENT *ele, double brightness);
 
 // from process_events.c
 int process_tracks(uint64_t scene_time, uint64_t timer_period);
 void reset_tracks();
+void process_stop_all_tracks();
 
 // from process_objects.c
 void process_object(T_TRACK_ELEMENT *ele);
@@ -121,9 +124,9 @@ int set_event_timer_period(int new_timer_period);
 void scenes_start();
 void scenes_autostart();
 void scenes_stop(bool flag_blank);
-//void scenes_blank();
 void scenes_pause();
 void scenes_restart();
+void scenes_continue();
 run_status_type get_scene_status();
 run_status_type set_scene_status(run_status_type new_status);
 uint64_t get_event_timer_period();
@@ -132,21 +135,44 @@ uint64_t get_scene_time();
 // from webserver.c
 esp_err_t get_handler_html(httpd_req_t *req);
 
-// from wifi_vonfig.c
+// from wifi_config.c
 void initialise_wifi();
 esp_err_t waitforConnect();
 wifi_status_type wifi_connect_status();
 char *wifi_connect_status2text(wifi_status_type status);
+
+// from rest_server_main.c
 void init_restservice();
 void server_stop();
 void initialise_mdns(void);
 void initialise_netbios();
 
+// from rest_server_post.c
+esp_err_t post_handler_load(httpd_req_t *req, char *content);
+esp_err_t post_handler_file_store(httpd_req_t *req, char *content, char *fname, size_t sz_fname);
+esp_err_t post_handler_config_set(httpd_req_t *req, char *buf);
 
+// from rest_server_get.c
+void get_handler_list_err(httpd_req_t *req);
+void get_handler_clear_err(httpd_req_t *req);
+void get_handler_list(httpd_req_t *req);
+esp_err_t get_handler_file_list(httpd_req_t *req);
+void get_handler_status_current(httpd_req_t *req);
+void get_handler_scene_new_status(httpd_req_t *req, run_status_type new_status);
+esp_err_t get_handler_clear(httpd_req_t *req);
+void get_handler_restart(httpd_req_t *req);
+void get_handler_reset(httpd_req_t *req);
+void get_handler_config(httpd_req_t *req, char *msg);
+esp_err_t get_handler_file_load(httpd_req_t *req, char *fname, size_t sz_fname);
+esp_err_t get_handler_file_delete(httpd_req_t *req, char *fname, size_t sz_fname);
+esp_err_t get_handler_file_get(httpd_req_t *req, char *fname, size_t sz_fname);
+esp_err_t get_handler_test(httpd_req_t *req, char *fname, size_t sz_fname);
+esp_err_t get_handler_continue(httpd_req_t *req);
 
-
-
-
-
+// from rest_server_ota.c
+esp_err_t get_handler_ota_check(httpd_req_t *req);
+esp_err_t get_handler_ota_update(httpd_req_t *req);
+esp_err_t get_handler_ota_status(httpd_req_t *req, char *msg);
+char *update_status_to_text();
 
 #endif /* MAIN_ESP32_WS2812_PROTOS_H_ */

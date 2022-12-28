@@ -79,6 +79,7 @@ void event2text(T_EVENT *evt, char *buf, size_t sz_buf) {
 	case ET_GOTO_POS:
 	case ET_DISTANCE:
 	case ET_BMP_READ:
+	case ET_TRESHOLD:
 		snprintf(buf, sz_buf,"id=%d, type=%d/%s, val=%.3f",
 			evt->id, evt->type, eventype2text(evt->type), evt->para.value);
 		break;
@@ -96,6 +97,7 @@ void event2text(T_EVENT *evt, char *buf, size_t sz_buf) {
 	case ET_CLEAR:
 	case ET_BMP_OPEN:
 	case ET_BMP_CLOSE:
+	case ET_PAUSE:
 		snprintf(buf, sz_buf,"id=%d, type=%d/%s",
 			evt->id, evt->type, eventype2text(evt->type));
 		break;
@@ -327,6 +329,9 @@ T_TRACK_ELEMENT *create_track_element(int tidx, int id) {
 	return ele;
 }
 
+// #################### Free data structures ########################################
+
+
 esp_err_t clear_tracks() {
 	if (obtain_eventlist_lock() != ESP_OK) {
 		ESP_LOGE(__func__, "couldn't get lock");
@@ -342,6 +347,9 @@ esp_err_t clear_tracks() {
 		T_TRACK_ELEMENT *t, *d = track->element_list;
 		while(d) {
 			t = d->nxt;
+			if ( d->w_bmp) {
+				free(d->w_bmp);
+			}
 			free(d);
 			d=t;
 		}
@@ -351,7 +359,6 @@ esp_err_t clear_tracks() {
 	return release_eventlist_lock();
 }
 
-// #################### Free data structures ########################################
 
 
 void delete_object(T_DISPLAY_OBJECT *obj) {
@@ -363,8 +370,8 @@ void delete_object(T_DISPLAY_OBJECT *obj) {
 		while(obj_data) {
 			t = obj_data->nxt;
 			if ( obj_data->type == OBJT_BMP ) {
-				if (obj_data->para.url)
-					free(obj_data->para.url);
+				if (obj_data->para.bmp.url)
+					free(obj_data->para.bmp.url);
 			}
 
 			free(obj_data);
@@ -510,5 +517,39 @@ char *object_type2text(object_type type) {
 	}
 
 	return "???";
+
+}
+
+esp_err_t clear_data(char *msg, size_t sz_msg, run_status_type new_status) {
+	memset(msg, 0, sz_msg);
+
+	// stop display program
+	run_status_type old_status = get_scene_status();
+	if ( old_status != new_status) {
+		old_status = set_scene_status(new_status);
+		snprintf(msg, sz_msg,"new status set, ");
+	}
+
+	bool hasError = false;
+	if (clear_event_group_list() == ESP_OK) {
+		snprintfapp(msg,sz_msg,"event group list cleared");
+	} else {
+		hasError=true;
+		snprintfapp(msg,sz_msg,"clear event group list failed");
+	}
+
+	if ( clear_object_list() == ESP_OK) {
+		snprintfapp(msg, sz_msg,", object list cleared");
+	} else {
+		hasError = true;
+		snprintfapp(msg,sz_msg - strlen(msg),", clear object list failed");
+	}
+	if ( clear_tracks() == ESP_OK) {
+		snprintfapp(msg, sz_msg,", track list cleared");
+	} else {
+		hasError = true;
+		snprintfapp(msg,sz_msg - strlen(msg),", clear track list failed");
+	}
+	return hasError ? ESP_FAIL : ESP_OK;
 
 }
